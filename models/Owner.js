@@ -38,6 +38,8 @@ const OwnerSchema = new mongoose.Schema({
 
   // Account State
   isActive: { type: Boolean, default: true },
+  isSetupComplete: { type: Boolean, default: false, index: true },
+  organizationId: [{ type: mongoose.Schema.Types.ObjectId, ref: "Organization", default: null }],
 
   // Relationships & Vault State (Updated for Vercel Serverless & 1-to-1 Mapping)
   employees: [{ type: mongoose.Schema.Types.ObjectId, ref: "Employee" }],

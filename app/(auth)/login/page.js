@@ -102,7 +102,7 @@ export default function ProfessionalLogin() {
                     document.cookie = `fineops_role=${data.role}; path=/; max-age=86400`;
                     
                     const roleMap = {
-                        OWNER: "/owner",
+                        OWNER: "/owner/dashboard",
                         CA: "/ca",
                         BILLING_COUNTER: "/billing",
                         GODOWN_STOCKS: "/godown",
@@ -110,7 +110,7 @@ export default function ProfessionalLogin() {
                         ACCOUNTS: "/accounts"
                     };
                     const targetRole = (result.user?.role || data.role || "").toUpperCase();
-                    const redirectPath = roleMap[targetRole] || (data.role === "Owner" ? "/owner" : data.role === "CA" ? "/ca" : "/billing");
+                    const redirectPath = result.redirectUrl || roleMap[targetRole] || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/billing");
                     
                     window.location.href = redirectPath;
                 } else {
@@ -138,6 +138,9 @@ export default function ProfessionalLogin() {
             try { result = await res.json(); } catch(e) { result = { error: "Invalid server response." }; }
 
             if (res.ok) {
+                document.cookie = `fineops_role=${data.role}; path=/; max-age=86400`;
+                document.cookie = `fineops_user_id=${result.user?.id || result.userId}; path=/; max-age=86400`;
+
                 if (result.redirectUrl) {
                     window.location.href = result.redirectUrl;
                     return;
@@ -151,7 +154,7 @@ export default function ProfessionalLogin() {
                 document.cookie = `fineops_user_id=${result.user?.id || result.userId}; path=/; max-age=86400`;
                 
                 const roleMap = {
-                    OWNER: "/owner",
+                    OWNER: "/owner/dashboard",
                     CA: "/ca",
                     BILLING_COUNTER: "/billing",
                     GODOWN_STOCKS: "/godown",
