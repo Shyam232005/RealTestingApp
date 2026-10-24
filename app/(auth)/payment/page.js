@@ -32,9 +32,9 @@ function PaymentCheckoutContent() {
   const router = useRouter();
   
   // URL parameters se details fetch kar rahe hain
-  const selectedPlan = searchParams.get("plan") || "Professional";
-  const selectedCycle = searchParams.get("cycle") || "Yearly";
-  const selectedPrice = searchParams.get("price") || "4999";
+  const selectedPlan = searchParams.get("plan") || "MSME Starter";
+  const selectedCycle = searchParams.get("cycle") || "Annual";
+  const selectedPrice = searchParams.get("price") || "17988";
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [activeTab, setActiveTab] = useState("UPI");
@@ -46,8 +46,9 @@ function PaymentCheckoutContent() {
     // Mock Payment Gateway processing time
     setTimeout(() => {
       setIsProcessing(false);
-      // Payment successful hote hi Signup page par bhej do
-      router.push(`/signup?status=paid&plan=${encodeURIComponent(selectedPlan)}`); 
+      const normalizedCycle = selectedCycle.toLowerCase().includes("month") ? "monthly" : "annual";
+      // Payment successful hote hi Signup page par bhej do with plan and cycle
+      router.push(`/signup?status=paid&plan=${encodeURIComponent(selectedPlan)}&cycle=${encodeURIComponent(normalizedCycle)}`); 
     }, 2000);
   };
 
