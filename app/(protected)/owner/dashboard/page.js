@@ -14,6 +14,7 @@ import BranchDashboardView from "../components/BranchDashboardView";
 import {
   OverviewTab,
   ApprovalTab,
+  TeamTab,
   BankingTab,
   CaHubTab,
   FinancialTab,
@@ -175,6 +176,7 @@ export default function OwnerDashboard() {
   const TABS = [
     { id: "dashboard", label: "Overview" },
     { id: "approval", label: "Approvals" },
+    { id: "team", label: "Staff & Team" },
     { id: "banking", label: "Bank & Cash" },
     { id: "ca-hub", label: "CA-Hub" },
     { id: "financial", label: "Books & Balances" },
@@ -258,6 +260,14 @@ export default function OwnerDashboard() {
                 organization={organization}
                 selectedBranch={selectedBranch}
                 setSelectedBranch={setSelectedBranch}
+              />
+            )}
+
+            {activeTab === "team" && (
+              <TeamTab
+                organization={organization}
+                selectedBranch={selectedBranch}
+                setActiveTab={setActiveTab}
               />
             )}
 

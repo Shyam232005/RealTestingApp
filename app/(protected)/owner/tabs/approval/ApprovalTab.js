@@ -8,12 +8,14 @@ import {
   Briefcase,
   FileCheck2,
   User,
+  UserPlus,
   Building2,
   Filter,
   RotateCcw,
   Check,
   X,
   AlertCircle,
+  Loader2,
 } from "lucide-react";
 
 export default function ApprovalTab({
@@ -24,6 +26,7 @@ export default function ApprovalTab({
   const [loading, setLoading] = useState(true);
   const [allRequests, setAllRequests] = useState([]);
   const [pendingList, setPendingList] = useState([]);
+  const [pendingStaff, setPendingStaff] = useState([]);
   const [historyList, setHistoryList] = useState([]);
   const [stats, setStats] = useState({
     pendingCount: 0,
@@ -32,7 +35,7 @@ export default function ApprovalTab({
     reportsCount: 0,
   });
 
-  const [activeView, setActiveView] = useState("PENDING"); // "PENDING", "HISTORY", "EMPLOYEE", "CA"
+  const [activeView, setActiveView] = useState("PENDING"); // "PENDING", "STAFF", "HISTORY", "EMPLOYEE", "CA"
   const [actionLoadingId, setActionLoadingId] = useState(null);
   const [toastMessage, setToastMessage] = useState("");
 
@@ -45,6 +48,7 @@ export default function ApprovalTab({
         const data = await res.json();
         setAllRequests(data.all || []);
         setPendingList(data.pending || []);
+        setPendingStaff(data.pendingStaff || []);
         setHistoryList(data.history || []);
         if (data.stats) setStats(data.stats);
       }
@@ -64,6 +68,7 @@ export default function ApprovalTab({
           const data = await res.json();
           setAllRequests(data.all || []);
           setPendingList(data.pending || []);
+          setPendingStaff(data.pendingStaff || []);
           setHistoryList(data.history || []);
           if (data.stats) setStats(data.stats);
         }
@@ -79,13 +84,13 @@ export default function ApprovalTab({
     };
   }, []);
 
-  const handleDecision = async (requestId, action, notes = "") => {
+  const handleDecision = async (requestId, action, notes = "", type = "") => {
     try {
       setActionLoadingId(requestId);
       const res = await fetch("/api/owner/approvals", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ requestId, action, decisionNotes: notes }),
+        body: JSON.stringify({ requestId, action, decisionNotes: notes, type }),
       });
 
       const data = await res.json();
@@ -94,9 +99,8 @@ export default function ApprovalTab({
       }
 
       setToastMessage(
-        action === "APPROVE"
-          ? "Request Approved successfully!"
-          : "Request Declined."
+        data.message ||
+          (action === "APPROVE" ? "Request Approved successfully!" : "Request Declined.")
       );
       setTimeout(() => setToastMessage(""), 3500);
 
@@ -110,12 +114,10 @@ export default function ApprovalTab({
     }
   };
 
-  const isAll = selectedBranch === "all";
-  const branchTitle = isAll
-    ? "All Branches (Consolidated)"
-    : selectedBranch === "branch-1"
-    ? "Branch 1 - Main (HQ)"
-    : selectedBranch.replace("branch-", "Branch ");
+  const branchTitle =
+    selectedBranch === "all"
+      ? "All Business Branches"
+      : `Branch ${selectedBranch.replace("branch-", "#")}`;
 
   // Filter history based on active view tab
   const displayedHistory = historyList.filter((item) => {
@@ -123,6 +125,8 @@ export default function ApprovalTab({
     if (activeView === "CA") return item.type === "CA_DATA_ACCESS";
     return true; // "HISTORY" or "PENDING"
   });
+
+  const totalPending = pendingList.length + pendingStaff.length;
 
   return (
     <div className="space-y-7">
@@ -146,7 +150,7 @@ export default function ApprovalTab({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Review and sign off on CA data-access requests and employee purchase orders exceeding{" "}
+            Review and sign off on staff department registrations, CA data-access, and purchase orders exceeding{" "}
             <span className="font-bold text-slate-800 font-mono">
               ₹{poLimit.toLocaleString("en-IN")}
             </span>
@@ -170,10 +174,10 @@ export default function ApprovalTab({
             Pending Decisions
           </span>
           <p className="font-mono font-black text-amber-950 text-2xl mt-1">
-            {pendingList.length}
+            {totalPending}
           </p>
           <p className="text-[10px] text-amber-700 font-medium mt-0.5">
-            Awaiting your OK
+            {pendingStaff.length} Staff • {pendingList.length} PO/CA
           </p>
         </div>
 
@@ -217,7 +221,8 @@ export default function ApprovalTab({
       {/* Navigation View Tabs */}
       <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none text-xs">
         {[
-          { id: "PENDING", label: `Pending Approvals (${pendingList.length})` },
+          { id: "PENDING", label: `Pending Approvals (${totalPending})` },
+          { id: "STAFF", label: `Staff Requests (${pendingStaff.length})` },
           { id: "HISTORY", label: `All Decision History (${historyList.length})` },
           {
             id: "EMPLOYEE",
@@ -244,7 +249,7 @@ export default function ApprovalTab({
 
       {/* SECTION 1: PENDING APPROVALS DESK */}
       {activeView === "PENDING" && (
-        <div className="rounded-3xl bg-white p-6 sm:p-7 border border-slate-100 shadow-sm space-y-4">
+        <div className="rounded-3xl bg-white p-6 sm:p-7 border border-slate-100 shadow-sm space-y-6">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
               <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
@@ -252,152 +257,272 @@ export default function ApprovalTab({
                 Action Required: Pending Approvals
               </h3>
               <p className="text-[11px] text-slate-500 mt-0.5">
-                Staff purchase orders and CA data-access requests waiting for your decision
+                Staff department registrations, POs, and CA data-access requests waiting for your decision
               </p>
             </div>
             <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-900 font-mono">
-              {pendingList.length} Pending
+              {totalPending} Pending
             </span>
           </div>
 
-          {pendingList.length > 0 ? (
+          {/* 1.1 Pending Staff Registrations */}
+          {pendingStaff.length > 0 && (
             <div className="space-y-3">
-              {pendingList.map((item) => {
-                const reqDate = new Date(item.requestedAt).toLocaleDateString(
-                  "en-IN",
-                  { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" }
-                );
-
-                const isCaRequest = item.type === "CA_DATA_ACCESS";
-
-                return (
+              <div className="flex items-center gap-2 text-xs font-black text-amber-900 uppercase tracking-wide">
+                <UserPlus className="w-4 h-4 text-amber-600" />
+                <span>Staff Department Registrations ({pendingStaff.length})</span>
+              </div>
+              <div className="space-y-3">
+                {pendingStaff.map((cand) => (
                   <div
-                    key={item._id}
+                    key={cand.id}
                     className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/90 text-xs space-y-3 hover:border-amber-300 transition-all"
                   >
-                    {/* Top Identity Row */}
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5">
-                        <div
-                          className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
-                            isCaRequest
-                              ? "bg-purple-100 text-purple-700"
-                              : "bg-indigo-100 text-indigo-700"
-                          }`}
-                        >
-                          {isCaRequest ? (
-                            <Briefcase className="w-4 h-4" />
-                          ) : (
-                            <User className="w-4 h-4" />
-                          )}
+                        <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                          <UserPlus className="w-4 h-4" />
                         </div>
                         <div>
                           <div className="flex items-center gap-2">
-                            <span className="font-extrabold text-slate-900 text-sm">
-                              {isCaRequest ? item.caName : item.employeeName}
-                            </span>
-                            <span
-                              className={`text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${
-                                isCaRequest
-                                  ? "bg-purple-100 text-purple-800"
-                                  : "bg-indigo-100 text-indigo-800"
-                              }`}
-                            >
-                              {isCaRequest ? "CA Data Access" : `PO: ${item.poNumber}`}
+                            <span className="font-extrabold text-slate-900 text-sm">{cand.name}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-md font-mono bg-purple-100 text-purple-800">
+                              Staff Registration
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 mt-0.5">
-                            {isCaRequest
-                              ? `Firm: ${item.caFirm || "CA Practice"} • ICAI: ${item.icaiNumber}`
-                              : `Role: ${item.employeeRole} • Dept: ${item.employeeDepartment}`}
+                            {cand.email} • {cand.phoneNumber}
                           </p>
                         </div>
                       </div>
 
-                      {/* Right: Amount or Badge */}
-                      {!isCaRequest && (
-                        <div className="text-left sm:text-right">
+                      <div className="text-left sm:text-right">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Department
+                        </span>
+                        <span className="text-sm font-black text-indigo-700 block mt-0.5">
+                          {cand.department}
+                        </span>
+                        <span className="text-[10px] text-slate-500 block">
+                          {cand.postTitle || cand.postLevel}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-3.5 rounded-xl bg-white border border-amber-200/60 space-y-2">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                        <div>
                           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                            Order Amount
+                            Requested Branch & Capacity Check:
                           </span>
-                          <span className="text-lg font-black font-mono text-slate-900">
-                            ₹{Number(item.amount || 0).toLocaleString("en-IN")}
+                          <span className="font-extrabold text-slate-800 block mt-0.5">
+                            {cand.branchName}
                           </span>
-                          <span className="text-[10px] font-bold text-amber-700 block">
-                            Exceeds limit by ₹
-                            {(Number(item.amount || 0) - poLimit).toLocaleString("en-IN")}
+                          <span className="text-[11px] font-semibold text-slate-600 block mt-0.5">
+                            Active Headcount: {cand.activeStaffInBranch} / {cand.branchCapacity || "Open"}
+                            {cand.isBranchFull && (
+                              <span className="ml-2 text-rose-600 font-bold">(Capacity Full)</span>
+                            )}
                           </span>
+                        </div>
+                        <div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                            Requested At:
+                          </span>
+                          <span className="text-slate-600 block mt-0.5">
+                            {new Date(cand.requestedAt).toLocaleDateString("en-IN", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </span>
+                        </div>
+                      </div>
+
+                      {cand.workDescription && (
+                        <div className="pt-2 border-t border-slate-100">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                            Work Responsibilities:
+                          </span>
+                          <p className="text-[11px] text-slate-700 font-medium italic bg-slate-50 p-2.5 rounded-lg border border-slate-200/60">
+                            "{cand.workDescription}"
+                          </p>
                         </div>
                       )}
                     </div>
 
-                    {/* Particulars */}
-                    <div className="p-3.5 rounded-xl bg-white border border-amber-200/60 space-y-1">
-                      {isCaRequest ? (
-                        <>
-                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
-                            Accounts Requested for Audit:
-                          </span>
-                          <div className="flex flex-wrap gap-1.5 mt-1">
-                            {(item.requestedAccounts || []).map((acc, i) => (
-                              <span
-                                key={i}
-                                className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold"
-                              >
-                                {acc}
-                              </span>
-                            ))}
-                          </div>
-                          {item.requestReason && (
-                            <p className="text-[11px] text-slate-600 mt-1">
-                              <strong>Audit Purpose:</strong> {item.requestReason}
-                            </p>
-                          )}
-                        </>
-                      ) : (
-                        <>
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-slate-800">
-                              Vendor: {item.vendorName || "Commercial Supplier"}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              Requested: {reqDate}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-600">
-                            {item.poDescription || "Procurement voucher exceeding founder approval limit."}
-                          </p>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Decision Action Buttons */}
                     <div className="flex items-center justify-end gap-2 pt-1">
                       <button
                         type="button"
-                        disabled={actionLoadingId === item._id}
-                        onClick={() => handleDecision(item._id, "REJECT")}
+                        disabled={actionLoadingId === cand.id}
+                        onClick={() => handleDecision(cand.id, "REJECT", "", "STAFF_REGISTRATION")}
                         className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
                       >
                         <X className="w-3.5 h-3.5" />
-                        Decline
+                        Reject & Remove
                       </button>
 
                       <button
                         type="button"
-                        disabled={actionLoadingId === item._id}
-                        onClick={() => handleDecision(item._id, "APPROVE")}
+                        disabled={actionLoadingId === cand.id || cand.isBranchFull}
+                        onClick={() => handleDecision(cand.id, "APPROVE", "", "STAFF_REGISTRATION")}
                         className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
                       >
                         <Check className="w-3.5 h-3.5" />
-                        Approve & Sign Off
+                        {actionLoadingId === cand.id
+                          ? "Approving..."
+                          : cand.isBranchFull
+                          ? "Branch Full"
+                          : "Approve & Confirm Staff"}
                       </button>
                     </div>
                   </div>
-                );
-              })}
+                ))}
+              </div>
             </div>
-          ) : (
+          )}
+
+          {/* 1.2 Pending PO & CA Requests */}
+          {pendingList.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-xs font-black text-slate-700 uppercase tracking-wide">
+                <FileCheck2 className="w-4 h-4 text-purple-600" />
+                <span>PO & CA Access Requests ({pendingList.length})</span>
+              </div>
+              <div className="space-y-3">
+                {pendingList.map((item) => {
+                  const reqDate = new Date(item.requestedAt).toLocaleDateString("en-IN", {
+                    day: "2-digit",
+                    month: "short",
+                    year: "numeric",
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  });
+                  const isCaRequest = item.type === "CA_DATA_ACCESS";
+
+                  return (
+                    <div
+                      key={item._id}
+                      className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/90 text-xs space-y-3 hover:border-amber-300 transition-all"
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                        <div className="flex items-center gap-2.5">
+                          <div
+                            className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                              isCaRequest
+                                ? "bg-purple-100 text-purple-700"
+                                : "bg-indigo-100 text-indigo-700"
+                            }`}
+                          >
+                            {isCaRequest ? <Briefcase className="w-4 h-4" /> : <User className="w-4 h-4" />}
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <span className="font-extrabold text-slate-900 text-sm">
+                                {isCaRequest ? item.caName : item.employeeName}
+                              </span>
+                              <span
+                                className={`text-[10px] font-bold px-2 py-0.5 rounded-md font-mono ${
+                                  isCaRequest
+                                    ? "bg-purple-100 text-purple-800"
+                                    : "bg-indigo-100 text-indigo-800"
+                                }`}
+                              >
+                                {isCaRequest ? "CA Data Access" : `PO: ${item.poNumber}`}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 mt-0.5">
+                              {isCaRequest
+                                ? `Firm: ${item.caFirm || "CA Practice"} • ICAI: ${item.icaiNumber}`
+                                : `Role: ${item.employeeRole} • Dept: ${item.employeeDepartment}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        {!isCaRequest && (
+                          <div className="text-left sm:text-right">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                              Order Amount
+                            </span>
+                            <span className="text-lg font-black font-mono text-slate-900">
+                              ₹{Number(item.amount || 0).toLocaleString("en-IN")}
+                            </span>
+                            <span className="text-[10px] font-bold text-amber-700 block">
+                              Exceeds limit by ₹
+                              {(Number(item.amount || 0) - poLimit).toLocaleString("en-IN")}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="p-3.5 rounded-xl bg-white border border-amber-200/60 space-y-1">
+                        {isCaRequest ? (
+                          <>
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                              Accounts Requested for Audit:
+                            </span>
+                            <div className="flex flex-wrap gap-1.5 mt-1">
+                              {(item.requestedAccounts || []).map((acc, i) => (
+                                <span
+                                  key={i}
+                                  className="px-2 py-0.5 rounded bg-purple-50 text-purple-700 border border-purple-200 text-[10px] font-bold"
+                                >
+                                  {acc}
+                                </span>
+                              ))}
+                            </div>
+                            <p className="text-[11px] text-slate-600 mt-2">
+                              Reason: {item.requestReason || "Mandatory MCA / GST statutory review."}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-slate-800">
+                                Vendor: {item.vendorName || "Commercial Supplier"}
+                              </span>
+                              <span className="text-[10px] text-slate-400">
+                                Requested: {reqDate}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-600">
+                              {item.poDescription || "Procurement voucher exceeding founder approval limit."}
+                            </p>
+                          </>
+                        )}
+                      </div>
+
+                      <div className="flex items-center justify-end gap-2 pt-1">
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === item._id}
+                          onClick={() => handleDecision(item._id, "REJECT")}
+                          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                          Decline
+                        </button>
+
+                        <button
+                          type="button"
+                          disabled={actionLoadingId === item._id}
+                          onClick={() => handleDecision(item._id, "APPROVE")}
+                          className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          Approve & Sign Off
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {totalPending === 0 && (
             <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/30 p-10 text-center space-y-2">
               <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
                 <CheckCircle2 className="w-6 h-6" />
@@ -406,15 +531,159 @@ export default function ApprovalTab({
                 All Clear — 0 Pending Approvals
               </p>
               <p className="text-xs text-slate-500 max-w-md mx-auto">
-                No employee purchase orders or CA data-access requests are waiting for your signature right now.
+                No staff department registrations, employee purchase orders, or CA data-access requests are waiting for your signature.
               </p>
             </div>
           )}
         </div>
       )}
 
-      {/* SECTION 2: COMPREHENSIVE APPROVAL HISTORY & AUDIT TRAIL */}
-      {activeView !== "PENDING" && (
+      {/* SECTION 2: STAFF REQUESTS DEDICATED VIEW */}
+      {activeView === "STAFF" && (
+        <div className="rounded-3xl bg-white p-6 sm:p-7 border border-slate-100 shadow-sm space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <h3 className="text-base font-extrabold text-slate-900 flex items-center gap-2">
+                <UserPlus className="w-4 h-4 text-purple-600" />
+                Staff Department Registrations
+              </h3>
+              <p className="text-[11px] text-slate-500 mt-0.5">
+                Employees who joined with your company code requesting branch and department approval
+              </p>
+            </div>
+            <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-purple-100 text-purple-900 font-mono">
+              {pendingStaff.length} Requests
+            </span>
+          </div>
+
+          {pendingStaff.length > 0 ? (
+            <div className="space-y-3">
+              {pendingStaff.map((cand) => (
+                <div
+                  key={cand.id}
+                  className="p-5 rounded-2xl bg-amber-50/50 border border-amber-200/90 text-xs space-y-3 hover:border-amber-300 transition-all"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
+                        <UserPlus className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-extrabold text-slate-900 text-sm">{cand.name}</span>
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md font-mono bg-purple-100 text-purple-800">
+                            Staff Registration
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-500 mt-0.5">
+                          {cand.email} • {cand.phoneNumber}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="text-left sm:text-right">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Department
+                      </span>
+                      <span className="text-sm font-black text-indigo-700 block mt-0.5">
+                        {cand.department}
+                      </span>
+                      <span className="text-[10px] text-slate-500 block">
+                        {cand.postTitle || cand.postLevel}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="p-3.5 rounded-xl bg-white border border-amber-200/60 space-y-2">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Requested Branch & Capacity Check:
+                        </span>
+                        <span className="font-extrabold text-slate-800 block mt-0.5">
+                          {cand.branchName}
+                        </span>
+                        <span className="text-[11px] font-semibold text-slate-600 block mt-0.5">
+                          Active Headcount: {cand.activeStaffInBranch} / {cand.branchCapacity || "Open"}
+                          {cand.isBranchFull && (
+                            <span className="ml-2 text-rose-600 font-bold">(Capacity Full)</span>
+                          )}
+                        </span>
+                      </div>
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                          Requested At:
+                        </span>
+                        <span className="text-slate-600 block mt-0.5">
+                          {new Date(cand.requestedAt).toLocaleDateString("en-IN", {
+                            day: "2-digit",
+                            month: "short",
+                            year: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                    </div>
+
+                    {cand.workDescription && (
+                      <div className="pt-2 border-t border-slate-100">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block mb-0.5">
+                          Work Responsibilities:
+                        </span>
+                        <p className="text-[11px] text-slate-700 font-medium italic bg-slate-50 p-2.5 rounded-lg border border-slate-200/60">
+                          "{cand.workDescription}"
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-end gap-2 pt-1">
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === cand.id}
+                      onClick={() => handleDecision(cand.id, "REJECT", "", "STAFF_REGISTRATION")}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-slate-700 hover:text-rose-700 font-bold text-xs transition-all cursor-pointer disabled:opacity-50"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Reject & Remove
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={actionLoadingId === cand.id || cand.isBranchFull}
+                      onClick={() => handleDecision(cand.id, "APPROVE", "", "STAFF_REGISTRATION")}
+                      className="inline-flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-all shadow-xs cursor-pointer disabled:opacity-50"
+                    >
+                      <Check className="w-3.5 h-3.5" />
+                      {actionLoadingId === cand.id
+                        ? "Approving..."
+                        : cand.isBranchFull
+                        ? "Branch Full"
+                        : "Approve & Confirm Staff"}
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-10 text-center space-y-2">
+              <div className="w-12 h-12 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto">
+                <UserPlus className="w-6 h-6" />
+              </div>
+              <p className="text-sm font-bold text-slate-900">
+                0 Pending Staff Registrations
+              </p>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                When new staff members register using your business code, their department and branch requests will appear here for your approval.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* SECTION 3: COMPREHENSIVE APPROVAL HISTORY & AUDIT TRAIL */}
+      {activeView !== "PENDING" && activeView !== "STAFF" && (
         <div className="rounded-3xl bg-white p-6 sm:p-7 border border-slate-100 shadow-sm space-y-4">
           <div className="flex items-center justify-between border-b border-slate-100 pb-3">
             <div>
@@ -438,128 +707,79 @@ export default function ApprovalTab({
                   <th className="py-3 px-3">Decision Date</th>
                   <th className="py-3 px-3">Requester</th>
                   <th className="py-3 px-3">Type</th>
-                  <th className="py-3 px-3">Particulars / Scope</th>
-                  <th className="py-3 px-3 text-right">Amount (₹)</th>
-                  <th className="py-3 px-3 text-center">Status</th>
-                  <th className="py-3 px-3">Decided By</th>
+                  <th className="py-3 px-3">Particulars / Details</th>
+                  <th className="py-3 px-3">Amount</th>
+                  <th className="py-3 px-3">Decision</th>
+                  <th className="py-3 px-3">Notes</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+              <tbody className="divide-y divide-slate-100 font-medium">
                 {displayedHistory.length > 0 ? (
-                  displayedHistory.map((item, idx) => {
-                    const decDate = item.decidedAt
+                  displayedHistory.map((item) => {
+                    const decidedDate = item.decidedAt
                       ? new Date(item.decidedAt).toLocaleDateString("en-IN", {
                           day: "2-digit",
                           month: "short",
                           year: "numeric",
                         })
-                      : "Completed";
+                      : "—";
 
-                    const isCa = item.type === "CA_DATA_ACCESS";
                     const isApproved = item.status === "APPROVED";
                     const isRejected = item.status === "REJECTED";
+                    const isCa = item.type === "CA_DATA_ACCESS";
 
                     return (
-                      <tr key={item._id || idx} className="hover:bg-slate-50/70 transition-colors">
-                        {/* Decision Date */}
-                        <td className="py-3 px-3 whitespace-nowrap font-bold text-slate-800">
-                          {decDate}
+                      <tr key={item._id} className="hover:bg-slate-50/60 transition-colors">
+                        <td className="py-3.5 px-3 font-mono text-slate-500 whitespace-nowrap">
+                          {decidedDate}
                         </td>
-
-                        {/* Requester */}
-                        <td className="py-3 px-3 whitespace-nowrap">
-                          <p className="font-extrabold text-slate-900">
-                            {isCa ? item.caName : item.employeeName}
-                          </p>
-                          <p className="text-[10px] text-slate-400">
-                            {isCa ? item.icaiNumber : item.employeeDepartment}
-                          </p>
+                        <td className="py-3.5 px-3 font-bold text-slate-900">
+                          {isCa ? item.caName : item.employeeName}
                         </td>
-
-                        {/* Type */}
-                        <td className="py-3 px-3 whitespace-nowrap">
+                        <td className="py-3.5 px-3">
                           <span
-                            className={`px-2 py-0.5 rounded-md text-[10px] font-bold ${
+                            className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
                               isCa
-                                ? "bg-purple-50 text-purple-700 border border-purple-200"
-                                : "bg-indigo-50 text-indigo-700 border border-indigo-200"
+                                ? "bg-purple-100 text-purple-800"
+                                : "bg-indigo-100 text-indigo-800"
                             }`}
                           >
-                            {isCa ? "CA Data Access" : "Purchase Order"}
+                            {isCa ? "CA Access" : "Purchase Order"}
                           </span>
                         </td>
-
-                        {/* Particulars */}
-                        <td className="py-3 px-3 max-w-xs truncate">
-                          {isCa ? (
-                            <span className="text-slate-600">
-                              {(item.requestedAccounts || []).join(", ")}
-                            </span>
-                          ) : (
-                            <div>
-                              <p className="font-bold text-slate-900 truncate">
-                                {item.vendorName || "Supplier Order"}
-                              </p>
-                              <p className="text-[10px] text-slate-400 truncate">
-                                {item.poDescription}
-                              </p>
-                            </div>
-                          )}
+                        <td className="py-3.5 px-3 text-slate-600 max-w-xs truncate">
+                          {isCa
+                            ? (item.requestedAccounts || []).join(", ")
+                            : `${item.vendorName || "Vendor"} — ${item.poDescription || item.poNumber}`}
                         </td>
-
-                        {/* Amount */}
-                        <td className="py-3 px-3 text-right whitespace-nowrap font-mono font-bold">
-                          {isCa ? (
-                            <span className="text-slate-400 font-normal">Read-Only</span>
-                          ) : (
-                            <span className="text-slate-900">
-                              ₹{Number(item.amount || 0).toLocaleString("en-IN")}
-                            </span>
-                          )}
+                        <td className="py-3.5 px-3 font-mono font-bold text-slate-900">
+                          {item.amount ? `₹${item.amount.toLocaleString("en-IN")}` : "—"}
                         </td>
-
-                        {/* Status */}
-                        <td className="py-3 px-3 text-center whitespace-nowrap">
+                        <td className="py-3.5 px-3">
                           <span
-                            className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border ${
+                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1 ${
                               isApproved
-                                ? "bg-emerald-50 text-emerald-800 border-emerald-200"
+                                ? "bg-emerald-100 text-emerald-800 border border-emerald-200"
                                 : isRejected
-                                ? "bg-rose-50 text-rose-800 border-rose-200"
-                                : "bg-slate-100 text-slate-600 border-slate-200"
+                                ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                : "bg-slate-100 text-slate-700"
                             }`}
                           >
-                            {isApproved ? (
-                              <>
-                                <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                                Approved
-                              </>
-                            ) : (
-                              <>
-                                <XCircle className="w-3 h-3 text-rose-600" />
-                                Declined
-                              </>
-                            )}
+                            {isApproved && <CheckCircle2 className="w-3 h-3 text-emerald-600" />}
+                            {isRejected && <XCircle className="w-3 h-3 text-rose-600" />}
+                            {item.status}
                           </span>
                         </td>
-
-                        {/* Decided By */}
-                        <td className="py-3 px-3 whitespace-nowrap text-[11px] text-slate-500">
-                          {item.decidedBy || "Business Owner"}
+                        <td className="py-3.5 px-3 text-slate-400 italic max-w-xs truncate">
+                          {item.decisionNotes || "Signed off by Founder"}
                         </td>
                       </tr>
                     );
                   })
                 ) : (
                   <tr>
-                    <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto mb-2">
-                        <ShieldCheck className="w-5 h-5" />
-                      </div>
-                      <p className="font-bold text-slate-700">No Approval History Logged Yet</p>
-                      <p className="text-[11px] text-slate-400 mt-0.5">
-                        Whenever you approve or decline an employee purchase order or CA data-access request, it will be permanently recorded here in real-time.
-                      </p>
+                    <td colSpan={7} className="text-center py-8 text-slate-400">
+                      No decisions logged in this filter yet.
                     </td>
                   </tr>
                 )}

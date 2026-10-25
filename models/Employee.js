@@ -18,6 +18,31 @@ export const USER_ROLES_LIST = [
   "ACCOUNTS"
 ];
 
+export const DEPARTMENT_LIST = [
+  "OPERATIONS",
+  "SALES",
+  "LOGISTICS",
+  "FINANCIAL"
+];
+
+export const POST_HIERARCHY_LEVELS = [
+  "CHIEF_OFFICER",
+  "DIRECTOR",
+  "MANAGER",
+  "SUPERVISOR",
+  "ANALYST",
+  "COORDINATOR",
+  "ASSISTANT",
+  "OTHER"
+];
+
+export const APPROVAL_STATUS_LIST = [
+  "PENDING_PROFILE",
+  "PENDING_APPROVAL",
+  "APPROVED",
+  "REJECTED"
+];
+
 const EmployeeSchema = new mongoose.Schema({
   name: { type: String, required: true, trim: true },
   phoneNumber: { type: String, required: true, unique: true, index: true },
@@ -28,8 +53,45 @@ const EmployeeSchema = new mongoose.Schema({
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Owner", required: true, index: true },
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "Owner", index: true },
   branchId: { type: String, trim: true, default: "branch-1", index: true }, // e.g. "branch-1", "branch-2"
+  branchName: { type: String, trim: true },
 
-  // MANDATORY USER ROLE (Strict 6-Role SMB RBAC Taxonomy)
+  // 4 Business Departments: Operations, Sales, Logistics, Financial
+  department: { 
+    type: String, 
+    trim: true, 
+    uppercase: true,
+    enum: DEPARTMENT_LIST,
+    default: "OPERATIONS",
+    index: true
+  },
+
+  // 8-Level Post Hierarchy
+  postLevel: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    enum: POST_HIERARCHY_LEVELS,
+    default: "ASSISTANT",
+    index: true
+  },
+  postTitle: { type: String, trim: true },
+  workDescription: { type: String, trim: true },
+
+  // Onboarding & Approval Lifecycle
+  approvalStatus: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    enum: APPROVAL_STATUS_LIST,
+    default: "PENDING_PROFILE",
+    index: true
+  },
+  isApproved: { type: Boolean, default: false },
+  approvedAt: { type: Date },
+  approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "Owner" },
+  rejectionReason: { type: String, trim: true },
+
+  // Role Compatibility
   role: { 
     type: String, 
     required: true,
@@ -40,17 +102,10 @@ const EmployeeSchema = new mongoose.Schema({
     index: true
   },
 
-  // Legacy compatibility fields
   roleInCompany: { 
     type: String, 
     enum: ["Admin", "Manager", "Data Entry", "Viewer"], 
     default: "Viewer" 
-  },
-  department: { 
-    type: String, 
-    trim: true, 
-    uppercase: true,
-    default: "GENERAL"
   },
   departmentId: { 
     type: mongoose.Schema.Types.ObjectId, 
@@ -61,9 +116,11 @@ const EmployeeSchema = new mongoose.Schema({
   isActive: { type: Boolean, default: true }
 }, { timestamps: true });
 
-// Compound indexes for rapid role and company lookups
+// Compound indexes
 EmployeeSchema.index({ companyId: 1, role: 1 });
 EmployeeSchema.index({ email: 1, role: 1 });
+EmployeeSchema.index({ companyId: 1, approvalStatus: 1 });
+EmployeeSchema.index({ companyId: 1, branchId: 1 });
 
 EmployeeSchema.pre("validate", function () {
   if (this.companyId && !this.ownerId) {
@@ -72,7 +129,7 @@ EmployeeSchema.pre("validate", function () {
     this.companyId = this.ownerId;
   }
 
-  // Normalize role to strict 6-Role Taxonomy
+  // Normalize role
   if (this.role) {
     const rawRole = this.role.toString().trim().toUpperCase();
     const roleMapping = {

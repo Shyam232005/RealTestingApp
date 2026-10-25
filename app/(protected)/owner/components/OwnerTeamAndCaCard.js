@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Users,
   Briefcase,
@@ -10,6 +10,11 @@ import {
   ChevronRight,
   ShieldCheck,
   ExternalLink,
+  UserPlus,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+  Loader2,
 } from "lucide-react";
 
 const ROLE_NAME_MAP = {
@@ -36,6 +41,9 @@ export default function OwnerTeamAndCaCard({
   setActiveTab,
 }) {
   const [copiedCode, setCopiedCode] = useState(false);
+  const [pendingEmployees, setPendingEmployees] = useState([]);
+  const [reviewingId, setReviewingId] = useState(null);
+  const [reviewFeedback, setReviewFeedback] = useState("");
 
   const employees = owner?.employees || [];
   const linkedCAs = owner?.linkedCAs || [];
@@ -60,6 +68,54 @@ export default function OwnerTeamAndCaCard({
   const displayStaffCount =
     selectedBranch === "all" ? totalBranchStaff : currentBranchStaff;
 
+  // Load Pending Approvals
+  useEffect(() => {
+    let isCancelled = false;
+
+    async function fetchPending() {
+      try {
+        const res = await fetch("/api/owner/employees/pending");
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled) {
+            setPendingEmployees(data.pending || []);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load pending employees:", err);
+      }
+    }
+
+    fetchPending();
+
+    return () => {
+      isCancelled = true;
+    };
+  }, []);
+
+  const handleReview = async (employeeId, action) => {
+    setReviewingId(employeeId);
+    setReviewFeedback("");
+    try {
+      const res = await fetch("/api/owner/employees/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ employeeId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || `Failed to ${action.toLowerCase()} employee`);
+
+      setReviewFeedback(data.message);
+      // Remove from local list
+      setPendingEmployees((prev) => prev.filter((p) => p.id !== employeeId));
+      setTimeout(() => setReviewFeedback(""), 4000);
+    } catch (err) {
+      alert(err.message);
+    } finally {
+      setReviewingId(null);
+    }
+  };
+
   const handleCopyCode = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
       navigator.clipboard.writeText(inviteCode);
@@ -81,6 +137,16 @@ export default function OwnerTeamAndCaCard({
             Team members and CA linked to your company
           </p>
         </div>
+        {setActiveTab && (
+          <button
+            type="button"
+            onClick={() => setActiveTab("team")}
+            className="text-[11px] font-bold text-purple-700 hover:text-purple-900 hover:underline inline-flex items-center gap-0.5 cursor-pointer"
+          >
+            <span>Team Tab</span>
+            <ChevronRight className="w-3 h-3" />
+          </button>
+        )}
       </div>
 
       {/* Summary Pills */}
@@ -110,6 +176,100 @@ export default function OwnerTeamAndCaCard({
           </p>
         </div>
       </div>
+
+      {/* PENDING APPROVALS ALERT BOX (If any employees awaiting approval) */}
+      {pendingEmployees.length > 0 && (
+        <div className="p-4 rounded-2xl bg-amber-50/90 border border-amber-200/90 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="relative flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-600"></span>
+              </span>
+              <h4 className="text-xs font-black text-amber-950 uppercase tracking-wide">
+                Staff Awaiting Your Approval ({pendingEmployees.length})
+              </h4>
+            </div>
+            <span className="text-[10px] font-bold text-amber-800 bg-white/80 px-2 py-0.5 rounded-md border border-amber-200">
+              Action Required
+            </span>
+          </div>
+
+          {reviewFeedback && (
+            <p className="text-xs font-bold text-emerald-800 bg-emerald-100/80 p-2 rounded-xl">
+              ✓ {reviewFeedback}
+            </p>
+          )}
+
+          <div className="space-y-2.5 max-h-64 overflow-y-auto pr-1">
+            {pendingEmployees.map((cand) => (
+              <div
+                key={cand.id}
+                className="bg-white p-3.5 rounded-2xl border border-amber-200/80 shadow-xs space-y-2 text-xs"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-black text-slate-900 text-sm">{cand.name}</p>
+                    <p className="text-[11px] text-slate-500 font-medium">
+                      {cand.email} • {cand.phoneNumber}
+                    </p>
+                  </div>
+                  <span className="px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 font-extrabold text-[10px] uppercase">
+                    {cand.department}
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2 text-[11px] bg-slate-50 p-2 rounded-xl border border-slate-100">
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Branch Requested:</span>
+                    <span className="font-bold text-slate-800 truncate block">
+                      {cand.branchName}
+                    </span>
+                    <span className="text-[9px] text-slate-500">
+                      Cap: {cand.activeStaffInBranch}/{cand.branchCapacity || "Open"}
+                    </span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px]">Post Requested:</span>
+                    <span className="font-bold text-slate-800 truncate block">
+                      {cand.postTitle || cand.postLevel}
+                    </span>
+                  </div>
+                </div>
+
+                {cand.workDescription && (
+                  <p className="text-[11px] text-slate-600 bg-slate-50/50 p-2 rounded-lg italic border border-slate-100">
+                    "{cand.workDescription}"
+                  </p>
+                )}
+
+                <div className="flex items-center justify-end gap-2 pt-1 border-t border-slate-100">
+                  <button
+                    onClick={() => handleReview(cand.id, "REJECT")}
+                    disabled={reviewingId === cand.id}
+                    className="px-3 py-1.5 rounded-xl border border-rose-200 text-rose-700 hover:bg-rose-50 text-[11px] font-bold cursor-pointer disabled:opacity-50"
+                  >
+                    Reject & Remove
+                  </button>
+                  <button
+                    onClick={() => handleReview(cand.id, "APPROVE")}
+                    disabled={reviewingId === cand.id || cand.isBranchFull}
+                    className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-xs cursor-pointer disabled:opacity-50"
+                  >
+                    {reviewingId === cand.id ? (
+                      <Loader2 className="w-3.5 h-3.5 animate-spin inline" />
+                    ) : cand.isBranchFull ? (
+                      "Branch Full"
+                    ) : (
+                      "Approve Staff"
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Branch Headcount & Connection Status */}
       <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-2.5">
@@ -208,7 +368,7 @@ export default function OwnerTeamAndCaCard({
         <div className="flex items-center justify-between text-xs font-bold text-slate-800">
           <span className="flex items-center gap-1.5">
             <UserCheck className="w-3.5 h-3.5 text-slate-500" />
-            Team Members ({employees.length})
+            Approved Team Members ({employees.length})
           </span>
           {employees.length > 0 && (
             <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">
@@ -221,7 +381,7 @@ export default function OwnerTeamAndCaCard({
           <div className="space-y-2 max-h-56 overflow-y-auto pr-1">
             {employees.map((emp, idx) => {
               const friendlyRole =
-                ROLE_NAME_MAP[emp.role] || emp.roleInCompany || emp.role || "Team Member";
+                ROLE_NAME_MAP[emp.role] || emp.postTitle || emp.roleInCompany || emp.role || "Team Member";
               const rawDept = emp.department ? emp.department.toLowerCase() : "general";
               const friendlyDept = DEPARTMENT_NAME_MAP[rawDept] || emp.department || "Operations";
 
@@ -236,7 +396,7 @@ export default function OwnerTeamAndCaCard({
                       {friendlyRole}
                     </p>
                     <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                      Dept: {friendlyDept}
+                      Dept: {friendlyDept} • {emp.branchName || "Main HQ"}
                     </p>
                   </div>
                   <span
@@ -246,7 +406,7 @@ export default function OwnerTeamAndCaCard({
                         : "bg-slate-100 text-slate-600"
                     }`}
                   >
-                    {emp.isActive !== false ? "On Duty" : "Inactive"}
+                    {emp.isActive !== false ? "Active" : "Inactive"}
                   </span>
                 </div>
               );
@@ -256,7 +416,7 @@ export default function OwnerTeamAndCaCard({
           <div className="rounded-2xl border border-dashed border-purple-200 bg-purple-50/40 p-4 text-center space-y-2">
             <p className="text-xs font-bold text-purple-950">No Staff Registered Yet</p>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Give your billing desk, godown keeper, or sales team your Business Code to join your company:
+              Give your staff members your Business Code to join your company:
             </p>
             <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-white border border-purple-200 text-xs">
               <span className="font-mono font-black text-purple-900 tracking-wider">

@@ -110,7 +110,7 @@ export default function ProfessionalLogin() {
                         ACCOUNTS: "/accounts"
                     };
                     const targetRole = (result.user?.role || data.role || "").toUpperCase();
-                    const redirectPath = result.redirectUrl || roleMap[targetRole] || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/billing");
+                    const redirectPath = result.redirectUrl || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/department/onboarding");
                     
                     window.location.href = redirectPath;
                 } else {
@@ -162,7 +162,7 @@ export default function ProfessionalLogin() {
                     ACCOUNTS: "/accounts"
                 };
                 const targetRole = (result.user?.role || data.role || "").toUpperCase();
-                const redirectPath = roleMap[targetRole] || (data.role === "Owner" ? "/owner" : data.role === "CA" ? "/ca" : "/billing");
+                const redirectPath = result.redirectUrl || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/department/onboarding");
                 
                 window.location.href = redirectPath;
             } else {

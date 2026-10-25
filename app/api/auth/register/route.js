@@ -180,6 +180,8 @@ export async function POST(request) {
         password: hashedPassword,
         companyId: owner._id,
         ownerId: owner._id,
+        approvalStatus: "PENDING_PROFILE",
+        isApproved: false,
       });
       await newUser.save();
 
@@ -363,7 +365,11 @@ export async function POST(request) {
         success: true,
         message: successMessage || "Account created.",
         redirectUrl:
-          normalizedRole === "OWNER" ? "/owner/setup" : "/billing",
+          normalizedRole === "OWNER"
+            ? "/owner/setup"
+            : normalizedRole === "EMPLOYEE"
+            ? "/department/onboarding"
+            : "/billing",
       },
       { status: 201 }
     );

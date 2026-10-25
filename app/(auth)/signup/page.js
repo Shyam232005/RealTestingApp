@@ -152,6 +152,10 @@ function SignupFormContent() {
 
             if (res.ok) {
                 toast.success(result.message || "Account created successfully! Welcome to FineOps.");
+                if (result.redirectUrl) {
+                    window.location.href = result.redirectUrl;
+                    return;
+                }
                 router.push('/login');
             } else {
                 const msg = result.error || "Registration failed.";

@@ -1,5 +1,6 @@
 export { default as OverviewTab } from "./overview/OverviewTab";
 export { default as ApprovalTab } from "./approval/ApprovalTab";
+export { default as TeamTab } from "./team/TeamTab";
 export { default as BankingTab } from "./banking/BankingTab";
 export { default as CaHubTab } from "./ca-hub/CaHubTab";
 export { default as FinancialTab } from "./financial/FinancialTab";

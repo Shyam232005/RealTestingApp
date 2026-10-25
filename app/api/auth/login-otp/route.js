@@ -119,6 +119,23 @@ export async function POST(request) {
     let redirectUrl = null;
     if (isOwner) {
       redirectUrl = user.isSetupComplete ? "/owner/dashboard" : "/owner/setup";
+    } else if (isEmployee) {
+      if (user.approvalStatus === "REJECTED") {
+        return NextResponse.json(
+          { error: "Your employee registration was rejected by the business owner. Please register again." },
+          { status: 403 }
+        );
+      }
+      if (!user.approvalStatus || user.approvalStatus === "PENDING_PROFILE") {
+        redirectUrl = "/department/onboarding";
+      } else if (user.approvalStatus === "PENDING_APPROVAL") {
+        redirectUrl = "/department/pending-approval";
+      } else if (user.approvalStatus === "APPROVED") {
+        const dept = (user.department || "operations").toLowerCase();
+        redirectUrl = `/department/${dept}`;
+      } else {
+        redirectUrl = "/department/onboarding";
+      }
     }
 
     // 6. Success! User details return karo

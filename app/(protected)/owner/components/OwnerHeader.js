@@ -19,12 +19,20 @@ import {
   TrendingUp,
   FileSpreadsheet,
   Settings,
+  Users,
+  Clock,
+  Calendar,
+  FileText,
+  UserCheck,
+  UserPlus,
+  CheckCheck,
 } from "lucide-react";
 import BranchActivationModal from "./BranchActivationModal";
 
 const TAB_ICONS = {
   dashboard: LayoutDashboard,
   approval: FileCheck2,
+  team: Users,
   banking: Landmark,
   "ca-hub": Briefcase,
   financial: BookOpen,
@@ -33,6 +41,21 @@ const TAB_ICONS = {
   "tax-reports": FileSpreadsheet,
   settings: Settings,
 };
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return "";
+  const d = new Date(dateString);
+  const now = new Date();
+  const diffSec = Math.floor((now - d) / 1000);
+  if (diffSec < 60) return "Just now";
+  const diffMin = Math.floor(diffSec / 60);
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDays = Math.floor(diffHr / 24);
+  if (diffDays === 1) return "Yesterday";
+  return `${diffDays}d ago`;
+}
 
 export default function OwnerHeader({
   activeTab,
@@ -49,6 +72,11 @@ export default function OwnerHeader({
 }) {
   const [branchDropdownOpen, setBranchDropdownOpen] = useState(false);
   const branchDropdownRef = useRef(null);
+
+  // Live Notifications State
+  const [notifications, setNotifications] = useState([]);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const notificationsRef = useRef(null);
 
   // Activation modal state
   const [activationTarget, setActivationTarget] = useState(null);
@@ -139,6 +167,85 @@ export default function OwnerHeader({
     }
     setActivationTarget(null);
     setBranchDropdownOpen(false);
+  };
+
+  // Poll notifications every 15 seconds
+  useEffect(() => {
+    let isCancelled = false;
+    const fetchNotifications = async () => {
+      try {
+        const res = await fetch("/api/owner/notifications?limit=25");
+        if (res.ok) {
+          const data = await res.json();
+          if (!isCancelled) {
+            setNotifications(data.notifications || []);
+            setUnreadCount(data.unreadCount || 0);
+          }
+        }
+      } catch (e) {
+        // quiet catch
+      }
+    };
+
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 15000);
+    return () => {
+      isCancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
+
+  // Close notifications dropdown on outside click
+  useEffect(() => {
+    function handleNotificationOutside(event) {
+      if (
+        notificationsRef.current &&
+        !notificationsRef.current.contains(event.target)
+      ) {
+        if (setNotificationsOpen) {
+          setNotificationsOpen(false);
+        }
+      }
+    }
+    if (notificationsOpen) {
+      document.addEventListener("mousedown", handleNotificationOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleNotificationOutside);
+  }, [notificationsOpen, setNotificationsOpen]);
+
+  const handleMarkAsRead = async (notificationId = null, markAll = false) => {
+    try {
+      const res = await fetch("/api/owner/notifications", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ notificationId, markAll }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setUnreadCount(data.unreadCount || 0);
+        if (markAll) {
+          setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+        } else if (notificationId) {
+          setNotifications((prev) =>
+            prev.map((n) => (n._id === notificationId ? { ...n, isRead: true } : n))
+          );
+        }
+      }
+    } catch (e) {
+      console.error("Mark read error:", e);
+    }
+  };
+
+  const handleNotificationClick = (notif) => {
+    if (!notif.isRead) {
+      handleMarkAsRead(notif._id, false);
+    }
+    if (notif.linkTab && setActiveTab) {
+      setActiveTab(notif.linkTab);
+    }
+    if (setNotificationsOpen) {
+      setNotificationsOpen(false);
+    }
   };
 
   return (
@@ -365,16 +472,146 @@ export default function OwnerHeader({
               <span>MCA Live</span>
             </div>
 
-            {/* Notifications Button */}
-            <button
-              type="button"
-              onClick={() => setNotificationsOpen((prev) => !prev)}
-              className="relative w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
-              title="Notifications"
-            >
-              <Bell className="w-3.5 h-3.5" />
-              <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white" />
-            </button>
+            {/* Notifications Popover */}
+            <div className="relative shrink-0" ref={notificationsRef}>
+              <button
+                type="button"
+                onClick={() => setNotificationsOpen((prev) => !prev)}
+                className="relative w-8 h-8 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200 flex items-center justify-center text-slate-600 hover:text-slate-900 transition-colors cursor-pointer"
+                title="Staff & Business Alerts"
+              >
+                <Bell className="w-3.5 h-3.5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-full bg-rose-500 text-white text-[9px] font-black ring-2 ring-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+
+              {/* Notifications Dropdown Drawer */}
+              {notificationsOpen && (
+                <div className="absolute right-0 mt-2 w-80 sm:w-96 bg-white rounded-3xl shadow-2xl border border-slate-100 p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
+                  <div className="px-3 py-2 border-b border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-slate-900">
+                        Activity Alerts
+                      </span>
+                      {unreadCount > 0 ? (
+                        <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 font-mono">
+                          {unreadCount} unread
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-mono">
+                          All caught up
+                        </span>
+                      )}
+                    </div>
+                    {unreadCount > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => handleMarkAsRead(null, true)}
+                        className="text-[11px] font-bold text-purple-600 hover:text-purple-700 hover:underline flex items-center gap-1 cursor-pointer"
+                      >
+                        <CheckCheck className="w-3.5 h-3.5" />
+                        <span>Mark all read</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="max-h-80 overflow-y-auto py-2 space-y-1.5 scrollbar-none">
+                    {notifications.length === 0 ? (
+                      <div className="py-8 px-4 text-center">
+                        <div className="w-10 h-10 rounded-2xl bg-slate-100 text-slate-400 flex items-center justify-center mx-auto mb-2">
+                          <Bell className="w-5 h-5" />
+                        </div>
+                        <p className="text-xs font-bold text-slate-700">No alerts yet</p>
+                        <p className="text-[10px] text-slate-400 mt-1 max-w-[220px] mx-auto">
+                          Employee punch-ins, daily reports, and leave requests will appear here instantly.
+                        </p>
+                      </div>
+                    ) : (
+                      notifications.map((notif) => {
+                        const isUnread = !notif.isRead;
+                        return (
+                          <div
+                            key={notif._id}
+                            onClick={() => handleNotificationClick(notif)}
+                            className={`p-2.5 rounded-2xl text-xs transition-all cursor-pointer border ${
+                              isUnread
+                                ? "bg-purple-50/70 hover:bg-purple-50 border-purple-100 text-slate-900"
+                                : "hover:bg-slate-50 border-transparent text-slate-600"
+                            }`}
+                          >
+                            <div className="flex items-start gap-2.5">
+                              <div
+                                className={`w-8 h-8 rounded-xl flex items-center justify-center shrink-0 mt-0.5 ${
+                                  notif.type === "ATTENDANCE_PUNCH_IN"
+                                    ? "bg-emerald-100 text-emerald-700"
+                                    : notif.type === "ATTENDANCE_PUNCH_OUT"
+                                    ? "bg-slate-100 text-slate-700"
+                                    : notif.type === "LEAVE_REQUEST"
+                                    ? "bg-amber-100 text-amber-700"
+                                    : notif.type === "DAILY_SUBMISSION"
+                                    ? "bg-blue-100 text-blue-700"
+                                    : "bg-purple-100 text-purple-700"
+                                }`}
+                              >
+                                {notif.type === "ATTENDANCE_PUNCH_IN" ? (
+                                  <UserCheck className="w-4 h-4" />
+                                ) : notif.type === "ATTENDANCE_PUNCH_OUT" ? (
+                                  <Clock className="w-4 h-4" />
+                                ) : notif.type === "LEAVE_REQUEST" ? (
+                                  <Calendar className="w-4 h-4" />
+                                ) : notif.type === "DAILY_SUBMISSION" ? (
+                                  <FileText className="w-4 h-4" />
+                                ) : (
+                                  <UserPlus className="w-4 h-4" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center justify-between gap-1">
+                                  <p
+                                    className={`text-xs truncate ${
+                                      isUnread ? "font-black text-slate-900" : "font-semibold text-slate-800"
+                                    }`}
+                                  >
+                                    {notif.title}
+                                  </p>
+                                  <span className="text-[10px] text-slate-400 shrink-0 font-medium">
+                                    {formatTimeAgo(notif.createdAt)}
+                                  </span>
+                                </div>
+                                <p className="text-[11px] text-slate-500 mt-0.5 leading-snug line-clamp-2">
+                                  {notif.message}
+                                </p>
+                              </div>
+                              {isUnread && (
+                                <span className="w-2 h-2 rounded-full bg-purple-600 shrink-0 mt-1.5" />
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
+                  </div>
+
+                  <div className="pt-2 border-t border-slate-100 px-3 py-1.5 flex items-center justify-between text-[11px]">
+                    <span className="text-slate-400">Team activity</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (setActiveTab) setActiveTab("team");
+                        if (setNotificationsOpen) setNotificationsOpen(false);
+                      }}
+                      className="text-purple-600 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                    >
+                      <Users className="w-3.5 h-3.5" />
+                      <span>Open Staff & Team</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
 
             {/* Owner User Badge */}
             <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
