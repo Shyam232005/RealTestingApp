@@ -54,6 +54,63 @@ export async function GET() {
       organization = await Organization.findOne({ ownerId: owner._id });
     }
 
+    // Auto-initialize embedded branchList for backwards compatibility
+    if (organization) {
+      const targetCount = Math.max(1, Number(organization.branches || 1));
+      let currentBranches = organization.branchList || [];
+      let updatedNeeded = false;
+
+      // If branchList is empty, seed Branch 1 (Main HQ) as active
+      if (currentBranches.length === 0) {
+        currentBranches.push({
+          branchId: "branch-1",
+          branchNumber: 1,
+          name: `${organization.RegisterName} - Main (HQ)`,
+          location: organization.location || "Headquarters",
+          status: "active",
+          staffCount: 0,
+          lastMonthSales: organization.monthlyRevenueTarget || 0,
+          monthlySalesTarget: organization.monthlyRevenueTarget || 0,
+          currentMonthSales: 0,
+          allocatedFunds:
+            (Number(organization.openingBalance) || 0) +
+            (Number(organization.openingCash) || 0),
+          stockItems: organization.stockCatalog || [],
+          customers: [],
+          offers: [],
+          activatedAt: organization.createdAt || new Date(),
+        });
+        updatedNeeded = true;
+      }
+
+      // Add inactive placeholders for branch 2..N if count exceeds current list
+      while (currentBranches.length < targetCount) {
+        const nextNum = currentBranches.length + 1;
+        currentBranches.push({
+          branchId: `branch-${nextNum}`,
+          branchNumber: nextNum,
+          name: `Branch ${nextNum}`,
+          location: "",
+          status: "inactive",
+          staffCount: 0,
+          lastMonthSales: 0,
+          monthlySalesTarget: 0,
+          currentMonthSales: 0,
+          allocatedFunds: 0,
+          stockItems: [],
+          customers: [],
+          offers: [],
+          activatedAt: null,
+        });
+        updatedNeeded = true;
+      }
+
+      if (updatedNeeded) {
+        organization.branchList = currentBranches;
+        await organization.save();
+      }
+    }
+
     // Ensure owner has an invite code for staff and CA connections
     if (!owner.inviteCode) {
       owner.inviteCode = `BIZ-${owner._id.toString().slice(-6).toUpperCase()}`;
@@ -277,11 +334,94 @@ export async function POST(request) {
       );
     }
 
+    // Format multiple stock items if submitted
+    let cleanStockCatalog = [];
+    if (Array.isArray(body.stockItems)) {
+      cleanStockCatalog = body.stockItems
+        .filter((item) => item && item.name && item.name.trim())
+        .map((item) => ({
+          itemId: item.itemId || new mongoose.Types.ObjectId().toString(),
+          name: item.name.trim(),
+          category: item.category ? item.category.trim() : "Finished Goods",
+          sku: item.sku ? item.sku.trim() : "",
+          quantity: Math.max(0, Number(item.quantity) || 0),
+          unit: item.unit ? item.unit.trim() : "Pcs",
+          unitPrice: Math.max(0, Number(item.unitPrice) || 0),
+          stockStatus:
+            Number(item.quantity) > 10
+              ? "in_stock"
+              : Number(item.quantity) > 0
+              ? "low_stock"
+              : "out_of_stock",
+          lastUpdated: new Date(),
+        }));
+    }
+
+    // Preserve existing branches if updating, or create fresh branchList
+    const existingOrg = await Organization.findOne({ ownerId: owner._id });
+    let branchList = existingOrg?.branchList || [];
+
+    if (branchList.length === 0) {
+      // Main HQ (Branch 1) - Default Active
+      branchList.push({
+        branchId: "branch-1",
+        branchNumber: 1,
+        name: `${RegisterName.trim()} - Main (HQ)`,
+        location: location.trim(),
+        status: "active",
+        staffCount: 0,
+        lastMonthSales: Number(monthlyRevenueTarget) || 0,
+        monthlySalesTarget: Number(monthlyRevenueTarget) || 0,
+        currentMonthSales: 0,
+        allocatedFunds:
+          (Number(openingBalance) || 0) + (Number(openingCash) || 0),
+        stockItems: cleanStockCatalog,
+        customers: [],
+        offers: [],
+        activatedAt: new Date(),
+      });
+    } else {
+      // Update Main HQ name, location, and stock items if provided
+      branchList[0].name = `${RegisterName.trim()} - Main (HQ)`;
+      branchList[0].location = location.trim();
+      if (cleanStockCatalog.length > 0) {
+        branchList[0].stockItems = cleanStockCatalog;
+      }
+    }
+
+    // Ensure placeholders for branch 2..N
+    while (branchList.length < branchCount) {
+      const nextNum = branchList.length + 1;
+      branchList.push({
+        branchId: `branch-${nextNum}`,
+        branchNumber: nextNum,
+        name: `Branch ${nextNum}`,
+        location: "",
+        status: "inactive",
+        staffCount: 0,
+        lastMonthSales: 0,
+        monthlySalesTarget: 0,
+        currentMonthSales: 0,
+        allocatedFunds: 0,
+        stockItems: [],
+        customers: [],
+        offers: [],
+        activatedAt: null,
+      });
+    }
+
+    // Trim if branchCount was reduced
+    if (branchList.length > branchCount) {
+      branchList = branchList.slice(0, branchCount);
+    }
+
     const orgPayload = {
       ownerId: owner._id,
       planName: planName || owner.subscription?.planName || "MSME Starter",
       billingCycle: billingCycle || owner.subscription?.cycle || "annual",
-      paymentStatus: paymentStatus || (owner.subscription?.status === "active" ? "paid" : "trialing"),
+      paymentStatus:
+        paymentStatus ||
+        (owner.subscription?.status === "active" ? "paid" : "trialing"),
       RegisterName: RegisterName.trim(),
       GST: cleanGST,
       BankName: BankName.trim(),
@@ -290,6 +430,11 @@ export async function POST(request) {
       location: location.trim(),
       industry: industry.trim(),
       branches: branchCount,
+      branchList: branchList,
+      stockCatalog:
+        cleanStockCatalog.length > 0
+          ? cleanStockCatalog
+          : existingOrg?.stockCatalog || [],
       activeDepartments: activeDepartments,
       primaryWarehouse: primaryWarehouse.trim(),
       openingBalance: Number(openingBalance) || 0,

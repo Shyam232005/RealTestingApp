@@ -8,6 +8,7 @@ import confetti from "canvas-confetti";
 // Sub-components
 import OwnerHeader from "../components/OwnerHeader";
 import OwnerSidebar from "../components/OwnerSidebar";
+import BranchDashboardView from "../components/BranchDashboardView";
 
 // Tab Sub-modules
 import {
@@ -207,6 +208,7 @@ export default function OwnerDashboard() {
         tabs={TABS}
         owner={owner}
         organization={organization}
+        setOrganization={setOrganization}
         selectedBranch={selectedBranch}
         setSelectedBranch={setSelectedBranch}
         notificationsOpen={notificationsOpen}
@@ -228,16 +230,24 @@ export default function OwnerDashboard() {
 
           {/* Right Content Column (Dynamic Tab Modules) */}
           <main className="lg:col-span-8 xl:col-span-9 space-y-7">
-            {activeTab === "dashboard" && (
-              <OverviewTab
-                owner={owner}
-                organization={organization}
-                selectedBranch={selectedBranch}
-                setSelectedBranch={setSelectedBranch}
-                totalCalculatedBalance={totalCalculatedBalance}
-                setActiveTab={setActiveTab}
-              />
-            )}
+            {activeTab === "dashboard" &&
+              (selectedBranch === "all" ? (
+                <OverviewTab
+                  owner={owner}
+                  organization={organization}
+                  selectedBranch={selectedBranch}
+                  setSelectedBranch={setSelectedBranch}
+                  totalCalculatedBalance={totalCalculatedBalance}
+                  setActiveTab={setActiveTab}
+                />
+              ) : (
+                <BranchDashboardView
+                  organization={organization}
+                  selectedBranchId={selectedBranch}
+                  onOrganizationUpdate={setOrganization}
+                  showToast={showToast}
+                />
+              ))}
 
             {activeTab === "approval" && (
               <ApprovalTab

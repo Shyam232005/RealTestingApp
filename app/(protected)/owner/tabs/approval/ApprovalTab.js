@@ -40,7 +40,6 @@ export default function ApprovalTab({
 
   const fetchApprovals = async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/owner/approvals");
       if (res.ok) {
         const data = await res.json();
@@ -57,7 +56,27 @@ export default function ApprovalTab({
   };
 
   useEffect(() => {
-    fetchApprovals();
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/owner/approvals");
+        if (res.ok && !ignore) {
+          const data = await res.json();
+          setAllRequests(data.all || []);
+          setPendingList(data.pending || []);
+          setHistoryList(data.history || []);
+          if (data.stats) setStats(data.stats);
+        }
+      } catch (err) {
+        console.error("Failed to load approvals data:", err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   const handleDecision = async (requestId, action, notes = "") => {

@@ -52,7 +52,6 @@ export default function BankingTab({
   // Fetch permanent transactions from backend
   const fetchBankingData = async () => {
     try {
-      setLoading(true);
       const res = await fetch(
         `/api/owner/banking/transactions?branch=${encodeURIComponent(selectedBranch || "all")}`
       );
@@ -72,7 +71,30 @@ export default function BankingTab({
   };
 
   useEffect(() => {
-    fetchBankingData();
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch(
+          `/api/owner/banking/transactions?branch=${encodeURIComponent(selectedBranch || "all")}`
+        );
+        if (res.ok && !ignore) {
+          const data = await res.json();
+          setTransactions(data.transactions || []);
+          if (data.bankBalance !== undefined) setBankBalance(data.bankBalance);
+          if (data.cashBalance !== undefined) setCashBalance(data.cashBalance);
+          if (data.totalLiquidBalance !== undefined)
+            setTotalLiquidBalance(data.totalLiquidBalance);
+        }
+      } catch (err) {
+        console.error("Failed to load live banking transactions:", err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
   }, [selectedBranch]);
 
   // Handle new transaction added

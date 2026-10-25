@@ -36,7 +36,6 @@ export default function CaHubTab({ owner, organization, showToast }) {
   // Fetch CA requests and reports history
   const fetchCaHubData = async () => {
     try {
-      setLoading(true);
       const res = await fetch("/api/owner/approvals");
       if (res.ok) {
         const data = await res.json();
@@ -52,7 +51,26 @@ export default function CaHubTab({ owner, organization, showToast }) {
   };
 
   useEffect(() => {
-    fetchCaHubData();
+    let ignore = false;
+    async function load() {
+      try {
+        const res = await fetch("/api/owner/approvals");
+        if (res.ok && !ignore) {
+          const data = await res.json();
+          setCaRequests(data.caRequests || []);
+          setCaReports(data.caReports || []);
+          if (data.stats) setStats(data.stats);
+        }
+      } catch (err) {
+        console.error("Failed to load CA Hub data:", err);
+      } finally {
+        if (!ignore) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   // Handle Owner approving or declining CA data-access request

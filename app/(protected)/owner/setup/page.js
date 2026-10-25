@@ -14,6 +14,9 @@ import {
   Sparkles,
   TrendingUp,
   Lock,
+  Package,
+  Plus,
+  Trash2,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -68,6 +71,7 @@ export default function OrganizationSetupPage() {
     openingBalance: "",
     openingCash: "",
     currentStockValue: "",
+    stockItems: [],
     monthlyRevenueTarget: "",
     monthlyProductionTarget: "",
 
@@ -131,6 +135,60 @@ export default function OrganizationSetupPage() {
       return { ...prev, activeDepartments: updated };
     });
     setErrorMsg("");
+  };
+
+  // Stock items builder states (Main Branch / Catalog)
+  const [newStockName, setNewStockName] = useState("");
+  const [newStockCategory, setNewStockCategory] = useState("Finished Goods");
+  const [newStockQty, setNewStockQty] = useState("");
+  const [newStockUnit, setNewStockUnit] = useState("Pcs");
+  const [newStockPrice, setNewStockPrice] = useState("");
+
+  const handleAddStockItem = () => {
+    if (!newStockName.trim()) {
+      setErrorMsg("Please enter the product/goods name.");
+      return;
+    }
+    const qty = Math.max(0, Number(newStockQty) || 0);
+    const price = Math.max(0, Number(newStockPrice) || 0);
+
+    const item = {
+      itemId: `item-${Date.now()}`,
+      name: newStockName.trim(),
+      category: newStockCategory,
+      quantity: qty,
+      unit: newStockUnit,
+      unitPrice: price,
+      stockStatus: qty > 10 ? "in_stock" : qty > 0 ? "low_stock" : "out_of_stock",
+    };
+
+    const updated = [...(formData.stockItems || []), item];
+    const totalEstVal = updated.reduce(
+      (sum, cur) => sum + cur.quantity * cur.unitPrice,
+      0
+    );
+
+    setFormData((prev) => ({
+      ...prev,
+      stockItems: updated,
+      // Auto-suggest stock valuation if empty or 0
+      currentStockValue:
+        !prev.currentStockValue || Number(prev.currentStockValue) === 0
+          ? totalEstVal.toString()
+          : prev.currentStockValue,
+    }));
+
+    setNewStockName("");
+    setNewStockQty("");
+    setNewStockPrice("");
+    setErrorMsg("");
+  };
+
+  const handleRemoveStockItem = (index) => {
+    setFormData((prev) => {
+      const updated = prev.stockItems.filter((_, i) => i !== index);
+      return { ...prev, stockItems: updated };
+    });
   };
 
   // STEP-BY-STEP RIGID VALIDATION WITH MIN/MAX ENFORCEMENT
@@ -849,6 +907,110 @@ export default function OrganizationSetupPage() {
                         placeholder="Enter current stock value"
                         className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-mono transition-all"
                       />
+                    </div>
+
+                    {/* Multi-item Stock Goods Builder (Main Branch / Catalog) */}
+                    <div className="sm:col-span-2 p-4 rounded-2xl bg-slate-900/90 border border-slate-700/80 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Package className="w-4 h-4 text-emerald-400" />
+                          <span className="text-xs font-bold text-white uppercase tracking-wider">
+                            Products & Stock Items (Main Branch)
+                          </span>
+                        </div>
+                        <span className="text-[10px] text-slate-400 font-medium">
+                          {formData.stockItems?.length || 0} items added
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">
+                        List the items your business manufactures, stocks, or sells so we and your team know your inventory catalog from day one.
+                      </p>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 pt-1">
+                        <div className="sm:col-span-4">
+                          <input
+                            type="text"
+                            placeholder="Product / Item name *"
+                            value={newStockName}
+                            onChange={(e) => setNewStockName(e.target.value)}
+                            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div className="sm:col-span-3">
+                          <select
+                            value={newStockCategory}
+                            onChange={(e) => setNewStockCategory(e.target.value)}
+                            className="w-full px-2.5 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-slate-200 focus:border-emerald-500 outline-none"
+                          >
+                            <option value="Finished Goods">Finished Goods</option>
+                            <option value="Raw Materials">Raw Materials</option>
+                            <option value="Trading Goods">Trading Goods</option>
+                            <option value="Semi-Finished">Semi-Finished</option>
+                            <option value="Packaging">Packaging</option>
+                          </select>
+                        </div>
+                        <div className="sm:col-span-2">
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Qty"
+                            value={newStockQty}
+                            onChange={(e) => setNewStockQty(e.target.value)}
+                            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="Unit ₹"
+                            value={newStockPrice}
+                            onChange={(e) => setNewStockPrice(e.target.value)}
+                            className="w-full px-3 py-2 text-xs rounded-xl bg-slate-950 border border-slate-700 text-white placeholder-slate-500 focus:border-emerald-500 outline-none"
+                          />
+                        </div>
+                        <div className="sm:col-span-1">
+                          <button
+                            type="button"
+                            onClick={handleAddStockItem}
+                            className="w-full h-full min-h-[34px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center transition-colors cursor-pointer"
+                            title="Add item to stock"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Added Stock Items List */}
+                      {formData.stockItems && formData.stockItems.length > 0 && (
+                        <div className="mt-3 max-h-48 overflow-y-auto space-y-1.5 pr-1">
+                          {formData.stockItems.map((stk, idx) => (
+                            <div
+                              key={idx}
+                              className="flex items-center justify-between p-2 rounded-xl bg-slate-950/70 border border-slate-800 text-xs text-slate-200"
+                            >
+                              <div className="flex items-center gap-2 truncate">
+                                <span className="font-bold text-white truncate">{stk.name}</span>
+                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-purple-950/60 text-purple-300 border border-purple-800/50">
+                                  {stk.category}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-3 shrink-0 font-mono text-[11px]">
+                                <span>{stk.quantity} {stk.unit}</span>
+                                <span className="text-emerald-400">@ ₹{stk.unitPrice}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveStockItem(idx)}
+                                  className="text-slate-500 hover:text-rose-400 transition-colors cursor-pointer"
+                                  title="Remove item"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     <div className="sm:col-span-2">
