@@ -453,7 +453,7 @@ export default function OrganizationSetupPage() {
       <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
         <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mb-4" />
         <p className="text-sm font-semibold tracking-wide text-slate-300">
-          Verifying your Crown FinOps workspace...
+          Verifying your Crown Ecosystems workspace...
         </p>
       </div>
     );

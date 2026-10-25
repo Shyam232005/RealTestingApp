@@ -163,7 +163,7 @@ export default function OwnerDashboard() {
       <div className="min-h-screen w-full bg-[#FAF9FD] flex flex-col items-center justify-center text-slate-800">
         <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-3" />
         <p className="text-sm font-bold tracking-wide text-slate-600">
-          Loading Owner FinOps Workspace...
+          Loading Owner Crown Ecosystems Workspace...
         </p>
       </div>
     );

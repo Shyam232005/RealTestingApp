@@ -165,9 +165,9 @@ export default function OwnerHeader({
                 <Sparkles className="w-4 h-4" />
               </div>
               <div className="hidden sm:block">
-                <span className="text-base font-black text-slate-900 tracking-tight">Finora</span>
+                <span className="text-base font-black text-slate-900 tracking-tight">Crown Ecosystem</span>
                 <span className="text-[9px] font-bold text-purple-600 ml-1 uppercase tracking-widest bg-purple-50 px-1 py-0.2 rounded border border-purple-100">
-                  FinOps
+                  Crown's FineOps
                 </span>
               </div>
             </div>
