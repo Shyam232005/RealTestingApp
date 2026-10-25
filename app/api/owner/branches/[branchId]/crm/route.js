@@ -123,7 +123,15 @@ export async function POST(request, { params }) {
 
       if (!branch.customers) branch.customers = [];
       branch.customers.unshift(newCustomer);
-      await organization.save();
+      await Organization.collection.updateOne(
+        { _id: organization._id },
+        {
+          $set: {
+            [`branchList.${branchIndex}.customers`]: branch.customers,
+            updatedAt: new Date(),
+          },
+        }
+      );
 
       return NextResponse.json(
         {
@@ -160,7 +168,15 @@ export async function POST(request, { params }) {
 
       if (!branch.offers) branch.offers = [];
       branch.offers.unshift(newOffer);
-      await organization.save();
+      await Organization.collection.updateOne(
+        { _id: organization._id },
+        {
+          $set: {
+            [`branchList.${branchIndex}.offers`]: branch.offers,
+            updatedAt: new Date(),
+          },
+        }
+      );
 
       return NextResponse.json(
         {
@@ -179,7 +195,15 @@ export async function POST(request, { params }) {
     if (action === "delete_offer") {
       const { offerId } = body;
       branch.offers = (branch.offers || []).filter((o) => o.offerId !== offerId);
-      await organization.save();
+      await Organization.collection.updateOne(
+        { _id: organization._id },
+        {
+          $set: {
+            [`branchList.${branchIndex}.offers`]: branch.offers,
+            updatedAt: new Date(),
+          },
+        }
+      );
       return NextResponse.json({ message: "Offer removed successfully.", offers: branch.offers }, { status: 200 });
     }
 
@@ -205,7 +229,15 @@ export async function POST(request, { params }) {
 
       if (!branch.stockItems) branch.stockItems = [];
       branch.stockItems.unshift(newItem);
-      await organization.save();
+      await Organization.collection.updateOne(
+        { _id: organization._id },
+        {
+          $set: {
+            [`branchList.${branchIndex}.stockItems`]: branch.stockItems,
+            updatedAt: new Date(),
+          },
+        }
+      );
 
       return NextResponse.json(
         { message: `Stock item "${newItem.name}" added to ${branch.name}!`, stockItems: branch.stockItems },

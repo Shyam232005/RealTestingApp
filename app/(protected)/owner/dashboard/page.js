@@ -86,6 +86,10 @@ export default function OwnerDashboard() {
           location: data.organization.location || "",
           industry: data.organization.industry || "",
           branches: data.organization.branches || 1,
+          employeeCount:
+            data.organization.employeeCount ||
+            data.organization.branchList?.[0]?.staffCount ||
+            0,
           BankName: data.organization.BankName || "",
           IFSC: data.organization.IFSC || "",
           AccNo: data.organization.AccNo || "",

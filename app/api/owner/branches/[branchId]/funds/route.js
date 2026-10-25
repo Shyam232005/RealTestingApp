@@ -67,10 +67,20 @@ export async function POST(request, { params }) {
       return NextResponse.json({ error: "Branch not found." }, { status: 404 });
     }
 
-    // Update allocatedFunds
+    // Atomically update allocatedFunds directly in MongoDB
     const currentFunds = Number(organization.branchList[branchIndex].allocatedFunds || 0);
-    organization.branchList[branchIndex].allocatedFunds = currentFunds + allotmentAmount;
-    await organization.save();
+    const newFunds = currentFunds + allotmentAmount;
+
+    await Organization.collection.updateOne(
+      { _id: organization._id },
+      {
+        $set: {
+          [`branchList.${branchIndex}.allocatedFunds`]: newFunds,
+          updatedAt: new Date(),
+        },
+      }
+    );
+    organization.branchList[branchIndex].allocatedFunds = newFunds;
 
     // Permanent ledger entry
     try {

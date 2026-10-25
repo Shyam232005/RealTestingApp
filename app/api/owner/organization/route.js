@@ -36,6 +36,83 @@ async function getAuthenticatedOwner() {
   return { owner, decoded };
 }
 
+// Helper: Build or repair complete, in-order branchList from 1 to branchCount
+function getCompleteBranchList(organization) {
+  const branchCount = Math.max(1, Number(organization?.branches || 1));
+  const rawList = Array.isArray(organization?.branchList)
+    ? JSON.parse(JSON.stringify(organization.branchList))
+    : [];
+
+  const completeList = [];
+
+  for (let bNum = 1; bNum <= branchCount; bNum++) {
+    const bId = `branch-${bNum}`;
+    const existing = rawList.find(
+      (b) => b.branchId === bId || b.branchNumber === bNum
+    );
+
+    if (existing) {
+      completeList.push({
+        ...existing,
+        branchId: bId,
+        branchNumber: bNum,
+        name:
+          existing.name ||
+          (bNum === 1
+            ? `${organization?.RegisterName || "Branch 1"} - Main (HQ)`
+            : `Branch ${bNum}`),
+        location:
+          existing.location ||
+          (bNum === 1 ? organization?.location || "Headquarters" : ""),
+        status: bNum === 1 ? "active" : existing.status || "inactive",
+        staffCount: Math.max(0, Number(existing.staffCount) || 0),
+        lastMonthSales: Math.max(0, Number(existing.lastMonthSales) || 0),
+        monthlySalesTarget: Math.max(0, Number(existing.monthlySalesTarget) || 0),
+        currentMonthSales: Math.max(0, Number(existing.currentMonthSales) || 0),
+        allocatedFunds: Math.max(0, Number(existing.allocatedFunds) || 0),
+        stockItems: Array.isArray(existing.stockItems) ? existing.stockItems : [],
+        customers: Array.isArray(existing.customers) ? existing.customers : [],
+        offers: Array.isArray(existing.offers) ? existing.offers : [],
+        activatedAt:
+          existing.activatedAt ||
+          (bNum === 1 ? organization?.createdAt || new Date() : null),
+      });
+    } else {
+      completeList.push({
+        branchId: bId,
+        branchNumber: bNum,
+        name:
+          bNum === 1
+            ? `${organization?.RegisterName || "Branch 1"} - Main (HQ)`
+            : `Branch ${bNum}`,
+        location:
+          bNum === 1 ? organization?.location || "Headquarters" : "",
+        status: bNum === 1 ? "active" : "inactive",
+        staffCount:
+          bNum === 1
+            ? Math.max(0, Number(organization?.employeeCount) || 0)
+            : 0,
+        lastMonthSales:
+          bNum === 1 ? Number(organization?.monthlyRevenueTarget) || 0 : 0,
+        monthlySalesTarget:
+          bNum === 1 ? Number(organization?.monthlyRevenueTarget) || 0 : 0,
+        currentMonthSales: 0,
+        allocatedFunds:
+          bNum === 1
+            ? (Number(organization?.openingBalance) || 0) +
+              (Number(organization?.openingCash) || 0)
+            : 0,
+        stockItems: bNum === 1 ? organization?.stockCatalog || [] : [],
+        customers: [],
+        offers: [],
+        activatedAt: bNum === 1 ? organization?.createdAt || new Date() : null,
+      });
+    }
+  }
+
+  return completeList;
+}
+
 // GET /api/owner/organization - Retrieve current setup status and organization data
 export async function GET() {
   try {
@@ -48,66 +125,40 @@ export async function GET() {
     let organization = null;
 
     if (owner.organizationId) {
-      organization = await Organization.findById(owner.organizationId);
+      const orgId = Array.isArray(owner.organizationId)
+        ? owner.organizationId[0]
+        : owner.organizationId;
+      organization = await Organization.findById(orgId);
     }
     if (!organization) {
       organization = await Organization.findOne({ ownerId: owner._id });
     }
 
-    // Auto-initialize embedded branchList for backwards compatibility
+    // Auto-repair and guarantee embedded branchList matches branchCount in strict order
     if (organization) {
-      const targetCount = Math.max(1, Number(organization.branches || 1));
-      let currentBranches = organization.branchList || [];
-      let updatedNeeded = false;
+      const completeBranches = getCompleteBranchList(organization);
 
-      // If branchList is empty, seed Branch 1 (Main HQ) as active
-      if (currentBranches.length === 0) {
-        currentBranches.push({
-          branchId: "branch-1",
-          branchNumber: 1,
-          name: `${organization.RegisterName} - Main (HQ)`,
-          location: organization.location || "Headquarters",
-          status: "active",
-          staffCount: 0,
-          lastMonthSales: organization.monthlyRevenueTarget || 0,
-          monthlySalesTarget: organization.monthlyRevenueTarget || 0,
-          currentMonthSales: 0,
-          allocatedFunds:
-            (Number(organization.openingBalance) || 0) +
-            (Number(organization.openingCash) || 0),
-          stockItems: organization.stockCatalog || [],
-          customers: [],
-          offers: [],
-          activatedAt: organization.createdAt || new Date(),
-        });
-        updatedNeeded = true;
-      }
+      const totalActiveStaff = completeBranches
+        .filter((b) => b.status === "active")
+        .reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0);
 
-      // Add inactive placeholders for branch 2..N if count exceeds current list
-      while (currentBranches.length < targetCount) {
-        const nextNum = currentBranches.length + 1;
-        currentBranches.push({
-          branchId: `branch-${nextNum}`,
-          branchNumber: nextNum,
-          name: `Branch ${nextNum}`,
-          location: "",
-          status: "inactive",
-          staffCount: 0,
-          lastMonthSales: 0,
-          monthlySalesTarget: 0,
-          currentMonthSales: 0,
-          allocatedFunds: 0,
-          stockItems: [],
-          customers: [],
-          offers: [],
-          activatedAt: null,
-        });
-        updatedNeeded = true;
-      }
+      const needsUpdate =
+        JSON.stringify(organization.branchList || []) !==
+          JSON.stringify(completeBranches) ||
+        organization.employeeCount !== totalActiveStaff;
 
-      if (updatedNeeded) {
-        organization.branchList = currentBranches;
-        await organization.save();
+      if (needsUpdate) {
+        await Organization.collection.updateOne(
+          { _id: organization._id },
+          {
+            $set: {
+              branchList: completeBranches,
+              employeeCount: totalActiveStaff,
+              updatedAt: new Date(),
+            },
+          }
+        );
+        organization = await Organization.collection.findOne({ _id: organization._id });
       }
     }
 
@@ -177,7 +228,10 @@ export async function GET() {
           linkedCAs: linkedCAsList || [],
         },
       },
-      { status: 200 }
+      {
+        status: 200,
+        headers: { "X-Finora-Version": "live-v2" },
+      }
     );
   } catch (error) {
     console.error("GET /api/owner/organization error:", error);
@@ -358,62 +412,42 @@ export async function POST(request) {
     }
 
     // Preserve existing branches if updating, or create fresh branchList
-    const existingOrg = await Organization.findOne({ ownerId: owner._id });
-    let branchList = existingOrg?.branchList || [];
-
-    if (branchList.length === 0) {
-      // Main HQ (Branch 1) - Default Active
-      branchList.push({
-        branchId: "branch-1",
-        branchNumber: 1,
-        name: `${RegisterName.trim()} - Main (HQ)`,
-        location: location.trim(),
-        status: "active",
-        staffCount: 0,
-        lastMonthSales: Number(monthlyRevenueTarget) || 0,
-        monthlySalesTarget: Number(monthlyRevenueTarget) || 0,
-        currentMonthSales: 0,
-        allocatedFunds:
-          (Number(openingBalance) || 0) + (Number(openingCash) || 0),
-        stockItems: cleanStockCatalog,
-        customers: [],
-        offers: [],
-        activatedAt: new Date(),
-      });
-    } else {
-      // Update Main HQ name, location, and stock items if provided
-      branchList[0].name = `${RegisterName.trim()} - Main (HQ)`;
-      branchList[0].location = location.trim();
-      if (cleanStockCatalog.length > 0) {
-        branchList[0].stockItems = cleanStockCatalog;
-      }
+    let existingOrg = null;
+    if (owner.organizationId) {
+      const orgId = Array.isArray(owner.organizationId)
+        ? owner.organizationId[0]
+        : owner.organizationId;
+      existingOrg = await Organization.findById(orgId);
+    }
+    if (!existingOrg) {
+      existingOrg = await Organization.findOne({ ownerId: owner._id });
     }
 
-    // Ensure placeholders for branch 2..N
-    while (branchList.length < branchCount) {
-      const nextNum = branchList.length + 1;
-      branchList.push({
-        branchId: `branch-${nextNum}`,
-        branchNumber: nextNum,
-        name: `Branch ${nextNum}`,
-        location: "",
-        status: "inactive",
-        staffCount: 0,
-        lastMonthSales: 0,
-        monthlySalesTarget: 0,
-        currentMonthSales: 0,
-        allocatedFunds: 0,
-        stockItems: [],
-        customers: [],
-        offers: [],
-        activatedAt: null,
-      });
+    const mainStaff = Math.max(0, Number(body.employeeCount) || 0);
+
+    const completeBranches = getCompleteBranchList({
+      ...(existingOrg ? (typeof existingOrg.toObject === "function" ? existingOrg.toObject() : existingOrg) : {}),
+      branches: branchCount,
+      RegisterName,
+      location,
+      employeeCount: mainStaff,
+    });
+
+    // Update Main HQ (Branch 1) with latest statutory profile details
+    completeBranches[0].name = `${RegisterName.trim()} - Main (HQ)`;
+    completeBranches[0].location = location.trim();
+    if (body.employeeCount !== undefined) {
+      completeBranches[0].staffCount = mainStaff;
+    }
+    if (cleanStockCatalog.length > 0) {
+      completeBranches[0].stockItems = cleanStockCatalog;
     }
 
-    // Trim if branchCount was reduced
-    if (branchList.length > branchCount) {
-      branchList = branchList.slice(0, branchCount);
-    }
+    const trimmedBranches = completeBranches.slice(0, branchCount);
+
+    const totalStaffAcrossAllActive = trimmedBranches
+      .filter((b) => b.status === "active")
+      .reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0);
 
     const orgPayload = {
       ownerId: owner._id,
@@ -430,7 +464,8 @@ export async function POST(request) {
       location: location.trim(),
       industry: industry.trim(),
       branches: branchCount,
-      branchList: branchList,
+      employeeCount: totalStaffAcrossAllActive,
+      branchList: trimmedBranches,
       stockCatalog:
         cleanStockCatalog.length > 0
           ? cleanStockCatalog
@@ -451,12 +486,13 @@ export async function POST(request) {
       mcaAuditLog: mcaAuditLog !== undefined ? Boolean(mcaAuditLog) : true,
     };
 
-    // Upsert Organization
-    const organization = await Organization.findOneAndUpdate(
+    // Upsert Organization directly to MongoDB
+    await Organization.collection.updateOne(
       { ownerId: owner._id },
-      orgPayload,
-      { new: true, upsert: true, setDefaultsOnInsert: true }
+      { $set: orgPayload },
+      { upsert: true }
     );
+    const organization = await Organization.collection.findOne({ ownerId: owner._id });
 
     // Update Owner status
     owner.isSetupComplete = true;

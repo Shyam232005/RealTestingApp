@@ -212,9 +212,14 @@ export default function BranchActivationModal({
               </div>
 
               <div>
-                <label className="text-xs font-bold text-slate-700 block mb-1.5">
-                  Staff / Employees at Branch
-                </label>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="text-xs font-bold text-slate-700 block">
+                    Staff Capacity / Allowed Positions
+                  </label>
+                  <span className="text-[10px] text-purple-600 font-semibold">
+                    (Fewer is OK, Max limit)
+                  </span>
+                </div>
                 <div className="relative">
                   <Users className="w-4 h-4 text-slate-400 absolute left-3.5 top-3" />
                   <input
@@ -222,10 +227,13 @@ export default function BranchActivationModal({
                     min="0"
                     value={staffCount}
                     onChange={(e) => setStaffCount(e.target.value)}
-                    placeholder="e.g. 6"
+                    placeholder="e.g. 6 (max allowed staff)"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 placeholder-slate-400 focus:border-purple-600 focus:ring-2 focus:ring-purple-600/10 outline-none"
                   />
                 </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Team size can be less than this limit, but branch cannot have more employees than listed.
+                </p>
               </div>
 
               <div>

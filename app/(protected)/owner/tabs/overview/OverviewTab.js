@@ -20,6 +20,13 @@ export default function OverviewTab({
   setActiveTab,
 }) {
   const branchCount = Math.max(1, Number(organization?.branches || 1));
+  const embeddedBranches = organization?.branchList || [];
+  const activeBranches = embeddedBranches.filter((b) => b.status === "active");
+  const activeCount = Math.max(1, activeBranches.length);
+  const totalEmployees =
+    activeBranches.reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0) ||
+    Number(organization?.employeeCount || 0);
+
   const isAllBranches = selectedBranch === "all";
 
   // Derive branch title for current filter
@@ -27,12 +34,19 @@ export default function OverviewTab({
   let currentBranchLocation = "Consolidated View";
   if (!isAllBranches) {
     const branchNum = parseInt(selectedBranch.replace("branch-", "")) || 1;
+    const existing = embeddedBranches.find(
+      (b) => b.branchId === selectedBranch || b.branchNumber === branchNum
+    );
     if (branchNum === 1) {
-      currentBranchName = "Branch 1 - Main (HQ)";
-      currentBranchLocation = organization?.location || "Main Office";
+      currentBranchName = `${organization?.RegisterName || "Branch 1"} - Main (HQ)`;
+      currentBranchLocation = `${organization?.location || "Headquarters"} • ${
+        Number(existing?.staffCount) || Number(organization?.employeeCount) || 0
+      } Staff`;
     } else {
-      currentBranchName = `Branch ${branchNum}`;
-      currentBranchLocation = `Unit ${branchNum} - ${organization?.location?.split(",")[0] || "Location"}`;
+      currentBranchName = existing?.name || `Branch ${branchNum}`;
+      currentBranchLocation = `${existing?.location || "Setup Required"} • ${
+        existing?.staffCount || 0
+      } Staff`;
     }
   }
 
@@ -50,12 +64,16 @@ export default function OverviewTab({
                 {isAllBranches ? "All Branches (Combined View)" : currentBranchName}
               </span>
               <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200 font-mono">
-                {isAllBranches ? `${branchCount} Units Active` : currentBranchLocation}
+                {isAllBranches
+                  ? `${activeCount} of ${branchCount} Units Active • ${totalEmployees} Total Staff`
+                  : currentBranchLocation}
               </span>
             </div>
             <p className="text-[11px] text-slate-500 mt-0.5">
               {isAllBranches
-                ? `Showing combined numbers across all ${branchCount} branches configured in setup.`
+                ? `Showing combined numbers across ${activeCount} active ${
+                    activeCount === 1 ? "unit" : "units"
+                  } (${totalEmployees} connected staff).`
                 : `Showing numbers, orders, and money for this specific branch.`}
             </p>
           </div>

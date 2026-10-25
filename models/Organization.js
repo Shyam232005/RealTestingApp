@@ -106,6 +106,7 @@ const OrganizationSchema = new mongoose.Schema(
     location: { type: String, required: true, trim: true },
     industry: { type: String, required: true, trim: true },
     branches: { type: Number, default: 1, min: 1 }, // Total branches count decided at setup
+    employeeCount: { type: Number, default: 0, min: 0 }, // Staff at Main Branch
     
     // Embedded Branches Array (Dedicated records for Main HQ and Units)
     branchList: { type: [BranchSchema], default: [] },

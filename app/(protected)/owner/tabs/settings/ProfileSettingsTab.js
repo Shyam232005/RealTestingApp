@@ -103,6 +103,20 @@ export default function ProfileSettingsTab({
                 className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-purple-600 outline-none font-medium"
               />
             </div>
+            <div>
+              <div className="flex items-center justify-between mb-1">
+                <label className="block font-bold text-slate-700">Staff Capacity Limit (Main HQ)</label>
+                <span className="text-[10px] text-purple-600 font-bold">(Fewer is OK)</span>
+              </div>
+              <input
+                type="number"
+                min="0"
+                value={settingsForm.employeeCount ?? 0}
+                onChange={(e) => setSettingsForm({ ...settingsForm, employeeCount: Number(e.target.value) })}
+                className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-purple-600 outline-none font-medium"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">Maximum allowed employees at HQ.</p>
+            </div>
           </div>
         </div>
 

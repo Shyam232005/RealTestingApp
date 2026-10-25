@@ -33,20 +33,29 @@ export default function BranchDashboardView({
   showToast,
 }) {
   const branchList = organization?.branchList || [];
-  const currentBranch =
-    branchList.find((b) => b.branchId === selectedBranchId) ||
-    branchList[0] || {
-      name: "Main Branch",
-      location: organization?.location || "Primary Location",
-      status: "active",
-      staffCount: 0,
-      monthlySalesTarget: organization?.monthlyRevenueTarget || 0,
-      currentMonthSales: 0,
-      allocatedFunds: 0,
-      stockItems: organization?.stockCatalog || [],
-      customers: [],
-      offers: [],
-    };
+  const foundBranch =
+    branchList.find((b) => b.branchId === selectedBranchId) || branchList[0];
+  const currentBranch = foundBranch
+    ? {
+        ...foundBranch,
+        staffCount:
+          foundBranch.branchNumber === 1 &&
+          (!foundBranch.staffCount || foundBranch.staffCount === 0)
+            ? Number(organization?.employeeCount || 0)
+            : Number(foundBranch.staffCount || 0),
+      }
+    : {
+        name: "Main Branch",
+        location: organization?.location || "Primary Location",
+        status: "active",
+        staffCount: Number(organization?.employeeCount || 0),
+        monthlySalesTarget: organization?.monthlyRevenueTarget || 0,
+        currentMonthSales: 0,
+        allocatedFunds: 0,
+        stockItems: organization?.stockCatalog || [],
+        customers: [],
+        offers: [],
+      };
 
   // Modals
   const [isFundsModalOpen, setIsFundsModalOpen] = useState(false);
@@ -307,12 +316,11 @@ export default function BranchDashboardView({
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Active Branch
               </span>
-              {currentBranch.staffCount > 0 && (
-                <span className="text-xs font-bold px-2 py-0.5 rounded-md bg-slate-100 text-slate-700 flex items-center gap-1">
-                  <Users className="w-3 h-3 text-slate-500" />
-                  {currentBranch.staffCount} Employees
-                </span>
-              )}
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-md bg-slate-100 text-slate-700 flex items-center gap-1.5" title="Branch employee limit (fewer team members is OK, but cannot exceed this capacity)">
+                <Users className="w-3.5 h-3.5 text-slate-500" />
+                <span>Staff Limit: {currentBranch.staffCount} Max</span>
+                <span className="text-[9px] text-emerald-700 font-extrabold bg-emerald-100/70 px-1 py-0.2 rounded">Fewer is OK</span>
+              </span>
             </div>
             <h1 className="text-2xl font-black text-slate-900 tracking-tight mt-1">
               {currentBranch.name}

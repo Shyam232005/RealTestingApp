@@ -29,12 +29,36 @@ const DEPARTMENT_NAME_MAP = {
   general: "General Business Operations",
 };
 
-export default function OwnerTeamAndCaCard({ owner, organization, setActiveTab }) {
+export default function OwnerTeamAndCaCard({
+  owner,
+  organization,
+  selectedBranch = "all",
+  setActiveTab,
+}) {
   const [copiedCode, setCopiedCode] = useState(false);
 
   const employees = owner?.employees || [];
   const linkedCAs = owner?.linkedCAs || [];
   const inviteCode = owner?.inviteCode || "BIZ-CROWN1";
+
+  const branchCount = Math.max(1, Number(organization?.branches || 1));
+  const embeddedBranches = organization?.branchList || [];
+  const activeBranches = embeddedBranches.filter((b) => b.status === "active");
+
+  const totalBranchStaff =
+    activeBranches.reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0) ||
+    Number(organization?.employeeCount || 0);
+
+  const currentBranch = embeddedBranches.find(
+    (b) => b.branchId === selectedBranch
+  );
+
+  const currentBranchStaff = currentBranch
+    ? (Number(currentBranch.staffCount) || (currentBranch.branchNumber === 1 ? Number(organization?.employeeCount || 0) : 0))
+    : Number(organization?.employeeCount || 0);
+
+  const displayStaffCount =
+    selectedBranch === "all" ? totalBranchStaff : currentBranchStaff;
 
   const handleCopyCode = () => {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
@@ -63,10 +87,15 @@ export default function OwnerTeamAndCaCard({ owner, organization, setActiveTab }
       <div className="grid grid-cols-2 gap-2 text-center">
         <div className="rounded-2xl bg-purple-50/70 border border-purple-100 p-2.5">
           <p className="text-[10px] font-bold uppercase tracking-wider text-purple-700">
-            My Staff
+            {selectedBranch === "all" ? "Total Staff (All Units)" : "Branch Staff"}
           </p>
           <p className="text-lg font-black text-purple-950 font-mono mt-0.5">
-            {employees.length}
+            {displayStaffCount}
+          </p>
+          <p className="text-[9px] text-purple-600 font-semibold truncate mt-0.5">
+            {selectedBranch === "all"
+              ? `${activeBranches.length} of ${branchCount} Units Active`
+              : currentBranch?.name || "Main HQ"}
           </p>
         </div>
         <div className="rounded-2xl bg-indigo-50/70 border border-indigo-100 p-2.5">
@@ -76,6 +105,101 @@ export default function OwnerTeamAndCaCard({ owner, organization, setActiveTab }
           <p className="text-lg font-black text-indigo-950 font-mono mt-0.5">
             {linkedCAs.length}
           </p>
+          <p className="text-[9px] text-indigo-600 font-semibold truncate mt-0.5">
+            {linkedCAs.length > 0 ? "Linked & Active" : "Invite Pending"}
+          </p>
+        </div>
+      </div>
+
+      {/* Branch Headcount & Connection Status */}
+      <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-100 space-y-2.5">
+        <div className="flex items-center justify-between text-xs font-bold text-slate-800">
+          <span className="flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-purple-600" />
+            Branch Units ({activeBranches.length}/{branchCount} Active)
+          </span>
+          <span className="text-[10px] font-mono text-purple-700 font-extrabold bg-purple-100/70 px-1.5 py-0.5 rounded-md">
+            {totalBranchStaff} Total Staff
+          </span>
+        </div>
+
+        <div className="space-y-1.5 max-h-48 overflow-y-auto pr-0.5">
+          {Array.from({ length: branchCount }, (_, i) => {
+            const bNum = i + 1;
+            const bId = `branch-${bNum}`;
+            const existing = embeddedBranches.find(
+              (eb) => eb.branchId === bId || eb.branchNumber === bNum
+            );
+            const isActive = bNum === 1 || (existing && existing.status === "active");
+            const staffCapacity =
+              bNum === 1
+                ? Number(existing?.staffCount) || Number(organization?.employeeCount) || 0
+                : Number(existing?.staffCount) || 0;
+
+            const assignedStaff = employees.filter(
+              (e) => (e.branchId || "branch-1") === bId
+            ).length;
+
+            const isCurrent =
+              selectedBranch === bId || (selectedBranch === "all" && bNum === 1);
+
+            return (
+              <div
+                key={bId}
+                className={`flex items-center justify-between text-xs p-2 rounded-xl transition-all border ${
+                  isActive
+                    ? isCurrent && selectedBranch !== "all"
+                      ? "bg-purple-50/60 border-purple-200"
+                      : "bg-white border-slate-100"
+                    : "bg-amber-50/40 border-amber-100"
+                }`}
+              >
+                <div className="min-w-0 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span
+                      className={`w-2 h-2 rounded-full shrink-0 ${
+                        isActive ? "bg-emerald-500 animate-pulse" : "bg-amber-400"
+                      }`}
+                    />
+                    <p className="font-bold text-slate-800 truncate text-[11px]">
+                      {existing?.name ||
+                        (bNum === 1
+                          ? `${organization?.RegisterName || "Branch 1"} - Main (HQ)`
+                          : `Branch ${bNum}`)}
+                    </p>
+                  </div>
+                  <p className="text-[10px] text-slate-400 truncate pl-3.5 mt-0.5">
+                    {existing?.location ||
+                      (bNum === 1
+                        ? organization?.location || "Headquarters"
+                        : "Setup Required")}
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <div className="text-right">
+                    <span className="text-[10px] font-black font-mono text-slate-800 block leading-tight">
+                      {isActive ? `${assignedStaff} / ${staffCapacity}` : "0 / 0"}
+                    </span>
+                    <span className="text-[8px] font-bold text-slate-400 block leading-tight">
+                      {isActive ? `Max: ${staffCapacity}` : "Inactive"}
+                    </span>
+                  </div>
+                  <span
+                    className={`text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded-md ${
+                      isActive
+                        ? assignedStaff > staffCapacity
+                          ? "bg-rose-50 text-rose-700 border border-rose-200"
+                          : "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                        : "bg-amber-50 text-amber-700 border border-amber-200"
+                    }`}
+                  >
+                    {isActive ? (assignedStaff > staffCapacity ? "Exceeded" : "Within Limit") : "Inactive"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       </div>
 

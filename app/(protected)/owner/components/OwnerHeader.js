@@ -57,16 +57,23 @@ export default function OwnerHeader({
   const branchCount = Math.max(1, Number(organization?.branches || 1));
   const embeddedBranches = organization?.branchList || [];
 
+  const activeBranches = embeddedBranches.filter((b) => b.status === "active");
+  const activeCount = Math.max(1, activeBranches.length);
+  const totalStaffAcrossBranches =
+    activeBranches.reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0) ||
+    Number(organization?.employeeCount || 0);
+
   // Build exact branch list matching setup count with active/inactive statuses
   const branchOptions = [
     {
       id: "all",
       name: "All Branches",
-      subtitle: `Consolidated view (${branchCount} ${branchCount === 1 ? "unit" : "units"})`,
+      subtitle: `Consolidated view (${activeCount} of ${branchCount} units active • ${totalStaffAcrossBranches} total staff)`,
       badge: "All Units",
       isAll: true,
       status: "active",
       index: 0,
+      staffCount: totalStaffAcrossBranches,
     },
     ...Array.from({ length: branchCount }, (_, i) => {
       const bNum = i + 1;
@@ -78,23 +85,29 @@ export default function OwnerHeader({
       const isActive =
         bNum === 1 || (existing && existing.status === "active");
 
+      const staff =
+        bNum === 1
+          ? Number(existing?.staffCount) || Number(organization?.employeeCount) || 0
+          : Number(existing?.staffCount) || 0;
+
       return {
         id: bId,
         name:
           existing?.name ||
-          (bNum === 1 ? "Branch 1 - Main (HQ)" : `Branch ${bNum}`),
+          (bNum === 1 ? `${organization?.RegisterName || "Branch 1"} - Main (HQ)` : `Branch ${bNum}`),
         subtitle:
-          existing?.location ||
-          (bNum === 1
+          existing?.location
+            ? `${existing.location} • ${staff} Staff`
+            : bNum === 1
             ? organization?.location
-              ? `${organization.location} (Primary)`
-              : "Headquarters"
-            : "Inactive - Setup Required"),
+              ? `${organization.location} • ${staff} Staff (Primary HQ)`
+              : `Headquarters • ${staff} Staff`
+            : "Inactive - Click Activate to onboard unit",
         badge: bNum === 1 ? "Main HQ" : `Unit ${bNum}`,
         isAll: false,
         index: bNum,
         status: isActive ? "active" : "inactive",
-        staffCount: existing?.staffCount || 0,
+        staffCount: staff,
         allocatedFunds: existing?.allocatedFunds || 0,
       };
     }),
@@ -124,6 +137,7 @@ export default function OwnerHeader({
     if (setSelectedBranch && updatedBranch?.branchId) {
       setSelectedBranch(updatedBranch.branchId);
     }
+    setActivationTarget(null);
     setBranchDropdownOpen(false);
   };
 
@@ -132,6 +146,7 @@ export default function OwnerHeader({
       {/* Branch Activation Modal */}
       {activationTarget && (
         <BranchActivationModal
+          key={`${activationTarget.id}-${activationTarget.index}`}
           isOpen={!!activationTarget}
           onClose={() => setActivationTarget(null)}
           branchNumber={activationTarget.index}
@@ -170,13 +185,15 @@ export default function OwnerHeader({
                 <div className="w-5 h-5 rounded-md bg-purple-100 text-purple-700 flex items-center justify-center shrink-0">
                   <Building2 className="w-3 h-3" />
                 </div>
-                <div className="text-left max-w-[110px] sm:max-w-[140px] truncate">
+                <div className="text-left max-w-[125px] sm:max-w-[160px] truncate">
                   <div className="flex items-center gap-1 leading-none">
                     <span className="text-[8px] uppercase tracking-wider text-slate-400 font-extrabold">
                       Branch
                     </span>
                     <span className="text-[8px] font-bold px-1 rounded-xs bg-purple-50 text-purple-700 font-mono">
-                      {branchCount} {branchCount === 1 ? "Unit" : "Units"}
+                      {currentBranch.isAll
+                        ? `${activeCount}/${branchCount} Active • ${totalStaffAcrossBranches} Staff`
+                        : `${currentBranch.staffCount} Staff`}
                     </span>
                   </div>
                   <p className="text-[11px] font-black text-slate-900 truncate leading-tight mt-0.5">

@@ -34,6 +34,83 @@ async function getAuthenticatedOwner() {
   return { owner, decoded };
 }
 
+// Helper: Build or repair complete, in-order branchList from 1 to branchCount
+function getCompleteBranchList(organization) {
+  const branchCount = Math.max(1, Number(organization?.branches || 1));
+  const rawList = Array.isArray(organization?.branchList)
+    ? JSON.parse(JSON.stringify(organization.branchList))
+    : [];
+
+  const completeList = [];
+
+  for (let bNum = 1; bNum <= branchCount; bNum++) {
+    const bId = `branch-${bNum}`;
+    const existing = rawList.find(
+      (b) => b.branchId === bId || b.branchNumber === bNum
+    );
+
+    if (existing) {
+      completeList.push({
+        ...existing,
+        branchId: bId,
+        branchNumber: bNum,
+        name:
+          existing.name ||
+          (bNum === 1
+            ? `${organization.RegisterName} - Main (HQ)`
+            : `Branch ${bNum}`),
+        location:
+          existing.location ||
+          (bNum === 1 ? organization.location || "Headquarters" : ""),
+        status: bNum === 1 ? "active" : existing.status || "inactive",
+        staffCount: Math.max(0, Number(existing.staffCount) || 0),
+        lastMonthSales: Math.max(0, Number(existing.lastMonthSales) || 0),
+        monthlySalesTarget: Math.max(0, Number(existing.monthlySalesTarget) || 0),
+        currentMonthSales: Math.max(0, Number(existing.currentMonthSales) || 0),
+        allocatedFunds: Math.max(0, Number(existing.allocatedFunds) || 0),
+        stockItems: Array.isArray(existing.stockItems) ? existing.stockItems : [],
+        customers: Array.isArray(existing.customers) ? existing.customers : [],
+        offers: Array.isArray(existing.offers) ? existing.offers : [],
+        activatedAt:
+          existing.activatedAt ||
+          (bNum === 1 ? organization.createdAt || new Date() : null),
+      });
+    } else {
+      completeList.push({
+        branchId: bId,
+        branchNumber: bNum,
+        name:
+          bNum === 1
+            ? `${organization?.RegisterName || "Branch 1"} - Main (HQ)`
+            : `Branch ${bNum}`,
+        location:
+          bNum === 1 ? organization?.location || "Headquarters" : "",
+        status: bNum === 1 ? "active" : "inactive",
+        staffCount:
+          bNum === 1
+            ? Math.max(0, Number(organization?.employeeCount) || 0)
+            : 0,
+        lastMonthSales:
+          bNum === 1 ? Number(organization?.monthlyRevenueTarget) || 0 : 0,
+        monthlySalesTarget:
+          bNum === 1 ? Number(organization?.monthlyRevenueTarget) || 0 : 0,
+        currentMonthSales: 0,
+        allocatedFunds:
+          bNum === 1
+            ? (Number(organization?.openingBalance) || 0) +
+              (Number(organization?.openingCash) || 0)
+            : 0,
+        stockItems: bNum === 1 ? organization?.stockCatalog || [] : [],
+        customers: [],
+        offers: [],
+        activatedAt: bNum === 1 ? organization?.createdAt || new Date() : null,
+      });
+    }
+  }
+
+  return completeList;
+}
+
 export async function POST(request) {
   try {
     const auth = await getAuthenticatedOwner();
@@ -69,7 +146,17 @@ export async function POST(request) {
       );
     }
 
-    const organization = await Organization.findOne({ ownerId: owner._id });
+    let organization = null;
+    if (owner.organizationId) {
+      const orgId = Array.isArray(owner.organizationId)
+        ? owner.organizationId[0]
+        : owner.organizationId;
+      organization = await Organization.findById(orgId);
+    }
+    if (!organization) {
+      organization = await Organization.findOne({ ownerId: owner._id });
+    }
+
     if (!organization) {
       return NextResponse.json(
         { error: "Organization not found. Complete organization setup first." },
@@ -77,11 +164,19 @@ export async function POST(request) {
       );
     }
 
-    let branches = organization.branchList || [];
+    // Always work with complete in-order branch list
+    const branches = getCompleteBranchList(organization);
     const bNum = Number(branchNumber) || 1;
     const targetIndex = branches.findIndex(
       (b) => b.branchId === branchId || b.branchNumber === bNum
     );
+
+    if (targetIndex === -1) {
+      return NextResponse.json(
+        { error: `Branch unit #${bNum} is not part of this organization.` },
+        { status: 404 }
+      );
+    }
 
     // Format stock items
     let cleanStock = [];
@@ -107,6 +202,7 @@ export async function POST(request) {
     }
 
     const branchData = {
+      ...branches[targetIndex],
       branchId: branchId || `branch-${bNum}`,
       branchNumber: bNum,
       name: name.trim(),
@@ -115,28 +211,38 @@ export async function POST(request) {
       staffCount: Math.max(0, Number(staffCount) || 0),
       lastMonthSales: Math.max(0, Number(lastMonthSales) || 0),
       monthlySalesTarget: Math.max(0, Number(monthlySalesTarget) || 0),
-      currentMonthSales: 0,
+      currentMonthSales: branches[targetIndex].currentMonthSales || 0,
       allocatedFunds: Math.max(0, Number(allocatedFunds) || 0),
-      stockItems: cleanStock,
-      customers: targetIndex >= 0 ? branches[targetIndex].customers || [] : [],
-      offers: targetIndex >= 0 ? branches[targetIndex].offers || [] : [],
-      activatedAt: new Date(),
+      stockItems: cleanStock.length > 0 ? cleanStock : branches[targetIndex].stockItems || [],
+      activatedAt: branches[targetIndex].activatedAt || new Date(),
     };
 
-    if (targetIndex >= 0) {
-      branches[targetIndex] = branchData;
-    } else {
-      branches.push(branchData);
-    }
+    branches[targetIndex] = branchData;
 
-    organization.branchList = branches;
-    await organization.save();
+    // Recalculate total staff capacity across all active branches
+    const totalStaff = branches
+      .filter((b) => b.status === "active")
+      .reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0);
+
+    // Atomically and permanently persist updated branchList & staff count directly to MongoDB
+    await Organization.collection.updateOne(
+      { _id: organization._id },
+      {
+        $set: {
+          branchList: branches,
+          employeeCount: totalStaff,
+          updatedAt: new Date(),
+        },
+      }
+    );
+
+    const freshOrg = await Organization.collection.findOne({ _id: organization._id });
 
     return NextResponse.json(
       {
-        message: `Branch "${branchData.name}" activated successfully!`,
+        message: `Branch "${branchData.name}" activated permanently!`,
         branch: branchData,
-        organization,
+        organization: freshOrg,
       },
       { status: 200 }
     );

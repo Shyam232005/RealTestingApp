@@ -24,9 +24,10 @@ const EmployeeSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, lowercase: true, index: true },
   password: { type: String, required: true },
 
-  // Strict reference to the Owner (Company)
+  // Strict reference to the Owner (Company) and Branch
   companyId: { type: mongoose.Schema.Types.ObjectId, ref: "Owner", required: true, index: true },
   ownerId: { type: mongoose.Schema.Types.ObjectId, ref: "Owner", index: true },
+  branchId: { type: String, trim: true, default: "branch-1", index: true }, // e.g. "branch-1", "branch-2"
 
   // MANDATORY USER ROLE (Strict 6-Role SMB RBAC Taxonomy)
   role: { 

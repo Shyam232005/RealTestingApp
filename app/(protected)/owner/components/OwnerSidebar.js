@@ -17,6 +17,7 @@ export default function OwnerSidebar({
       <OwnerTeamAndCaCard
         owner={owner}
         organization={organization}
+        selectedBranch={selectedBranch}
         setActiveTab={setActiveTab}
       />
 

@@ -59,6 +59,7 @@ export default function OrganizationSetupPage() {
     location: "",
     industry: "",
     branches: "",
+    employeeCount: "",
 
     // Step 2: Banking & Operational Architecture (Empty)
     BankName: "",
@@ -236,6 +237,11 @@ export default function OrganizationSetupPage() {
         branchesNum > 1000
       ) {
         setErrorMsg("Branches must be a valid number between 1 and 1,000.");
+        return false;
+      }
+
+      if (formData.employeeCount !== "" && (isNaN(Number(formData.employeeCount)) || Number(formData.employeeCount) < 0)) {
+        setErrorMsg("Staff count must be a valid number (0 or greater).");
         return false;
       }
     }
@@ -680,6 +686,25 @@ export default function OrganizationSetupPage() {
                         value={formData.branches}
                         onChange={(e) => updateField("branches", e.target.value)}
                         placeholder="e.g. 1"
+                        className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition-all"
+                      />
+                    </div>
+
+                    <div>
+                      <div className="flex justify-between items-center mb-2">
+                        <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                          Staff Capacity Limit (Main HQ)
+                        </label>
+                        <span className="text-[10px] text-emerald-400 font-mono">
+                          (Fewer is OK)
+                        </span>
+                      </div>
+                      <input
+                        type="number"
+                        min="0"
+                        value={formData.employeeCount}
+                        onChange={(e) => updateField("employeeCount", e.target.value)}
+                        placeholder="e.g. 8 (max allowed staff)"
                         className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition-all"
                       />
                     </div>
