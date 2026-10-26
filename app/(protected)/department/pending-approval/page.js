@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { performClientLogout } from "@/lib/clientLogout";
 import {
   Clock,
   CheckCircle2,
@@ -35,13 +36,13 @@ export default function PendingApprovalPage() {
 
       // If approved, redirect immediately
       if (data.employee?.isApproved && data.employee?.department) {
-        window.location.href = `/department/${data.employee.department.toLowerCase()}`;
+        router.push(`/department/${data.employee.department.toLowerCase()}`);
         return;
       }
 
       // If profile incomplete, redirect to onboarding
       if (!data.employee?.approvalStatus || data.employee?.approvalStatus === "PENDING_PROFILE") {
-        window.location.href = "/department/onboarding";
+        router.push("/department/onboarding");
         return;
       }
 
@@ -69,12 +70,12 @@ export default function PendingApprovalPage() {
         if (!res.ok) throw new Error(data.error || "Failed to check status");
 
         if (data.employee?.isApproved && data.employee?.department) {
-          window.location.href = `/department/${data.employee.department.toLowerCase()}`;
+          router.push(`/department/${data.employee.department.toLowerCase()}`);
           return;
         }
 
         if (!data.employee?.approvalStatus || data.employee?.approvalStatus === "PENDING_PROFILE") {
-          window.location.href = "/department/onboarding";
+          router.push("/department/onboarding");
           return;
         }
 
@@ -96,8 +97,7 @@ export default function PendingApprovalPage() {
   }, [router]);
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    await performClientLogout();
   };
 
   return (

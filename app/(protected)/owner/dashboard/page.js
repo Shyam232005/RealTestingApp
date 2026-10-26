@@ -9,6 +9,7 @@ import confetti from "canvas-confetti";
 import OwnerHeader from "../components/OwnerHeader";
 import OwnerSidebar from "../components/OwnerSidebar";
 import BranchDashboardView from "../components/BranchDashboardView";
+import { performClientLogout } from "@/lib/clientLogout";
 
 // Tab Sub-modules
 import {
@@ -124,11 +125,8 @@ export default function OwnerDashboard() {
     setTimeout(() => setToastMsg(""), 4000);
   };
 
-  const handleLogout = () => {
-    document.cookie = "crown_session=; path=/; max-age=0";
-    document.cookie = "fineops_role=; path=/; max-age=0";
-    document.cookie = "fineops_user_id=; path=/; max-age=0";
-    window.location.href = "/login";
+  const handleLogout = async () => {
+    await performClientLogout();
   };
 
   const handleSaveSettings = async (e) => {

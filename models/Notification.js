@@ -2,10 +2,20 @@ import mongoose from "mongoose";
 
 const NotificationSchema = new mongoose.Schema(
   {
+    // Recipient Targeting (Owner vs Employee Hierarchy)
+    recipientType: {
+      type: String,
+      enum: ["OWNER", "EMPLOYEE"],
+      default: "OWNER",
+      index: true,
+    },
+    recipientId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
     ownerId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Owner",
-      required: true,
       index: true,
     },
     companyId: {
@@ -30,8 +40,14 @@ const NotificationSchema = new mongoose.Schema(
         "ATTENDANCE_PUNCH_OUT",
         "LEAVE_REQUEST",
         "LEAVE_REVIEW",
+        "LEAVE_DECIDED",
         "DAILY_SUBMISSION",
+        "WORK_FEEDBACK",
         "STAFF_REGISTRATION",
+        "TASK_ASSIGNED",
+        "TASK_SUBMITTED",
+        "TASK_APPROVED",
+        "TASK_REVISION",
         "PO_REQUEST",
         "SYSTEM",
       ],
@@ -69,6 +85,7 @@ const NotificationSchema = new mongoose.Schema(
 );
 
 NotificationSchema.index({ ownerId: 1, isRead: 1, createdAt: -1 });
+NotificationSchema.index({ recipientId: 1, isRead: 1, createdAt: -1 });
 
 export default mongoose.models.Notification ||
   mongoose.model("Notification", NotificationSchema);

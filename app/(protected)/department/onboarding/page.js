@@ -1,6 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { performClientLogout } from "@/lib/clientLogout";
 import {
   Building2,
   Briefcase,
@@ -83,13 +84,13 @@ export default function EmployeeOnboardingPage() {
 
         // If employee is already approved, route straight to their department
         if (data.employee?.isApproved && data.employee?.department) {
-          window.location.href = `/department/${data.employee.department.toLowerCase()}`;
+          router.push(`/department/${data.employee.department.toLowerCase()}`);
           return;
         }
 
         // If employee has already submitted onboarding and is awaiting approval
         if (data.employee?.approvalStatus === "PENDING_APPROVAL") {
-          window.location.href = "/department/pending-approval";
+          router.push("/department/pending-approval");
           return;
         }
 
@@ -142,7 +143,7 @@ export default function EmployeeOnboardingPage() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Failed to submit onboarding");
 
-      window.location.href = data.redirectUrl || "/department/pending-approval";
+      router.push(data.redirectUrl || "/department/pending-approval");
     } catch (err) {
       setError(err.message);
       setSubmitting(false);
@@ -150,8 +151,7 @@ export default function EmployeeOnboardingPage() {
   };
 
   const handleLogout = async () => {
-    await fetch("/api/auth/logout", { method: "POST" });
-    router.push("/login");
+    await performClientLogout();
   };
 
   if (loading) {

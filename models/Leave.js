@@ -68,6 +68,28 @@ const LeaveSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Designated Reviewer in Company Hierarchy
+    approverType: {
+      type: String,
+      enum: ["EMPLOYEE_SUPERVISOR", "OWNER"],
+      default: "OWNER",
+      index: true,
+    },
+    approverId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
+    approverName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    approverRole: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+
     status: {
       type: String,
       enum: ["PENDING", "APPROVED", "REJECTED", "CANCELLED"],
@@ -76,7 +98,15 @@ const LeaveSchema = new mongoose.Schema(
     },
     reviewedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Owner",
+    },
+    reviewedByType: {
+      type: String,
+      enum: ["EMPLOYEE_SUPERVISOR", "OWNER"],
+      default: "OWNER",
+    },
+    reviewedByName: {
+      type: String,
+      default: "",
     },
     reviewedAt: {
       type: Date,

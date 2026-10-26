@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Submission from "@/models/Submission";
-import { createOwnerNotification } from "@/lib/notifications";
+import { createOwnerNotification, createEmployeeNotification } from "@/lib/notifications";
+import { resolveReportingSupervisor } from "@/lib/hierarchy";
 
 export async function GET() {
   try {
@@ -57,6 +58,22 @@ export async function POST(request) {
 
     const todayStr = new Date().toISOString().split("T")[0];
 
+    // Resolve hierarchy supervisor
+    const reporting = await resolveReportingSupervisor(employee);
+    const isReportingToSupervisor =
+      reporting.type === "EMPLOYEE_SUPERVISOR" && reporting.supervisor;
+
+    const reviewerType = isReportingToSupervisor ? "EMPLOYEE_SUPERVISOR" : "OWNER";
+    const reviewerId = isReportingToSupervisor
+      ? reporting.supervisor._id
+      : owner._id;
+    const reviewerName = isReportingToSupervisor
+      ? reporting.supervisor.name
+      : (owner.name || "Business Owner");
+    const reviewerRole = isReportingToSupervisor
+      ? (reporting.supervisor.postTitle || reporting.supervisor.postLevel?.replace(/_/g, " "))
+      : "Business Owner";
+
     const newSubmission = new Submission({
       employeeId: employee._id,
       employeeName: employee.name,
@@ -71,33 +88,60 @@ export async function POST(request) {
       tasksCompleted: tasksList,
       blockers: (blockers || "").trim(),
       summary: (summary || "").trim(),
+      reviewerType,
+      reviewerId,
+      reviewerName,
+      reviewerRole,
       status: "SUBMITTED",
     });
 
     await newSubmission.save();
 
-    // Notify business owner in real-time
-    await createOwnerNotification({
-      ownerId: owner._id,
-      companyId: owner._id,
-      employeeId: employee._id,
-      employeeName: employee.name,
-      type: "DAILY_SUBMISSION",
-      title: `Daily Work Report: ${employee.name}`,
-      message: `${employee.name} submitted daily report "${title.trim()}" (${tasksList.length} task${tasksList.length === 1 ? "" : "s"} logged).`,
-      linkTab: "team",
-      metadata: {
-        submissionId: newSubmission._id,
-        tasksCount: tasksList.length,
-        hasBlockers: !!blockers?.trim(),
-        branchId: newSubmission.branchId,
-        department: employee.department,
-      },
-    });
+    if (isReportingToSupervisor) {
+      // Notify supervisor in real-time
+      await createEmployeeNotification({
+        recipientId: reporting.supervisor._id,
+        companyId: owner._id,
+        senderId: employee._id,
+        senderName: employee.name,
+        type: "WORK_FEEDBACK",
+        title: `Daily Work Report: ${employee.name}`,
+        message: `${employee.name} submitted daily report "${title.trim()}" (${tasksList.length} task${tasksList.length === 1 ? "" : "s"}). Please review.`,
+        linkTab: "desk",
+        metadata: {
+          submissionId: newSubmission._id,
+          tasksCount: tasksList.length,
+          hasBlockers: !!blockers?.trim(),
+          branchId: newSubmission.branchId,
+          department: employee.department,
+        },
+      });
+    } else {
+      // Escalated to business owner for top departmental officers
+      await createOwnerNotification({
+        ownerId: owner._id,
+        companyId: owner._id,
+        employeeId: employee._id,
+        employeeName: employee.name,
+        type: "DAILY_SUBMISSION",
+        title: `Daily Work Report: ${employee.name}`,
+        message: `${employee.name} submitted daily report "${title.trim()}" (${tasksList.length} task${tasksList.length === 1 ? "" : "s"} logged).`,
+        linkTab: "team",
+        metadata: {
+          submissionId: newSubmission._id,
+          tasksCount: tasksList.length,
+          hasBlockers: !!blockers?.trim(),
+          branchId: newSubmission.branchId,
+          department: employee.department,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Daily report submitted successfully to business owner.",
+      message: isReportingToSupervisor
+        ? `Daily report submitted to your supervisor ${reviewerName} for review.`
+        : "Daily report submitted successfully to business owner.",
       submission: newSubmission,
     });
   } catch (error) {

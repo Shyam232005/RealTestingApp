@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Leave from "@/models/Leave";
-import { createOwnerNotification } from "@/lib/notifications";
+import { createOwnerNotification, createEmployeeNotification } from "@/lib/notifications";
+import { resolveReportingSupervisor } from "@/lib/hierarchy";
 
 export async function GET() {
   try {
@@ -56,6 +57,22 @@ export async function POST(request) {
     const parsedDays = parseFloat(totalDays);
     const calculatedDays = isNaN(parsedDays) || parsedDays < 0.5 ? 0.5 : parsedDays;
 
+    // Resolve hierarchy supervisor: lower staff route to their upper colleague, top posts route to owner
+    const reporting = await resolveReportingSupervisor(employee);
+    const isReportingToSupervisor =
+      reporting.type === "EMPLOYEE_SUPERVISOR" && reporting.supervisor;
+
+    const approverType = isReportingToSupervisor ? "EMPLOYEE_SUPERVISOR" : "OWNER";
+    const approverId = isReportingToSupervisor
+      ? reporting.supervisor._id
+      : owner._id;
+    const approverName = isReportingToSupervisor
+      ? reporting.supervisor.name
+      : (owner.name || "Business Owner");
+    const approverRole = isReportingToSupervisor
+      ? (reporting.supervisor.postTitle || reporting.supervisor.postLevel?.replace(/_/g, " "))
+      : "Business Owner";
+
     const newLeave = new Leave({
       employeeId: employee._id,
       employeeName: employee.name,
@@ -70,37 +87,67 @@ export async function POST(request) {
       totalDays: calculatedDays,
       reason: reason.trim(),
       handoverNote: (handoverNote || "").trim(),
+      approverType,
+      approverId,
+      approverName,
+      approverRole,
       status: "PENDING",
     });
 
     await newLeave.save();
 
-    // Notify business owner in real-time
     const typeLabel = (leaveType || "Casual").toLowerCase();
     const durationLabel = calculatedDays === 0.5 ? "half day" : `${calculatedDays} day(s)`;
-    await createOwnerNotification({
-      ownerId: owner._id,
-      companyId: owner._id,
-      employeeId: employee._id,
-      employeeName: employee.name,
-      type: "LEAVE_REQUEST",
-      title: `New Leave Request: ${employee.name}`,
-      message: `${employee.name} requested ${durationLabel} ${typeLabel} leave (${startDate} to ${endDate}): "${reason.trim()}".`,
-      linkTab: "team",
-      metadata: {
-        leaveId: newLeave._id,
-        leaveType: newLeave.leaveType,
-        totalDays: newLeave.totalDays,
-        startDate: newLeave.startDate,
-        endDate: newLeave.endDate,
-        branchId: newLeave.branchId,
-        department: employee.department,
-      },
-    });
+
+    if (isReportingToSupervisor) {
+      // Notify the immediate upper supervisor in real-time
+      await createEmployeeNotification({
+        recipientId: reporting.supervisor._id,
+        companyId: owner._id,
+        senderId: employee._id,
+        senderName: employee.name,
+        type: "LEAVE_REQUEST",
+        title: `Leave Request: ${employee.name}`,
+        message: `${employee.name} requested ${durationLabel} ${typeLabel} leave (${startDate} to ${endDate}): "${reason.trim()}". Please review and approve/reject.`,
+        linkTab: "desk",
+        metadata: {
+          leaveId: newLeave._id,
+          leaveType: newLeave.leaveType,
+          totalDays: newLeave.totalDays,
+          startDate: newLeave.startDate,
+          endDate: newLeave.endDate,
+          branchId: newLeave.branchId,
+          department: employee.department,
+        },
+      });
+    } else {
+      // Escalated to business owner (for top departmental posts without upper staff)
+      await createOwnerNotification({
+        ownerId: owner._id,
+        companyId: owner._id,
+        employeeId: employee._id,
+        employeeName: employee.name,
+        type: "LEAVE_REQUEST",
+        title: `New Leave Request: ${employee.name}`,
+        message: `${employee.name} requested ${durationLabel} ${typeLabel} leave (${startDate} to ${endDate}): "${reason.trim()}".`,
+        linkTab: "team",
+        metadata: {
+          leaveId: newLeave._id,
+          leaveType: newLeave.leaveType,
+          totalDays: newLeave.totalDays,
+          startDate: newLeave.startDate,
+          endDate: newLeave.endDate,
+          branchId: newLeave.branchId,
+          department: employee.department,
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,
-      message: "Leave application submitted to owner for review.",
+      message: isReportingToSupervisor
+        ? `Leave application routed to supervisor ${approverName} for review.`
+        : "Leave application submitted to business owner for review.",
       leave: newLeave,
     });
   } catch (error) {

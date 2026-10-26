@@ -67,6 +67,33 @@ const SubmissionSchema = new mongoose.Schema(
       trim: true,
       default: "",
     },
+    // Designated Reviewer in Company Hierarchy
+    reviewerType: {
+      type: String,
+      enum: ["EMPLOYEE_SUPERVISOR", "OWNER"],
+      default: "OWNER",
+      index: true,
+    },
+    reviewerId: {
+      type: mongoose.Schema.Types.ObjectId,
+      index: true,
+    },
+    reviewerName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    reviewerRole: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    taskAssignmentId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "TaskAssignment",
+      default: null,
+    },
+
     status: {
       type: String,
       enum: ["SUBMITTED", "ACKNOWLEDGED"],
@@ -78,9 +105,17 @@ const SubmissionSchema = new mongoose.Schema(
     },
     acknowledgedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Owner",
+    },
+    acknowledgedByName: {
+      type: String,
+      default: "",
     },
     ownerFeedback: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    feedback: {
       type: String,
       trim: true,
       default: "",

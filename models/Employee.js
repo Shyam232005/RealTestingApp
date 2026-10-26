@@ -36,6 +36,17 @@ export const POST_HIERARCHY_LEVELS = [
   "OTHER"
 ];
 
+export const HIERARCHY_RANK_MAP = {
+  CHIEF_OFFICER: 7,
+  DIRECTOR: 6,
+  MANAGER: 5,
+  SUPERVISOR: 4,
+  ANALYST: 3,
+  COORDINATOR: 2,
+  ASSISTANT: 1,
+  OTHER: 0,
+};
+
 export const APPROVAL_STATUS_LIST = [
   "PENDING_PROFILE",
   "PENDING_APPROVAL",
@@ -76,6 +87,16 @@ const EmployeeSchema = new mongoose.Schema({
   },
   postTitle: { type: String, trim: true },
   workDescription: { type: String, trim: true },
+
+  // Corporate Hierarchy Reporting Relationship
+  reportsTo: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Employee",
+    default: null,
+    index: true,
+  },
+  reportsToName: { type: String, trim: true, default: "" },
+  reportsToRole: { type: String, trim: true, default: "" },
 
   // Onboarding & Approval Lifecycle
   approvalStatus: {
