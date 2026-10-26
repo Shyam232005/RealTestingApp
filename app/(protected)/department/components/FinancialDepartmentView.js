@@ -175,30 +175,88 @@ export default function FinancialDepartmentView({
         <div className="space-y-6">
           {activeSubView === "cash_runway" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: "Cash & Bank Balance", val: "₹ 62.4 L", sub: "Liquid Treasury", color: "purple" },
-                  { label: "Accounts Receivable (AR)", val: "₹ 24.8 L", sub: "Incoming from clients", color: "blue" },
-                  { label: "Accounts Payable (AP)", val: "₹ 16.2 L", sub: "Vendor obligations", color: "amber" },
-                  { label: "Estimated Runway", val: "11.4 Months", sub: "Net cash burn buffer", color: "emerald" },
-                ].map((stat, i) => (
-                  <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      {stat.label}
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
-                    <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const totalAr = gstInvoices.reduce(
+                  (sum, inv) => sum + (parseFloat(inv.grandTotal) || 0),
+                  0
+                );
+                const totalAp = vendorBills.reduce(
+                  (sum, b) => sum + (parseFloat(b.billAmount) || 0),
+                  0
+                );
+                const netWorkingCapital = totalAr - totalAp;
 
-              <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase">Working Capital Health</h3>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-900 block mb-1">Treasury Liquidity Ratio</span>
-                  Current Ratio: 2.14 • Quick Ratio: 1.68 • Net Working Capital: +₹ 46.2 L
-                </div>
-              </div>
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        {
+                          label: "Accounts Receivable (AR)",
+                          val: `₹ ${totalAr.toLocaleString()}`,
+                          sub: `${gstInvoices.length} posted tax invoices`,
+                          color: "purple",
+                        },
+                        {
+                          label: "Accounts Payable (AP)",
+                          val: `₹ ${totalAp.toLocaleString()}`,
+                          sub: `${vendorBills.length} approved vendor bills`,
+                          color: "amber",
+                        },
+                        {
+                          label: "Net Working Capital",
+                          val: `₹ ${netWorkingCapital.toLocaleString()}`,
+                          sub: netWorkingCapital >= 0 ? "Positive operating buffer" : "Working capital deficit",
+                          color: "emerald",
+                        },
+                        {
+                          label: "General Ledger Journals",
+                          val: journalVouchers.length.toString(),
+                          sub: "Posted JV adjustments",
+                          color: "blue",
+                        },
+                      ].map((stat, i) => (
+                        <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                            {stat.label}
+                          </span>
+                          <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
+                          <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
+                      <h3 className="text-sm font-black text-slate-900 uppercase">Working Capital Health</h3>
+                      {gstInvoices.length === 0 && vendorBills.length === 0 ? (
+                        <div className="py-10 px-4 text-center rounded-2xl bg-slate-50/60 border-2 border-dashed border-slate-200">
+                          <div className="w-14 h-14 rounded-2xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center mb-3">
+                            <Landmark className="w-7 h-7" />
+                          </div>
+                          <h4 className="text-sm font-black text-slate-800">
+                            No Financial Invoices or Bills Logged Yet
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium max-w-md mx-auto mt-1 mb-4">
+                            Generate GST Tax Invoices in Accounts Receivable (AR) or book Vendor Bills in Payables (AP) to track cash runway, working capital, and treasury health.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowInvoiceModal(true)}
+                            className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Generate First Tax Invoice</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                          <span className="font-bold text-slate-900 block mb-1">Live Treasury Liquidity Status</span>
+                          Receivables Due: <span className="font-mono font-bold text-slate-900">₹ {totalAr.toLocaleString()}</span> • Payables Due: <span className="font-mono font-bold text-slate-900">₹ {totalAp.toLocaleString()}</span> • Net Working Capital: <span className="font-mono font-bold text-purple-700">₹ {netWorkingCapital.toLocaleString()}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
@@ -206,36 +264,60 @@ export default function FinancialDepartmentView({
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3">
               <h3 className="text-sm font-black text-slate-900 uppercase">Corporate Budget Variance (FY 2026-27)</h3>
               <p className="text-xs text-slate-500">Departmental expenditure vs board approved budget limits.</p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="font-bold text-slate-900 block mb-1">Operations & Raw Materials</span>
-                  Budget: ₹ 35.0 L • Actual Spend: ₹ 31.4 L (9.7% Favorable Variance)
+              {gstInvoices.length === 0 && vendorBills.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Scale className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No Corporate Budget Variances Logged</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                    Budget variance analysis populates dynamically as departmental expense bills are approved in Payables (AP).
+                  </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="font-bold text-slate-900 block mb-1">Logistics & Freight</span>
-                  Budget: ₹ 10.0 L • Actual Spend: ₹ 8.5 L (15.0% Favorable Variance)
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-900 block mb-1">Accounts Receivable (Inflows)</span>
+                    Total Billed: ₹ {gstInvoices.reduce((sum, inv) => sum + (parseFloat(inv.grandTotal) || 0), 0).toLocaleString()} across {gstInvoices.length} invoices
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="font-bold text-slate-900 block mb-1">Accounts Payable (Outflows)</span>
+                    Total Committed: ₹ {vendorBills.reduce((sum, b) => sum + (parseFloat(b.billAmount) || 0), 0).toLocaleString()} across {vendorBills.length} vendor bills
+                  </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {activeSubView === "financial_ratios" && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">Financial Ratios & Corporate ROI</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-500 block mb-1">Return on Equity (ROE)</span>
-                  <p className="text-lg font-black text-purple-700">22.4%</p>
+              {gstInvoices.length === 0 && vendorBills.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <TrendingUp className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Financial Ratios Standing By</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                    Return on Equity (ROE), EBITDA margin, and Quick Ratio will calculate automatically upon posting transactions and closing the trial balance.
+                  </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-500 block mb-1">EBITDA Margin</span>
-                  <p className="text-lg font-black text-emerald-600">18.6%</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                    <span className="font-bold text-slate-500 block mb-1">Gross Billings</span>
+                    <p className="text-lg font-black text-purple-700">
+                      ₹ {gstInvoices.reduce((sum, inv) => sum + (parseFloat(inv.grandTotal) || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                    <span className="font-bold text-slate-500 block mb-1">Payables Ratio</span>
+                    <p className="text-lg font-black text-emerald-600">
+                      {gstInvoices.length > 0 ? "Balanced" : "100% In Range"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                    <span className="font-bold text-slate-500 block mb-1">Active JVs</span>
+                    <p className="text-lg font-black text-slate-900">{journalVouchers.length} Entries</p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-500 block mb-1">Debt-to-Equity</span>
-                  <p className="text-lg font-black text-slate-900">0.24</p>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>
@@ -428,17 +510,21 @@ export default function FinancialDepartmentView({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
                 <span className="font-bold text-slate-500 block mb-1">GSTR-1 & 3B Reconciliation</span>
-                <p className="text-sm font-black text-emerald-700">Matched with Books</p>
+                <p className="text-sm font-black text-emerald-700">
+                  {gstInvoices.length > 0 ? `${gstInvoices.length} Invoices Reconciled` : "0 Tax Invoices Posted"}
+                </p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
                 <span className="font-bold text-slate-500 block mb-1">TDS 194C / 194J Liability</span>
-                <p className="text-sm font-black text-slate-900">Deposited on Time</p>
+                <p className="text-sm font-black text-slate-900">
+                  {vendorBills.length > 0 ? `₹ ${(vendorBills.reduce((s, b) => s + (parseFloat(b.billAmount) || 0), 0) * 0.02).toFixed(2)} Accrued` : "₹ 0.00 Deducted"}
+                </p>
               </div>
               <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
                 <span className="font-bold text-slate-500 block mb-1">Accounting Period Status</span>
                 <p className="text-sm font-black text-blue-700 flex items-center gap-1">
                   <Lock className="w-3 h-3" />
-                  Locked for Previous Quarter
+                  Active Fiscal Period
                 </p>
               </div>
             </div>

@@ -171,62 +171,160 @@ export default function SalesDepartmentView({
         <div className="space-y-6">
           {activeSubView === "quota_actuals" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: "Branch Monthly Target", val: "₹ 45.0 L", sub: "Month Quota", color: "blue" },
-                  { label: "Booked Revenue", val: "₹ 38.6 L", sub: "85.7% Attainment", color: "emerald" },
-                  { label: "Pipeline Value", val: "₹ 18.2 L", sub: "Weighted Forecast", color: "purple" },
-                  { label: "Avg Deal Cycle", val: "14 Days", sub: "Lead to Invoice", color: "amber" },
-                ].map((stat, i) => (
-                  <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      {stat.label}
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
-                    <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const totalBooked = salesOrders.reduce(
+                  (sum, so) => sum + (parseFloat(so.totalAmount) || 0),
+                  0
+                );
+                const totalPipeline = deals.reduce(
+                  (sum, d) => sum + (parseFloat(d.dealValue) || 0),
+                  0
+                );
+                const targetQuota = 500000; // Target benchmark ₹ 5 Lakhs
+                const attainmentPct =
+                  totalBooked > 0
+                    ? Math.min(100, (totalBooked / targetQuota) * 100).toFixed(1)
+                    : "0.0";
 
-              <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
-                <h3 className="text-sm font-black text-slate-900 uppercase">Sales Target Progress Bar</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between text-xs font-bold">
-                    <span className="text-slate-600">Current Branch Revenue Quota</span>
-                    <span className="text-emerald-700 font-mono">85.7% Achieved</span>
-                  </div>
-                  <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
-                    <div className="h-full bg-blue-600 rounded-full" style={{ width: "85.7%" }} />
-                  </div>
-                </div>
-              </div>
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        {
+                          label: "Booked Revenue",
+                          val: `₹ ${totalBooked.toLocaleString()}`,
+                          sub: `${attainmentPct}% Quota Attainment`,
+                          color: "emerald",
+                        },
+                        {
+                          label: "Active Pipeline Value",
+                          val: `₹ ${totalPipeline.toLocaleString()}`,
+                          sub: `${deals.length} active deals in CRM`,
+                          color: "purple",
+                        },
+                        {
+                          label: "Confirmed Sales Orders",
+                          val: salesOrders.length.toString(),
+                          sub: salesOrders.length > 0 ? "Booked for fulfillment" : "Zero orders booked",
+                          color: "blue",
+                        },
+                        {
+                          label: "Inbound Leads Pool",
+                          val: leads.length.toString(),
+                          sub: leads.length > 0 ? "Prospect inquiries" : "Queue empty",
+                          color: "amber",
+                        },
+                      ].map((stat, i) => (
+                        <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                            {stat.label}
+                          </span>
+                          <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
+                          <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-sm font-black text-slate-900 uppercase">Monthly Sales Quota Attainment</h3>
+                        <span className="text-xs font-mono font-bold text-blue-600">
+                          {attainmentPct}% Reached
+                        </span>
+                      </div>
+
+                      {totalBooked === 0 ? (
+                        <div className="py-10 px-4 text-center rounded-2xl bg-slate-50/60 border-2 border-dashed border-slate-200">
+                          <div className="w-14 h-14 rounded-2xl bg-blue-50 text-blue-600 mx-auto flex items-center justify-center mb-3">
+                            <TrendingUp className="w-7 h-7" />
+                          </div>
+                          <h4 className="text-sm font-black text-slate-800">
+                            No Confirmed Sales Orders Booked Yet
+                          </h4>
+                          <p className="text-xs text-slate-500 font-medium max-w-md mx-auto mt-1 mb-4">
+                            Log inbound inquiries in the Lead Pool, move prospects through the Deals pipeline, or book confirmed Sales Orders to drive quota attainment.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => setShowSoModal(true)}
+                            className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                            <span>Book First Sales Order</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between text-xs font-bold">
+                            <span className="text-slate-600">Branch Revenue Quota</span>
+                            <span className="text-emerald-700 font-mono">₹ {totalBooked.toLocaleString()} Booked</span>
+                          </div>
+                          <div className="h-3 w-full rounded-full bg-slate-100 overflow-hidden">
+                            <div
+                              className="h-full bg-blue-600 rounded-full transition-all duration-500"
+                              style={{ width: `${attainmentPct}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()}
             </div>
           )}
 
           {activeSubView === "territory_forecast" && (
-            <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3">
+            <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">Territory Demand & Forecast</h3>
-              <p className="text-xs text-slate-500">Expected sales volume across industrial clusters and regional client accounts.</p>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-900 block mb-1">Domestic Zone A (Central)</span>
-                  Forecast: ₹ 22.5 L • Confidence Score: 90%
+              <p className="text-xs text-slate-500">Expected sales volume across regional accounts and branch territories.</p>
+              {deals.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <MapPin className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No Territory Demand Forecast Available</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                    Territory forecasts, pipeline stage weighting, and confidence scores will generate automatically as deals are added to the CRM pipeline.
+                  </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                  <span className="font-bold text-slate-900 block mb-1">Domestic Zone B (Western Highway)</span>
-                  Forecast: ₹ 16.0 L • Confidence Score: 78%
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {deals.map((d) => (
+                    <div key={d.id} className="p-4 rounded-2xl bg-blue-50/40 border border-blue-200 text-xs">
+                      <span className="font-bold text-slate-900 block mb-1">{d.clientName}</span>
+                      Deal Value: <span className="font-mono font-bold text-slate-800">₹ {d.dealValue}</span> • Stage: <span className="font-bold text-blue-700">{d.stage}</span>
+                    </div>
+                  ))}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
           {activeSubView === "team_leaderboard" && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">AE & SDR Performance Leaderboard</h3>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                <span className="font-bold block text-slate-900 mb-0.5">Top Account Closer This Month</span>
-                {employee?.name} ({employee?.postTitle || "Sales Team Lead"}) — 12 Deals Closed • 104% Quota Met
-              </div>
+              {salesOrders.length === 0 && deals.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Users className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Leaderboard Standing By</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Account Executives and sales team members will be ranked here as confirmed sales orders and closed deals are recorded.
+                  </p>
+                </div>
+              ) : (
+                <div className="p-4 rounded-2xl bg-blue-50/40 border border-blue-200 text-xs text-slate-700 flex items-center justify-between">
+                  <div>
+                    <span className="font-bold block text-slate-900 mb-0.5">
+                      {employee?.name || "Account Executive"} ({employee?.postTitle || "Sales"})
+                    </span>
+                    <p className="text-slate-500">
+                      {salesOrders.length} Confirmed Order(s) • {deals.length} Pipeline Deal(s)
+                    </p>
+                  </div>
+                  <span className="px-3 py-1 rounded-full bg-blue-600 text-white font-mono font-bold text-xs">
+                    ₹ {salesOrders.reduce((sum, so) => sum + (parseFloat(so.totalAmount) || 0), 0).toLocaleString()}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -390,20 +488,32 @@ export default function SalesDepartmentView({
         <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
           <h3 className="text-sm font-black text-slate-900 uppercase">Sales Ops & Digital Campaigns</h3>
           <p className="text-xs text-slate-500">Track lead acquisition cost, marketing ROI, and commission disbursements.</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-              <span className="font-bold text-slate-500 block mb-1">Active Ad Campaigns</span>
-              <p className="text-lg font-black text-slate-900">Google Ads & Industry Expo</p>
+          {leads.length === 0 ? (
+            <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <Megaphone className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+              <p className="text-xs font-bold text-slate-700">No Active Campaigns or Ad Spend</p>
+              <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                Blended Customer Acquisition Cost (CAC), lead conversion funnel, and campaign ROI will calculate as inbound inquiries are attributed to marketing channels.
+              </p>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-              <span className="font-bold text-slate-500 block mb-1">Blended CAC</span>
-              <p className="text-lg font-black text-emerald-600">₹ 840 / Qualified Deal</p>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-500 block mb-1">Attributed Inbound Leads</span>
+                <p className="text-lg font-black text-slate-900">{leads.length} Leads</p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-500 block mb-1">Pipeline Conversion Rate</span>
+                <p className="text-lg font-black text-emerald-600">
+                  {leads.length > 0 ? `${((deals.length / leads.length) * 100).toFixed(1)}%` : "0.0%"}
+                </p>
+              </div>
+              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                <span className="font-bold text-slate-500 block mb-1">CRM Hygiene Score</span>
+                <p className="text-lg font-black text-slate-900">100% Up to Date</p>
+              </div>
             </div>
-            <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-              <span className="font-bold text-slate-500 block mb-1">CRM Hygiene Score</span>
-              <p className="text-lg font-black text-slate-900">98.2% Accurate</p>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

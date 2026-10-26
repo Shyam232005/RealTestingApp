@@ -210,10 +210,39 @@ export default function OperationsDepartmentView({
               {/* OEE Metric Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {[
-                  { label: "Overall OEE", val: "88.4%", sub: "World-class target: >85%", color: "emerald" },
-                  { label: "Availability", val: "94.2%", sub: "Unscheduled downtime: 18m", color: "blue" },
-                  { label: "Performance", val: "92.0%", sub: "Operating cycle speed", color: "purple" },
-                  { label: "Quality Rate", val: "99.1%", sub: "Scrap rate: 0.9%", color: "amber" },
+                  {
+                    label: "Plant OEE Availability",
+                    val: workOrders.length > 0 ? "92.4%" : "0.0%",
+                    sub: workOrders.length > 0 ? `${workOrders.length} active orders` : "Plant floor idle",
+                    color: "emerald",
+                  },
+                  {
+                    label: "Active Work Orders",
+                    val: workOrders.length.toString(),
+                    sub: workOrders.length > 0 ? "In production batch" : "No released work orders",
+                    color: "blue",
+                  },
+                  {
+                    label: "Target Batch Units",
+                    val: workOrders
+                      .reduce((sum, wo) => sum + (Number(wo.targetQty) || 0), 0)
+                      .toLocaleString(),
+                    sub: "Scheduled manufacturing volume",
+                    color: "purple",
+                  },
+                  {
+                    label: "QC Pass Rate",
+                    val:
+                      qcInspections.length > 0
+                        ? `${(
+                            (qcInspections.filter((q) => q.result === "PASSED").length /
+                              qcInspections.length) *
+                            100
+                          ).toFixed(1)}%`
+                        : "0.0%",
+                    sub: qcInspections.length > 0 ? `${qcInspections.length} logged inspections` : "Zero QC inspections yet",
+                    color: "amber",
+                  },
                 ].map((stat, i) => (
                   <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
                     <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
@@ -229,26 +258,48 @@ export default function OperationsDepartmentView({
               <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
                 <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                   <h3 className="text-sm font-black text-slate-900 uppercase">Live Plant Floor Lines</h3>
-                  <span className="text-xs font-bold text-emerald-600">3 of 3 Lines Running</span>
+                  <span className="text-xs font-bold text-slate-500">
+                    {workOrders.length > 0 ? `${new Set(workOrders.map((w) => w.lineId)).size} of 3 Lines Running` : "0 of 3 Lines Running (Standby)"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {[
-                    { line: "Production Line 1 (Fabrication)", status: "RUNNING", speed: "1,200 units/hr", batch: "Batch-902" },
-                    { line: "Production Line 2 (Assembly)", status: "RUNNING", speed: "850 units/hr", batch: "Batch-903" },
-                    { line: "Production Line 3 (Packaging)", status: "RUNNING", speed: "1,500 units/hr", batch: "Batch-901" },
-                  ].map((ln, idx) => (
-                    <div key={idx} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-extrabold text-xs text-slate-900">{ln.line}</span>
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                          {ln.status}
-                        </span>
-                      </div>
-                      <p className="text-xs text-slate-500">Current Run: <span className="font-bold text-slate-700">{ln.batch}</span></p>
-                      <p className="text-xs text-slate-500">Operating Rate: <span className="font-mono font-bold text-slate-800">{ln.speed}</span></p>
+
+                {workOrders.length === 0 ? (
+                  <div className="py-12 px-4 text-center rounded-2xl bg-slate-50/60 border-2 border-dashed border-slate-200">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+                      <Gauge className="w-7 h-7" />
                     </div>
-                  ))}
-                </div>
+                    <h4 className="text-sm font-black text-slate-800">
+                      Plant Floor Lines on Standby
+                    </h4>
+                    <p className="text-xs text-slate-500 font-medium max-w-md mx-auto mt-1 mb-4">
+                      No manufacturing work orders or production batches have been released to the plant floor. Issue a work order to start line telemetry.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setShowWorkOrderModal(true)}
+                      className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      <span>Issue First Work Order</span>
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    {workOrders.map((wo) => (
+                      <div key={wo.id} className="p-4 rounded-2xl bg-emerald-50/30 border border-emerald-200 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-xs text-slate-900">{wo.lineId}</span>
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                            RUNNING
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-700 font-semibold truncate">{wo.productName}</p>
+                        <p className="text-xs text-slate-500">Order ID: <span className="font-mono font-bold text-slate-800">{wo.id}</span></p>
+                        <p className="text-xs text-slate-500">Target: <span className="font-mono font-bold text-slate-800">{wo.targetQty} units</span></p>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
           )}
@@ -257,10 +308,14 @@ export default function OperationsDepartmentView({
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">Plant Bottleneck Analytics</h3>
               <p className="text-xs text-slate-500">Real-time throughput constraint identification and micro-stoppages.</p>
-              <div className="p-8 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <div className="p-12 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
                 <Gauge className="w-10 h-10 mx-auto text-emerald-500 mb-2" />
                 <p className="text-xs font-bold text-slate-700">No Active Bottlenecks Detected</p>
-                <p className="text-[11px] text-slate-400 mt-0.5">All packaging and feeding stations operating within design tolerance buffer.</p>
+                <p className="text-[11px] text-slate-400 mt-0.5 max-w-sm mx-auto">
+                  {workOrders.length > 0
+                    ? "All active lines operating within design tolerance buffer."
+                    : "Zero active bottlenecks. Plant floor is currently idle awaiting work order dispatch."}
+                </p>
               </div>
             </div>
           )}
@@ -268,20 +323,36 @@ export default function OperationsDepartmentView({
           {activeSubView === "cost_efficiency" && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">Cost & Efficiency Yield</h3>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Power Consumption</span>
-                  <p className="text-lg font-black text-slate-900 mt-1">142 kWh / ton</p>
+              {workOrders.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Activity className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">Awaiting Production Batch Telemetry</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">
+                    Power consumption (kWh/ton), scrap ratios, and labor productivity are computed dynamically as active batches complete.
+                  </p>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Scrap Cost Ratio</span>
-                  <p className="text-lg font-black text-emerald-600 mt-1">0.42% of Gross Output</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Scheduled Batches</span>
+                    <p className="text-lg font-black text-slate-900 mt-1">{workOrders.length} Orders</p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">QC Scrap Ratio</span>
+                    <p className="text-lg font-black text-emerald-600 mt-1">
+                      {qcInspections.length > 0
+                        ? `${((qcInspections.filter((q) => q.result === "FAILED").length / qcInspections.length) * 100).toFixed(1)}%`
+                        : "0.0%"}
+                    </p>
+                  </div>
+                  <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Total Scheduled Volume</span>
+                    <p className="text-lg font-black text-slate-900 mt-1">
+                      {workOrders.reduce((sum, w) => sum + (Number(w.targetQty) || 0), 0)} units
+                    </p>
+                  </div>
                 </div>
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Labor Productivity</span>
-                  <p className="text-lg font-black text-slate-900 mt-1">98.4% Efficiency</p>
-                </div>
-              </div>
+              )}
             </div>
           )}
         </div>

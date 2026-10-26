@@ -1,9 +1,113 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import jwt from "jsonwebtoken";
+import connectDB from "@/lib/mongodb";
+import Employee from "@/models/Employee";
+import Attendance from "@/models/Attendance";
+import { createOwnerNotification } from "@/lib/notifications";
 
 export async function POST() {
   try {
     const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("crown_session")?.value;
+
+    // Auto punch-out employee if active before destroying session
+    if (sessionToken && process.env.JWT_SECRET) {
+      try {
+        const decoded = jwt.verify(sessionToken, process.env.JWT_SECRET);
+        if (
+          decoded?.userId &&
+          (decoded.normalizedRole === "EMPLOYEE" ||
+            decoded.role === "Employee" ||
+            decoded.role === "EMPLOYEE")
+        ) {
+          await connectDB();
+          const employee = await Employee.findById(decoded.userId);
+          if (employee) {
+            // Find any active attendance with punchIn but no punchOut
+            const activeAttendance = await Attendance.findOne({
+              employeeId: employee._id,
+              punchIn: { $exists: true, $ne: null },
+              punchOut: null,
+            }).sort({ punchIn: -1 });
+
+            if (activeAttendance) {
+              const punchOutTime = new Date();
+              const sessionDiffMs =
+                punchOutTime.getTime() - new Date(activeAttendance.punchIn).getTime();
+              const sessionMinutes = Math.max(1, Math.round(sessionDiffMs / 60000));
+
+              // Finalize active session
+              if (
+                Array.isArray(activeAttendance.sessions) &&
+                activeAttendance.sessions.length > 0
+              ) {
+                const activeSession =
+                  activeAttendance.sessions[activeAttendance.sessions.length - 1];
+                if (!activeSession.punchOut) {
+                  activeSession.punchOut = punchOutTime;
+                  activeSession.durationMinutes = sessionMinutes;
+                  activeSession.punchOutNotes = activeSession.punchOutNotes
+                    ? `${activeSession.punchOutNotes} (Auto-punched out on logout)`
+                    : "Auto-punched out on user logout";
+                }
+              }
+
+              // Cumulative duration across all sessions today
+              const totalMinutes =
+                (activeAttendance.sessions || []).reduce(
+                  (sum, s) => sum + (Number(s.durationMinutes) || 0),
+                  0
+                ) || ((activeAttendance.durationMinutes || 0) + sessionMinutes);
+
+              activeAttendance.punchOut = punchOutTime;
+              activeAttendance.durationMinutes = totalMinutes;
+              activeAttendance.status = "COMPLETED";
+              activeAttendance.punchOutNotes = activeAttendance.punchOutNotes
+                ? `${activeAttendance.punchOutNotes} (Auto-punched out on logout)`
+                : "Auto-punched out on user logout";
+
+              await activeAttendance.save();
+
+              // Notify business owner in real-time
+              const ownerTargetId =
+                activeAttendance.ownerId ||
+                employee.companyId ||
+                employee.ownerId;
+
+              if (ownerTargetId) {
+                const sessionHrs = Math.floor(sessionMinutes / 60);
+                const sessionMins = sessionMinutes % 60;
+                const durationText =
+                  sessionHrs > 0 ? `${sessionHrs}h ${sessionMins}m` : `${sessionMins}m`;
+                const branchLabel = employee.branchName || "Main HQ";
+
+                await createOwnerNotification({
+                  ownerId: ownerTargetId,
+                  companyId: ownerTargetId,
+                  employeeId: employee._id,
+                  employeeName: employee.name,
+                  type: "ATTENDANCE_PUNCH_OUT",
+                  title: `${employee.name} auto-punched out on logout`,
+                  message: `${employee.name} logged out without manual punch-out at ${branchLabel}. Shift was automatically concluded (${durationText}).`,
+                  linkTab: "team",
+                  metadata: {
+                    attendanceId: activeAttendance._id,
+                    durationMinutes: totalMinutes,
+                    sessionMinutes,
+                    autoPunchedOut: true,
+                    branchId: activeAttendance.branchId,
+                    department: employee.department,
+                  },
+                });
+              }
+            }
+          }
+        }
+      } catch (authErr) {
+        console.warn("Could not auto punch-out on logout:", authErr.message);
+      }
+    }
 
     // 1. Delete standard session cookies
     cookieStore.delete("crown_session");

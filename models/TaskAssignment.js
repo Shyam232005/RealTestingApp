@@ -27,11 +27,15 @@ const TaskAssignmentSchema = new mongoose.Schema(
       index: true,
     },
 
-    // Upper employee who created & assigned the work
+    // Upper employee or Owner who created & assigned the work
     assignedBy: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: "Employee",
       required: true,
+      index: true,
+    },
+    isAssignedByOwner: {
+      type: Boolean,
+      default: false,
       index: true,
     },
     assignedByName: {

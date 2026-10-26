@@ -38,7 +38,7 @@ export async function POST(request) {
 
     const { employee, owner } = auth;
     const body = await request.json();
-    const { title, tasksCompleted, blockers, summary } = body;
+    const { title, tasksCompleted, blockers, summary, files } = body;
 
     if (!title || title.trim().length < 3) {
       return NextResponse.json(
@@ -54,6 +54,18 @@ export async function POST(request) {
           .split("\n")
           .map((t) => t.trim())
           .filter(Boolean)
+      : [];
+
+    const sanitizedFiles = Array.isArray(files)
+      ? files
+          .map((f) => ({
+            fileName: String(f.fileName || f.name || "Attachment").trim(),
+            fileType: String(f.fileType || f.type || "application/octet-stream").trim(),
+            fileSize: Number(f.fileSize || f.size || 0),
+            fileData: String(f.fileData || f.dataUrl || f.url || ""),
+            uploadedAt: f.uploadedAt ? new Date(f.uploadedAt) : new Date(),
+          }))
+          .filter((f) => f.fileName && f.fileData)
       : [];
 
     const todayStr = new Date().toISOString().split("T")[0];
@@ -88,6 +100,7 @@ export async function POST(request) {
       tasksCompleted: tasksList,
       blockers: (blockers || "").trim(),
       summary: (summary || "").trim(),
+      files: sanitizedFiles,
       reviewerType,
       reviewerId,
       reviewerName,

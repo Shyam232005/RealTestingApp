@@ -456,6 +456,9 @@ export async function POST(request) {
       paymentStatus:
         paymentStatus ||
         (owner.subscription?.status === "active" ? "paid" : "trialing"),
+      subscriptionStartDate: owner.subscription?.startDate || new Date(),
+      subscriptionEndDate: owner.subscription?.endDate || owner.subscriptionExpiry || null,
+      subscriptionStatus: owner.subscription?.status || "active",
       RegisterName: RegisterName.trim(),
       GST: cleanGST,
       BankName: BankName.trim(),

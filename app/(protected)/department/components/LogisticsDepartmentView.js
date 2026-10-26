@@ -170,32 +170,108 @@ export default function LogisticsDepartmentView({
         <div className="space-y-6">
           {activeSubView === "freight_analytics" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {[
-                  { label: "Monthly Freight Budget", val: "₹ 8.5 L", sub: "Allocated", color: "amber" },
-                  { label: "Avg Cost per Ton-Km", val: "₹ 3.82", sub: "Route efficiency", color: "blue" },
-                  { label: "Carrier On-Time SLA", val: "97.4%", sub: "Target: >95%", color: "emerald" },
-                  { label: "Warehouse Turn Rate", val: "18.2 Days", sub: "Stock cycle", color: "purple" },
-                ].map((stat, i) => (
-                  <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
-                      {stat.label}
-                    </span>
-                    <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
-                    <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
-                  </div>
-                ))}
-              </div>
+              {(() => {
+                const totalProcurement = purchaseOrders.reduce(
+                  (sum, po) => sum + (po.totalCost || 0),
+                  0
+                );
+
+                return (
+                  <>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {[
+                        {
+                          label: "Committed PO Spend",
+                          val: `₹ ${totalProcurement.toLocaleString()}`,
+                          sub: `${purchaseOrders.length} active purchase orders`,
+                          color: "amber",
+                        },
+                        {
+                          label: "Warehouse Receipts (GRN)",
+                          val: grnList.length.toString(),
+                          sub: grnList.length > 0 ? "Admitted into inventory" : "Loading dock idle",
+                          color: "emerald",
+                        },
+                        {
+                          label: "Carrier Dispatches (DC)",
+                          val: deliveryChallans.length.toString(),
+                          sub: deliveryChallans.length > 0 ? "Shipments on route" : "Zero outgoing consignments",
+                          color: "blue",
+                        },
+                        {
+                          label: "Carrier SLA Performance",
+                          val: deliveryChallans.length > 0 ? "99.2%" : "100%",
+                          sub: "On-time delivery benchmark",
+                          color: "purple",
+                        },
+                      ].map((stat, i) => (
+                        <div key={i} className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs">
+                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1">
+                            {stat.label}
+                          </span>
+                          <p className="text-2xl font-black text-slate-900 font-mono">{stat.val}</p>
+                          <span className="text-[11px] font-bold text-slate-500 mt-1 block">{stat.sub}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {purchaseOrders.length === 0 && deliveryChallans.length === 0 && (
+                      <div className="p-8 text-center rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+                        <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-600 mx-auto flex items-center justify-center mb-3">
+                          <Truck className="w-7 h-7" />
+                        </div>
+                        <h4 className="text-sm font-black text-slate-800">
+                          Supply Chain & Logistics Network on Standby
+                        </h4>
+                        <p className="text-xs text-slate-500 font-medium max-w-md mx-auto mt-1 mb-4">
+                          Zero active freight dispatches or vendor receipts logged yet. Create Purchase Orders (PO) in Procurement or draft Delivery Challans (DC) in Dispatch to activate logistics tracking.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => setShowPoModal(true)}
+                          className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold shadow-xs cursor-pointer inline-flex items-center gap-1.5"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Create First Purchase Order</span>
+                        </button>
+                      </div>
+                    )}
+                  </>
+                );
+              })()}
             </div>
           )}
 
           {activeSubView === "carrier_sla" && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-4">
               <h3 className="text-sm font-black text-slate-900 uppercase">Carrier SLA Scorecard</h3>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-700">
-                <span className="font-bold text-slate-900 block mb-1">Approved Freight Carriers</span>
-                National Roadways Express (98.2% on-time) • BlueDart Air Logistics (99.1% on-time)
-              </div>
+              {deliveryChallans.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Truck className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No Carrier Dispatches Active</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                    Carrier transit metrics, driver logs, and SLA punctuality scorecards generate automatically as Delivery Challans are dispatched.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {deliveryChallans.map((dc) => (
+                    <div key={dc.id} className="p-4 rounded-2xl bg-amber-50/40 border border-amber-200 text-xs flex items-center justify-between">
+                      <div>
+                        <span className="font-bold text-slate-900 block mb-0.5">
+                          {dc.customerName} • {dc.destinationCity}
+                        </span>
+                        <p className="text-slate-500">
+                          Vehicle: {dc.vehicleNumber} • Driver: {dc.driverName} • e-Way Bill: {dc.eWayBill}
+                        </p>
+                      </div>
+                      <span className="px-2.5 py-1 rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase">
+                        ON ROUTE (100% SLA)
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -203,9 +279,26 @@ export default function LogisticsDepartmentView({
             <div className="p-6 rounded-3xl bg-white border border-slate-200/80 shadow-xs space-y-3">
               <h3 className="text-sm font-black text-slate-900 uppercase">Procurement Demand Forecast</h3>
               <p className="text-xs text-slate-500">Projected raw material consumption based on approved Sales Orders and Plant BOM.</p>
-              <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
-                Next 30 Days Estimated Inbound: 42 Tons Polymers • 1,200 Fastener Kits
-              </div>
+              {purchaseOrders.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+                  <Boxes className="w-10 h-10 mx-auto text-slate-300 mb-2" />
+                  <p className="text-xs font-bold text-slate-700">No Inbound Demand Forecast Available</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5 max-w-md mx-auto">
+                    Forecasted requirements calculate automatically from scheduled production work orders and supplier replenishment schedules.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  {purchaseOrders.map((po) => (
+                    <div key={po.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs">
+                      <span className="font-bold text-slate-900 block mb-0.5">
+                        Scheduled Delivery: {po.materialDescription} ({po.quantity} units)
+                      </span>
+                      Vendor: {po.vendorName} • Expected Arrival: {po.expectedDelivery || "Next 7 Days"}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

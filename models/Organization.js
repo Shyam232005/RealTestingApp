@@ -99,6 +99,9 @@ const OrganizationSchema = new mongoose.Schema(
     planName: { type: String, default: "MSME Starter", trim: true },
     billingCycle: { type: String, default: "annual", trim: true },
     paymentStatus: { type: String, default: "paid", trim: true },
+    subscriptionStartDate: { type: Date, default: Date.now },
+    subscriptionEndDate: { type: Date },
+    subscriptionStatus: { type: String, default: "active", trim: true },
 
     // 2. Business Identification & Legal
     RegisterName: { type: String, required: true, trim: true },

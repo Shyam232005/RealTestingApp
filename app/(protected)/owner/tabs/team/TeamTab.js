@@ -23,6 +23,20 @@ import {
   ShieldCheck,
   Layers,
   Flame,
+  Paperclip,
+  Download,
+  Eye,
+  Plus,
+  ListTodo,
+  FolderArchive,
+  FileSpreadsheet,
+  ImageIcon,
+  Crown,
+  FileCheck,
+  UserCog,
+  ArrowRightLeft,
+  Trash2,
+  UserMinus,
 } from "lucide-react";
 
 const DEPARTMENTS = [
@@ -32,6 +46,49 @@ const DEPARTMENTS = [
   { id: "LOGISTICS", label: "Logistics" },
   { id: "FINANCIAL", label: "Financial" },
 ];
+
+const DEPARTMENT_ROLES = {
+  OPERATIONS: [
+    { level: "CHIEF_OFFICER", defaultTitle: "Chief Operating Officer (COO)" },
+    { level: "DIRECTOR", defaultTitle: "Director of Operations / Operations Head" },
+    { level: "MANAGER", defaultTitle: "Operations / Plant Manager" },
+    { level: "SUPERVISOR", defaultTitle: "Production Supervisor / Floor Team Lead" },
+    { level: "ANALYST", defaultTitle: "Operations Analyst / QC Inspector" },
+    { level: "COORDINATOR", defaultTitle: "Operations Coordinator" },
+    { level: "ASSISTANT", defaultTitle: "Operations Assistant / Floor Clerk" },
+    { level: "OTHER", defaultTitle: "Maintenance Tech & Plant Staff" },
+  ],
+  SALES: [
+    { level: "CHIEF_OFFICER", defaultTitle: "Chief Sales Officer (CSO / CRO)" },
+    { level: "DIRECTOR", defaultTitle: "Sales Director / Sales & Marketing Head" },
+    { level: "MANAGER", defaultTitle: "Sales Manager" },
+    { level: "SUPERVISOR", defaultTitle: "Field Sales Lead / Account Executive (AE)" },
+    { level: "ANALYST", defaultTitle: "Sales Ops Analyst / Digital Marketing Exec" },
+    { level: "COORDINATOR", defaultTitle: "Sales Coordinator / SDR & BDR" },
+    { level: "ASSISTANT", defaultTitle: "Counter Sales / Billing Desk Assistant" },
+    { level: "OTHER", defaultTitle: "Telecaller / Outbound Support" },
+  ],
+  LOGISTICS: [
+    { level: "CHIEF_OFFICER", defaultTitle: "Chief Logistics Officer (CLO / CSCO)" },
+    { level: "DIRECTOR", defaultTitle: "Director of Logistics / Supply Chain Head" },
+    { level: "MANAGER", defaultTitle: "Logistics & Supply Chain Manager" },
+    { level: "SUPERVISOR", defaultTitle: "Warehouse In-charge / Fleet Supervisor" },
+    { level: "ANALYST", defaultTitle: "Logistics Analyst / Procurement Exec" },
+    { level: "COORDINATOR", defaultTitle: "Order & Dispatch Coordinator" },
+    { level: "ASSISTANT", defaultTitle: "Logistics Clerk / Dock Assistant" },
+    { level: "OTHER", defaultTitle: "Material Handler / Loader / Driver" },
+  ],
+  FINANCIAL: [
+    { level: "CHIEF_OFFICER", defaultTitle: "Chief Financial Officer (CFO)" },
+    { level: "DIRECTOR", defaultTitle: "Director of Finance / Financial Controller" },
+    { level: "MANAGER", defaultTitle: "Finance & Accounts Manager" },
+    { level: "SUPERVISOR", defaultTitle: "Senior Accountant / Billing Supervisor" },
+    { level: "ANALYST", defaultTitle: "Financial Analyst / Cost Accountant" },
+    { level: "COORDINATOR", defaultTitle: "Accounts Payable (AP) & Receivable (AR) Clerk" },
+    { level: "ASSISTANT", defaultTitle: "Cashier / Vouchers Data Entry Assistant" },
+    { level: "OTHER", defaultTitle: "Tax Auditor / Statutory Compliance Assistant" },
+  ],
+};
 
 const DUTY_STATUSES = [
   { id: "ALL", label: "All Statuses" },
@@ -112,6 +169,220 @@ export default function TeamTab({
   const [reviewingLeave, setReviewingLeave] = useState(null);
   const [reviewNotes, setReviewNotes] = useState("");
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+
+  // Sub-section Navigation
+  const [currentSubSection, setCurrentSubSection] = useState("ROSTER"); // "ROSTER" | "ASSIGN_TASKS" | "SUBMITTED_FILES" | "MAINTAIN_STAFF"
+
+  // Maintain & Transfer State
+  const [maintainDeptFilter, setMaintainDeptFilter] = useState("ALL");
+  const [maintainSearch, setMaintainSearch] = useState("");
+  const [transferModalEmployee, setTransferModalEmployee] = useState(null);
+  const [transferForm, setTransferForm] = useState({
+    department: "OPERATIONS",
+    postLevel: "ASSISTANT",
+    postTitle: "",
+    branchId: "",
+    branchName: "",
+  });
+  const [isTransferring, setIsTransferring] = useState(false);
+
+  // Delete / Remove Modal State
+  const [deleteModalEmployee, setDeleteModalEmployee] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleOpenTransferModal = (emp) => {
+    setTransferModalEmployee(emp);
+    const targetDept = emp.department || "OPERATIONS";
+    const targetLevel = emp.postLevel || "ASSISTANT";
+    const defaultTitle =
+      DEPARTMENT_ROLES[targetDept]?.find((r) => r.level === targetLevel)?.defaultTitle ||
+      emp.postTitle ||
+      "";
+
+    setTransferForm({
+      department: targetDept,
+      postLevel: targetLevel,
+      postTitle: emp.postTitle || defaultTitle,
+      branchId: emp.branchId || "branch-1",
+      branchName: emp.branchName || "Main HQ",
+    });
+  };
+
+  const handleTransferSubmit = async (e) => {
+    e.preventDefault();
+    if (!transferModalEmployee) return;
+    setIsTransferring(true);
+    setTaskFeedbackMsg("");
+    try {
+      const res = await fetch(`/api/owner/employees/${transferModalEmployee._id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(transferForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to transfer employee");
+
+      setEmployees((prev) =>
+        prev.map((emp) =>
+          emp._id === transferModalEmployee._id
+            ? {
+                ...emp,
+                department: data.employee.department,
+                postLevel: data.employee.postLevel,
+                postTitle: data.employee.postTitle,
+                branchId: data.employee.branchId,
+                branchName: data.employee.branchName,
+              }
+            : emp
+        )
+      );
+
+      setTransferModalEmployee(null);
+      setTaskFeedbackMsg(data.message || "Employee transferred successfully!");
+      setTimeout(() => setTaskFeedbackMsg(""), 5000);
+      fetchOwnerTasks();
+    } catch (err) {
+      alert(err.message || "Failed to transfer employee");
+    } finally {
+      setIsTransferring(false);
+    }
+  };
+
+  const handleDeleteSubmit = async () => {
+    if (!deleteModalEmployee) return;
+    setIsDeleting(true);
+    setTaskFeedbackMsg("");
+    try {
+      const res = await fetch(`/api/owner/employees/${deleteModalEmployee._id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to delete employee");
+
+      setEmployees((prev) => prev.filter((emp) => emp._id !== deleteModalEmployee._id));
+      setStats((prev) => ({
+        ...prev,
+        totalStaff: Math.max(0, (prev.totalStaff || 1) - 1),
+      }));
+
+      setDeleteModalEmployee(null);
+      setTaskFeedbackMsg(data.message || "Employee permanently removed from database.");
+      setTimeout(() => setTaskFeedbackMsg(""), 5000);
+      fetchOwnerTasks();
+    } catch (err) {
+      alert(err.message || "Failed to delete employee");
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Owner Task Delegation State
+  const [ownerTasks, setOwnerTasks] = useState([]);
+  const [topDepartmentHeads, setTopDepartmentHeads] = useState([]);
+  const [approvedStaffList, setApprovedStaffList] = useState([]);
+  const [loadingTasks, setLoadingTasks] = useState(false);
+  const [showAssignModal, setShowAssignModal] = useState(false);
+  const [assignForm, setAssignForm] = useState({
+    assignedToId: "",
+    title: "",
+    description: "",
+    priority: "MEDIUM",
+    dueDate: "",
+  });
+  const [assigningTask, setAssigningTask] = useState(false);
+  const [taskFeedbackMsg, setTaskFeedbackMsg] = useState("");
+
+  // Submitted Work Files State
+  const [submittedFiles, setSubmittedFiles] = useState([]);
+  const [filesSummary, setFilesSummary] = useState({
+    totalFiles: 0,
+    pdfCount: 0,
+    imageCount: 0,
+    spreadsheetCount: 0,
+    otherCount: 0,
+  });
+  const [loadingFiles, setLoadingFiles] = useState(false);
+  const [fileCategoryFilter, setFileCategoryFilter] = useState("ALL"); // ALL | PDF | IMAGE | SPREADSHEET | DOCUMENT
+  const [fileDeptFilter, setFileDeptFilter] = useState("ALL");
+  const [fileSearch, setFileSearch] = useState("");
+  const [previewFile, setPreviewFile] = useState(null);
+
+  // Fetch Owner Tasks & Top Department Leaders
+  const fetchOwnerTasks = async () => {
+    setLoadingTasks(true);
+    try {
+      const res = await fetch("/api/owner/tasks");
+      if (res.ok) {
+        const data = await res.json();
+        setOwnerTasks(data.tasks || []);
+        setTopDepartmentHeads(data.topDepartmentHeads || []);
+        setApprovedStaffList(data.approvedEmployees || []);
+      }
+    } catch (err) {
+      console.error("Failed to fetch owner tasks:", err);
+    } finally {
+      setLoadingTasks(false);
+    }
+  };
+
+  // Assign Task to Top Department Leader
+  const handleAssignTask = async (e) => {
+    e.preventDefault();
+    setAssigningTask(true);
+    setTaskFeedbackMsg("");
+    try {
+      const res = await fetch("/api/owner/tasks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(assignForm),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to assign task");
+
+      setOwnerTasks((prev) => [data.task, ...prev]);
+      setShowAssignModal(false);
+      setAssignForm({
+        assignedToId: "",
+        title: "",
+        description: "",
+        priority: "MEDIUM",
+        dueDate: "",
+      });
+      setTaskFeedbackMsg(data.message || "Task assigned successfully!");
+      setTimeout(() => setTaskFeedbackMsg(""), 4000);
+    } catch (err) {
+      alert(err.message || "Failed to assign task");
+    } finally {
+      setAssigningTask(false);
+    }
+  };
+
+  // Fetch Submitted Work Files Vault
+  const fetchSubmittedFiles = async () => {
+    setLoadingFiles(true);
+    try {
+      const params = new URLSearchParams();
+      if (currentBranchId && currentBranchId !== "all") {
+        params.append("branchId", currentBranchId);
+      }
+      if (fileDeptFilter && fileDeptFilter !== "ALL") {
+        params.append("department", fileDeptFilter);
+      }
+      if (fileSearch.trim()) {
+        params.append("search", fileSearch.trim());
+      }
+      const res = await fetch(`/api/owner/submissions/files?${params.toString()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSubmittedFiles(data.files || []);
+        setFilesSummary(data.summary || {});
+      }
+    } catch (err) {
+      console.error("Failed to load submitted files:", err);
+    } finally {
+      setLoadingFiles(false);
+    }
+  };
 
   // Fetch staff roster
   const fetchEmployees = async (showSpinner = false) => {
@@ -274,7 +545,19 @@ export default function TeamTab({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setShowAssignModal(true);
+              fetchOwnerTasks();
+            }}
+            className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-sm shadow-indigo-600/20"
+          >
+            <ListTodo className="w-3.5 h-3.5" />
+            <span>+ Assign Task to Dept Head</span>
+          </button>
+
           <button
             type="button"
             onClick={() => fetchEmployees(true)}
@@ -298,8 +581,127 @@ export default function TeamTab({
         </div>
       </div>
 
-      {/* KPI Stats Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Global Task Feedback Alert */}
+      {taskFeedbackMsg && (
+        <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            <span>{taskFeedbackMsg}</span>
+          </div>
+          <button onClick={() => setTaskFeedbackMsg("")} className="text-emerald-700 hover:underline">
+            Dismiss
+          </button>
+        </div>
+      )}
+
+      {/* Team Operations Sub-Navigation */}
+      <div className="flex items-center gap-2 p-1.5 bg-white border border-slate-200/80 rounded-2xl shadow-xs overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setCurrentSubSection("ROSTER")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            currentSubSection === "ROSTER"
+              ? "bg-purple-600 text-white shadow-sm shadow-purple-600/20"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <Users className="w-4 h-4" />
+          <span>Staff Roster & Duty Shifts</span>
+          <span
+            className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+              currentSubSection === "ROSTER"
+                ? "bg-white/20 text-white"
+                : "bg-slate-100 text-slate-600"
+            }`}
+          >
+            {employees.length}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentSubSection("ASSIGN_TASKS");
+            fetchOwnerTasks();
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            currentSubSection === "ASSIGN_TASKS"
+              ? "bg-indigo-600 text-white shadow-sm shadow-indigo-600/20"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <ListTodo className="w-4 h-4" />
+          <span>Assign Tasks to Dept Heads</span>
+          {ownerTasks.length > 0 && (
+            <span
+              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                currentSubSection === "ASSIGN_TASKS"
+                  ? "bg-white/20 text-white"
+                  : "bg-indigo-100 text-indigo-700"
+              }`}
+            >
+              {ownerTasks.length}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setCurrentSubSection("SUBMITTED_FILES");
+            fetchSubmittedFiles();
+          }}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            currentSubSection === "SUBMITTED_FILES"
+              ? "bg-purple-600 text-white shadow-sm shadow-purple-600/20"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <FolderArchive className="w-4 h-4" />
+          <span>Submitted Work Files & Vault</span>
+          {filesSummary.totalFiles > 0 && (
+            <span
+              className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+                currentSubSection === "SUBMITTED_FILES"
+                  ? "bg-white/20 text-white"
+                  : "bg-purple-100 text-purple-700"
+              }`}
+            >
+              {filesSummary.totalFiles}
+            </span>
+          )}
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setCurrentSubSection("MAINTAIN_STAFF")}
+          className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+            currentSubSection === "MAINTAIN_STAFF"
+              ? "bg-rose-600 text-white shadow-sm shadow-rose-600/20"
+              : "text-slate-600 hover:text-slate-900 hover:bg-slate-50"
+          }`}
+        >
+          <UserCog className="w-4 h-4" />
+          <span>Maintain & Transfer Staff</span>
+          <span
+            className={`px-1.5 py-0.2 rounded-md text-[10px] font-black ${
+              currentSubSection === "MAINTAIN_STAFF"
+                ? "bg-white/20 text-white"
+                : "bg-rose-100 text-rose-700"
+            }`}
+          >
+            {employees.length}
+          </span>
+        </button>
+      </div>
+
+      {/* =========================================================================
+          SUB-SECTION 1: STAFF ROSTER & ATTENDANCE SHIFTS
+         ========================================================================= */}
+      {currentSubSection === "ROSTER" && (
+        <div className="space-y-6">
+          {/* KPI Stats Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Total Staff */}
         <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs relative overflow-hidden">
           <div className="flex items-center justify-between">
@@ -718,6 +1120,943 @@ export default function TeamTab({
           })}
         </div>
       )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          SUB-SECTION 2: ASSIGN DIRECT TASKS TO TOP DEPARTMENT LEADERS
+         ========================================================================= */}
+      {currentSubSection === "ASSIGN_TASKS" && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="p-6 bg-gradient-to-r from-indigo-900 via-indigo-950 to-purple-950 rounded-3xl text-white shadow-xl relative overflow-hidden border border-indigo-500/20">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 rounded-full bg-indigo-500/30 text-indigo-200 text-[10px] font-black uppercase tracking-wider border border-indigo-400/20 flex items-center gap-1.5">
+                    <Crown className="w-3.5 h-3.5 text-amber-300" />
+                    Executive Directives
+                  </span>
+                  <span className="text-xs text-indigo-300 font-medium">
+                    Owner Direct Line
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Direct Task Delegation to Department Heads
+                </h3>
+                <p className="text-xs sm:text-sm text-indigo-200/80 mt-1 max-w-2xl font-medium">
+                  Assign high-priority tasks and strategic directives directly to the top-ranking officer of each department (Operations, Sales, Logistics, Financial). Tasks bypass intermediate managers and land directly in the leader's Desk & Requests workspace.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => fetchOwnerTasks()}
+                  className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
+                  title="Refresh Tasks"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingTasks ? "animate-spin" : ""}`} />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignForm({
+                      assignedToId: topDepartmentHeads[0]?._id || approvedStaffList[0]?._id || "",
+                      title: "",
+                      description: "",
+                      priority: "HIGH",
+                      dueDate: "",
+                    });
+                    setShowAssignModal(true);
+                  }}
+                  className="px-5 py-3 rounded-2xl bg-indigo-500 hover:bg-indigo-400 text-white text-xs font-black tracking-wide shadow-lg shadow-indigo-500/30 transition-all flex items-center gap-2 cursor-pointer"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Assign New Directive</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Department Head Hierarchy Cards */}
+          <div>
+            <div className="flex items-center justify-between mb-3 px-1">
+              <div>
+                <h4 className="text-sm font-black text-slate-900">
+                  Department Leadership Roster
+                </h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Identified top-ranking officer in each department
+                </p>
+              </div>
+              <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2.5 py-1 rounded-full">
+                {topDepartmentHeads.length} of 4 Departments Headed
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {["OPERATIONS", "SALES", "LOGISTICS", "FINANCIAL"].map((dept) => {
+                const head = topDepartmentHeads.find((h) => h.department === dept);
+                const colors = DEPT_COLORS[dept] || {
+                  badge: "bg-slate-100 text-slate-700 border-slate-200",
+                };
+
+                return (
+                  <div
+                    key={dept}
+                    className={`bg-white rounded-3xl p-5 border transition-all flex flex-col justify-between ${
+                      head
+                        ? "border-slate-200/90 shadow-xs hover:border-indigo-300 hover:shadow-md"
+                        : "border-dashed border-slate-200 bg-slate-50/50"
+                    }`}
+                  >
+                    <div>
+                      <div className="flex items-center justify-between mb-3">
+                        <span
+                          className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${colors.badge}`}
+                        >
+                          {dept}
+                        </span>
+                        {head ? (
+                          <span className="flex items-center gap-1 text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                            Active Head
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-bold text-slate-400">
+                            Vacant
+                          </span>
+                        )}
+                      </div>
+
+                      {head ? (
+                        <div>
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="w-11 h-11 rounded-2xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-black text-base flex items-center justify-center shrink-0">
+                              {head.name?.charAt(0)?.toUpperCase()}
+                            </div>
+                            <div className="min-w-0">
+                              <h5 className="text-sm font-black text-slate-900 truncate">
+                                {head.name}
+                              </h5>
+                              <p className="text-[11px] font-black text-indigo-700 truncate">
+                                {head.postLevel}
+                              </p>
+                              <p className="text-[10px] text-slate-500 truncate">
+                                {head.postTitle}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-500">
+                            <span>Branch:</span>
+                            <span className="font-bold text-slate-700 truncate max-w-[130px]">
+                              {head.branchName || "Main"}
+                            </span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-4 text-center">
+                          <AlertCircle className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                          <p className="text-xs font-bold text-slate-600">
+                            No Head Assigned
+                          </p>
+                          <p className="text-[10px] text-slate-400 mt-0.5">
+                            Approve or assign a staff member to {dept}
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-4 pt-3 border-t border-slate-100">
+                      {head ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAssignForm({
+                              assignedToId: head._id,
+                              title: "",
+                              description: "",
+                              priority: "HIGH",
+                              dueDate: "",
+                            });
+                            setShowAssignModal(true);
+                          }}
+                          className="w-full py-2 px-3 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>Assign Directive</span>
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled
+                          className="w-full py-2 px-3 rounded-xl bg-slate-100 text-slate-400 text-xs font-bold opacity-60 cursor-not-allowed text-center"
+                        >
+                          Awaiting Head
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Directives History & Status */}
+          <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-5">
+              <div>
+                <h4 className="text-base font-black text-slate-900 flex items-center gap-2">
+                  <ListTodo className="w-5 h-5 text-indigo-600" />
+                  <span>Delegated Executive Directives</span>
+                </h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Track progress, review submissions, and manage owner-issued tasks
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1.5 rounded-xl font-mono">
+                  {ownerTasks.length} {ownerTasks.length === 1 ? "Directive" : "Directives"}
+                </span>
+              </div>
+            </div>
+
+            {/* Tasks Zero State */}
+            {ownerTasks.length === 0 ? (
+              <div className="py-16 px-4 text-center rounded-2xl bg-slate-50/70 border-2 border-dashed border-slate-200">
+                <div className="w-16 h-16 rounded-3xl bg-indigo-100 text-indigo-600 mx-auto flex items-center justify-center shadow-inner mb-4">
+                  <Crown className="w-8 h-8" />
+                </div>
+                <h4 className="text-base font-black text-slate-900">
+                  No Executive Directives Issued Yet
+                </h4>
+                <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md mx-auto mt-1 mb-6">
+                  You haven't assigned any direct tasks to department heads yet. Directly assigned tasks appear on top of their workspace and notify them instantly.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAssignForm({
+                      assignedToId: topDepartmentHeads[0]?._id || approvedStaffList[0]?._id || "",
+                      title: "",
+                      description: "",
+                      priority: "HIGH",
+                      dueDate: "",
+                    });
+                    setShowAssignModal(true);
+                  }}
+                  className="px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-black shadow-md shadow-indigo-600/20 cursor-pointer inline-flex items-center gap-2"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Assign First Directive</span>
+                </button>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {ownerTasks.map((t) => {
+                  const priorityColors = {
+                    URGENT: "bg-rose-50 text-rose-700 border-rose-200",
+                    HIGH: "bg-amber-50 text-amber-700 border-amber-200",
+                    MEDIUM: "bg-blue-50 text-blue-700 border-blue-200",
+                    LOW: "bg-slate-50 text-slate-700 border-slate-200",
+                  }[t.priority] || "bg-slate-50 text-slate-700 border-slate-200";
+
+                  const statusColors = {
+                    PENDING: "bg-amber-50 text-amber-700 border-amber-200",
+                    IN_PROGRESS: "bg-blue-50 text-blue-700 border-blue-200",
+                    COMPLETED: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                    CANCELLED: "bg-rose-50 text-rose-700 border-rose-200",
+                  }[t.status] || "bg-slate-50 text-slate-700 border-slate-200";
+
+                  return (
+                    <div
+                      key={t._id}
+                      className="p-4 sm:p-5 rounded-2xl bg-white border border-slate-200/80 hover:border-indigo-300 hover:shadow-xs transition-all flex flex-col md:flex-row md:items-center justify-between gap-4"
+                    >
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${priorityColors}`}
+                          >
+                            {t.priority}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${statusColors}`}
+                          >
+                            {t.status.replace("_", " ")}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            Issued: {new Date(t.createdAt).toLocaleDateString()}
+                          </span>
+                          {t.dueDate && (
+                            <span className="text-[10px] font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              Due: {t.dueDate}
+                            </span>
+                          )}
+                        </div>
+
+                        <h5 className="text-sm font-black text-slate-900 break-words">
+                          {t.title}
+                        </h5>
+
+                        <p className="text-xs text-slate-600 font-medium line-clamp-2">
+                          {t.description}
+                        </p>
+                      </div>
+
+                      {/* Assignee Card */}
+                      <div className="flex items-center gap-3 shrink-0 pt-3 md:pt-0 border-t md:border-t-0 border-slate-100">
+                        <div className="text-right">
+                          <span className="text-[10px] uppercase font-bold text-slate-400 block">
+                            Assigned To
+                          </span>
+                          <span className="text-xs font-black text-slate-900 block truncate max-w-[140px]">
+                            {t.assignedTo?.name || "Dept Officer"}
+                          </span>
+                          <span className="text-[10px] font-bold text-indigo-600 block">
+                            {t.assignedTo?.department} • {t.assignedTo?.postLevel || t.assignedTo?.postTitle}
+                          </span>
+                        </div>
+                        <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-700 font-black text-sm flex items-center justify-center">
+                          {t.assignedTo?.name?.charAt(0)?.toUpperCase() || "D"}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* =========================================================================
+          SUB-SECTION 3: SUBMITTED WORK FILES & VAULT
+         ========================================================================= */}
+      {currentSubSection === "SUBMITTED_FILES" && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="p-6 bg-gradient-to-r from-purple-900 via-purple-950 to-slate-950 rounded-3xl text-white shadow-xl relative overflow-hidden border border-purple-500/20">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 rounded-full bg-purple-500/30 text-purple-200 text-[10px] font-black uppercase tracking-wider border border-purple-400/20 flex items-center gap-1.5">
+                    <FolderArchive className="w-3.5 h-3.5 text-purple-300" />
+                    Centralized Work Vault
+                  </span>
+                  <span className="text-xs text-purple-300 font-medium">
+                    Daily Proofs & Attachments
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Employee Submitted Work Files
+                </h3>
+                <p className="text-xs sm:text-sm text-purple-200/80 mt-1 max-w-2xl font-medium">
+                  Review all documents, spreadsheets, daily QC sheets, invoices, and photo proofs uploaded by employees during daily work submissions across all 4 departments.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => fetchSubmittedFiles()}
+                  className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
+                  title="Refresh Vault"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingFiles ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* KPI Summary Cards */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-slate-400">
+                  Total Vaulted Files
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center">
+                  <FolderArchive className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-slate-900 mt-2 font-mono">
+                {filesSummary.totalFiles || 0}
+              </p>
+              <p className="text-[11px] text-slate-500 font-medium mt-1">
+                From daily end-of-shift reports
+              </p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-rose-200/90 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-rose-700">
+                  PDF Documents
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-700 flex items-center justify-center">
+                  <FileText className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-rose-950 mt-2 font-mono">
+                {filesSummary.pdfCount || 0}
+              </p>
+              <p className="text-[11px] text-rose-700 font-medium mt-1">
+                Invoices, challans, reports
+              </p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-blue-200/90 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-blue-700">
+                  Photo Proofs / Images
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-blue-50 text-blue-700 flex items-center justify-center">
+                  <ImageIcon className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-blue-950 mt-2 font-mono">
+                {filesSummary.imageCount || 0}
+              </p>
+              <p className="text-[11px] text-blue-700 font-medium mt-1">
+                QC photos, receipts, delivery slips
+              </p>
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 border border-emerald-200/90 shadow-xs">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-black uppercase tracking-wider text-emerald-700">
+                  Spreadsheets & Data
+                </span>
+                <div className="w-8 h-8 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center">
+                  <FileSpreadsheet className="w-4 h-4" />
+                </div>
+              </div>
+              <p className="text-2xl sm:text-3xl font-black text-emerald-950 mt-2 font-mono">
+                {filesSummary.spreadsheetCount || 0}
+              </p>
+              <p className="text-[11px] text-emerald-700 font-medium mt-1">
+                CSV, Excel, production logs
+              </p>
+            </div>
+          </div>
+
+          {/* Search & Category Filter Bar */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs space-y-3">
+            <div className="flex flex-col md:flex-row gap-3">
+              {/* Search */}
+              <div className="relative flex-1">
+                <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder="Search by file name or employee name..."
+                  value={fileSearch}
+                  onChange={(e) => setFileSearch(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") fetchSubmittedFiles();
+                  }}
+                  className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-purple-500/20 focus:border-purple-500"
+                />
+              </div>
+
+              {/* Department Dropdown */}
+              <div className="flex items-center gap-2">
+                <select
+                  value={fileDeptFilter}
+                  onChange={(e) => {
+                    setFileDeptFilter(e.target.value);
+                  }}
+                  className="px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs font-bold text-slate-700 focus:outline-hidden focus:ring-2 focus:ring-purple-500/20"
+                >
+                  <option value="ALL">All Departments</option>
+                  <option value="OPERATIONS">Operations</option>
+                  <option value="SALES">Sales</option>
+                  <option value="LOGISTICS">Logistics</option>
+                  <option value="FINANCIAL">Financial</option>
+                </select>
+
+                <button
+                  type="button"
+                  onClick={() => fetchSubmittedFiles()}
+                  className="px-4 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs cursor-pointer"
+                >
+                  Apply
+                </button>
+              </div>
+            </div>
+
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-2 overflow-x-auto pt-2 border-t border-slate-100">
+              <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">
+                Filter by Type:
+              </span>
+              {[
+                { id: "ALL", label: "All Files" },
+                { id: "PDF", label: "PDF Documents" },
+                { id: "IMAGE", label: "Photos & Images" },
+                { id: "SPREADSHEET", label: "Spreadsheets" },
+                { id: "DOCUMENT", label: "Other Documents" },
+              ].map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  onClick={() => setFileCategoryFilter(cat.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    fileCategoryFilter === cat.id
+                      ? "bg-purple-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Files Grid */}
+          {(() => {
+            const displayFiles = submittedFiles.filter((f) => {
+              if (fileCategoryFilter === "ALL") return true;
+              return f.category === fileCategoryFilter;
+            });
+
+            if (displayFiles.length === 0) {
+              return (
+                <div className="py-16 px-4 text-center rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+                  <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 mx-auto flex items-center justify-center shadow-inner mb-4">
+                    <FolderArchive className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-base font-black text-slate-900">
+                    No Submitted Files in Vault
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md mx-auto mt-1 mb-2">
+                    When employees submit their daily end-of-shift reports with attached work documents, proofs, images, or spreadsheets, they will be archived here for owner review and instant download.
+                  </p>
+                  <p className="text-[11px] text-slate-400 font-mono">
+                    Zero files currently matching filters
+                  </p>
+                </div>
+              );
+            }
+
+            return (
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {displayFiles.map((file, idx) => {
+                  const isImage =
+                    file.category === "IMAGE" ||
+                    file.fileType?.startsWith("image/") ||
+                    file.fileData?.startsWith("data:image/");
+
+                  const categoryIcons = {
+                    PDF: { icon: FileText, color: "bg-rose-50 text-rose-700 border-rose-200" },
+                    IMAGE: { icon: ImageIcon, color: "bg-blue-50 text-blue-700 border-blue-200" },
+                    SPREADSHEET: { icon: FileSpreadsheet, color: "bg-emerald-50 text-emerald-700 border-emerald-200" },
+                    DOCUMENT: { icon: FileText, color: "bg-purple-50 text-purple-700 border-purple-200" },
+                  };
+
+                  const { icon: CatIcon, color: catColor } =
+                    categoryIcons[file.category] || categoryIcons.DOCUMENT;
+
+                  return (
+                    <div
+                      key={idx}
+                      className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md hover:border-purple-300 transition-all flex flex-col justify-between"
+                    >
+                      <div>
+                        {/* Header: Icon & Category */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span
+                            className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase border flex items-center gap-1.5 ${catColor}`}
+                          >
+                            <CatIcon className="w-3.5 h-3.5" />
+                            {file.category}
+                          </span>
+                          <span className="text-[10px] text-slate-400 font-mono font-bold">
+                            {file.fileSize ? `${(file.fileSize / 1024).toFixed(1)} KB` : "File"}
+                          </span>
+                        </div>
+
+                        {/* File Name & Preview Area */}
+                        {isImage && file.fileData ? (
+                          <div
+                            onClick={() => setPreviewFile(file)}
+                            className="w-full h-32 rounded-2xl bg-slate-100 overflow-hidden mb-3 border border-slate-200 cursor-pointer group relative"
+                          >
+                            <img
+                              src={file.fileData}
+                              alt={file.fileName}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            />
+                            <div className="absolute inset-0 bg-slate-900/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center text-white text-xs font-bold gap-1">
+                              <Eye className="w-4 h-4" />
+                              Click to Preview
+                            </div>
+                          </div>
+                        ) : null}
+
+                        <h5
+                          title={file.fileName}
+                          className="text-sm font-black text-slate-900 truncate"
+                        >
+                          {file.fileName}
+                        </h5>
+
+                        {/* Employee & Department info */}
+                        <div className="mt-3 p-2.5 rounded-2xl bg-slate-50 border border-slate-100 text-xs space-y-1">
+                          <div className="flex items-center justify-between">
+                            <span className="font-black text-slate-800 truncate">
+                              {file.employeeName}
+                            </span>
+                            <span className="text-[10px] font-black px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 uppercase">
+                              {file.department}
+                            </span>
+                          </div>
+                          <p className="text-[10px] text-slate-500 font-medium">
+                            {file.employeePost} • {file.branchName}
+                          </p>
+                          <p className="text-[10px] text-slate-400 font-mono">
+                            Report Date: {file.submissionDate || "N/A"}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="mt-4 pt-3 border-t border-slate-100 flex items-center gap-2">
+                        {isImage && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewFile(file)}
+                            className="flex-1 py-2 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>Preview</span>
+                          </button>
+                        )}
+                        <a
+                          href={file.fileData}
+                          download={file.fileName}
+                          className="flex-1 py-2 rounded-xl bg-slate-900 hover:bg-purple-600 text-white text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer text-center"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Download</span>
+                        </a>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
+
+      {/* =========================================================================
+          SUB-SECTION 4: MAINTAIN & TRANSFER EMPLOYEES
+         ========================================================================= */}
+      {currentSubSection === "MAINTAIN_STAFF" && (
+        <div className="space-y-6">
+          {/* Header Banner */}
+          <div className="p-6 bg-gradient-to-r from-slate-900 via-rose-950 to-slate-950 rounded-3xl text-white shadow-xl relative overflow-hidden border border-rose-500/20">
+            <div className="absolute top-0 right-0 w-96 h-96 bg-rose-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="px-2.5 py-1 rounded-full bg-rose-500/30 text-rose-200 text-[10px] font-black uppercase tracking-wider border border-rose-400/20 flex items-center gap-1.5">
+                    <UserCog className="w-3.5 h-3.5 text-rose-300" />
+                    Staff Directory & Lifecycle
+                  </span>
+                  <span className="text-xs text-rose-300 font-medium">
+                    Owner Administration
+                  </span>
+                </div>
+                <h3 className="text-xl sm:text-2xl font-black tracking-tight text-white">
+                  Maintain, Transfer & Remove Employees
+                </h3>
+                <p className="text-xs sm:text-sm text-rose-200/80 mt-1 max-w-2xl font-medium">
+                  Easily reassign team members across departments (Operations, Sales, Logistics, Financial), modify hierarchy ranks and titles, or permanently offboard and remove employee records from the database.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => fetchEmployees(true)}
+                  className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
+                  title="Refresh Employees"
+                >
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Department Breakdown Stats */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {["OPERATIONS", "SALES", "LOGISTICS", "FINANCIAL"].map((dept) => {
+              const count = employees.filter((e) => e.department === dept).length;
+              const colors = DEPT_COLORS[dept] || {
+                badge: "bg-slate-100 text-slate-700",
+              };
+
+              return (
+                <div
+                  key={dept}
+                  className="bg-white rounded-3xl p-5 border border-slate-200/80 shadow-xs flex items-center justify-between"
+                >
+                  <div>
+                    <span
+                      className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase border ${colors.badge}`}
+                    >
+                      {dept}
+                    </span>
+                    <p className="text-2xl font-black text-slate-900 mt-2 font-mono">
+                      {count}
+                    </p>
+                    <p className="text-[11px] text-slate-500 font-medium mt-0.5">
+                      {count === 1 ? "Assigned staff" : "Assigned staff members"}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setMaintainDeptFilter(dept)}
+                    className="p-2.5 rounded-2xl bg-slate-50 hover:bg-slate-100 text-slate-600 cursor-pointer transition-all"
+                    title={`Filter by ${dept}`}
+                  >
+                    <Filter className="w-4 h-4" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Search & Filter Bar */}
+          <div className="bg-white rounded-3xl p-4 sm:p-5 border border-slate-200/80 shadow-xs flex flex-col md:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                placeholder="Search staff by name, phone, email, or role title..."
+                value={maintainSearch}
+                onChange={(e) => setMaintainSearch(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-rose-500/20 focus:border-rose-500"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 overflow-x-auto">
+              <span className="text-[10px] font-black uppercase text-slate-400 shrink-0">
+                Department:
+              </span>
+              {[
+                { id: "ALL", label: "All" },
+                { id: "OPERATIONS", label: "Operations" },
+                { id: "SALES", label: "Sales" },
+                { id: "LOGISTICS", label: "Logistics" },
+                { id: "FINANCIAL", label: "Financial" },
+              ].map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setMaintainDeptFilter(d.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all cursor-pointer ${
+                    maintainDeptFilter === d.id
+                      ? "bg-rose-600 text-white shadow-xs"
+                      : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  }`}
+                >
+                  {d.label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Staff Maintenance Table */}
+          {(() => {
+            const filtered = employees.filter((emp) => {
+              if (maintainDeptFilter !== "ALL" && emp.department !== maintainDeptFilter) {
+                return false;
+              }
+              if (maintainSearch.trim()) {
+                const q = maintainSearch.toLowerCase().trim();
+                const matchName = emp.name?.toLowerCase().includes(q);
+                const matchPhone = emp.phoneNumber?.toLowerCase().includes(q);
+                const matchEmail = emp.email?.toLowerCase().includes(q);
+                const matchPost = emp.postTitle?.toLowerCase().includes(q);
+                if (!matchName && !matchPhone && !matchEmail && !matchPost) {
+                  return false;
+                }
+              }
+              return true;
+            });
+
+            if (filtered.length === 0) {
+              return (
+                <div className="py-16 px-4 text-center rounded-3xl bg-white border border-slate-200/80 shadow-xs">
+                  <div className="w-16 h-16 rounded-3xl bg-rose-50 text-rose-600 mx-auto flex items-center justify-center shadow-inner mb-4">
+                    <UserCog className="w-8 h-8" />
+                  </div>
+                  <h4 className="text-base font-black text-slate-900">
+                    No Employees Matching Criteria
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-md mx-auto mt-1 mb-4">
+                    Adjust your search query or department filters to locate staff members.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMaintainSearch("");
+                      setMaintainDeptFilter("ALL");
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                  >
+                    Reset Filters
+                  </button>
+                </div>
+              );
+            }
+
+            return (
+              <div className="bg-white rounded-3xl border border-slate-200/80 shadow-xs overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 bg-slate-50/70 text-slate-400 uppercase text-[10px] font-black">
+                        <th className="py-3.5 pl-6">Employee Details</th>
+                        <th className="py-3.5 px-4">Department</th>
+                        <th className="py-3.5 px-4">Hierarchy & Post</th>
+                        <th className="py-3.5 px-4">Branch</th>
+                        <th className="py-3.5 px-4">Duty Status</th>
+                        <th className="py-3.5 pr-6 text-right">Maintenance Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {filtered.map((emp) => {
+                        const colors = DEPT_COLORS[emp.department] || {
+                          badge: "bg-slate-100 text-slate-700 border-slate-200",
+                        };
+
+                        const statusBadge = {
+                          ON_DUTY: {
+                            label: "🟢 Live On Duty",
+                            class: "bg-emerald-50 text-emerald-700 border-emerald-200",
+                          },
+                          COMPLETED: {
+                            label: "⚪ Completed Shift",
+                            class: "bg-slate-100 text-slate-700 border-slate-200",
+                          },
+                          OFF_DUTY: {
+                            label: "⚪ Off Duty",
+                            class: "bg-slate-50 text-slate-500 border-slate-200",
+                          },
+                          ON_LEAVE: {
+                            label: "🏖️ On Leave",
+                            class: "bg-amber-50 text-amber-800 border-amber-200",
+                          },
+                        }[emp.dutyStatus] || {
+                          label: "Off Duty",
+                          class: "bg-slate-50 text-slate-500 border-slate-200",
+                        };
+
+                        return (
+                          <tr key={emp._id} className="hover:bg-slate-50/60 transition-colors">
+                            {/* Employee Info */}
+                            <td className="py-4 pl-6">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-2xl bg-slate-100 border border-slate-200 text-slate-800 font-black text-sm flex items-center justify-center shrink-0">
+                                  {emp.name?.charAt(0)?.toUpperCase()}
+                                </div>
+                                <div className="min-w-0">
+                                  <h5 className="font-black text-slate-900 truncate">
+                                    {emp.name}
+                                  </h5>
+                                  <div className="flex items-center gap-2 text-[11px] text-slate-500 font-medium truncate mt-0.5">
+                                    <span>{emp.phoneNumber}</span>
+                                    {emp.email && (
+                                      <>
+                                        <span>•</span>
+                                        <span className="truncate max-w-[150px]">{emp.email}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+
+                            {/* Department */}
+                            <td className="py-4 px-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-xl text-[10px] font-black uppercase tracking-wider border ${colors.badge}`}
+                              >
+                                {emp.department}
+                              </span>
+                            </td>
+
+                            {/* Hierarchy & Post */}
+                            <td className="py-4 px-4">
+                              <p className="font-bold text-slate-900 truncate max-w-[200px]">
+                                {emp.postTitle || emp.postLevel}
+                              </p>
+                              <span className="text-[10px] font-black text-purple-700 uppercase tracking-wider">
+                                {emp.postLevel}
+                              </span>
+                            </td>
+
+                            {/* Branch */}
+                            <td className="py-4 px-4">
+                              <span className="font-medium text-slate-700">
+                                {emp.branchName || "Main HQ"}
+                              </span>
+                            </td>
+
+                            {/* Duty Status */}
+                            <td className="py-4 px-4">
+                              <span
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-black border inline-flex items-center gap-1 ${statusBadge.class}`}
+                              >
+                                {statusBadge.label}
+                              </span>
+                            </td>
+
+                            {/* Actions */}
+                            <td className="py-4 pr-6 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenTransferModal(emp)}
+                                  className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-600 text-indigo-700 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  title="Move to another department or role"
+                                >
+                                  <ArrowRightLeft className="w-3.5 h-3.5" />
+                                  <span>Transfer Dept</span>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setDeleteModalEmployee(emp)}
+                                  className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-600 text-rose-700 hover:text-white text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                                  title="Permanently remove employee from database"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <span>Remove</span>
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })()}
+        </div>
+      )}
+
 
       {/* Dossier Modal / Drawer */}
       {dossierEmployee && (
@@ -1131,6 +2470,494 @@ export default function TeamTab({
           </div>
         </div>
       )}
+      {/* Direct Task Assignment Modal */}
+      {showAssignModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-amber-500" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Assign Executive Directive
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Owner direct task to Department Head
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowAssignModal(false)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleAssignTask} className="p-5 sm:p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Assign To Department Leader *
+                </label>
+                <select
+                  required
+                  value={assignForm.assignedToId}
+                  onChange={(e) =>
+                    setAssignForm({ ...assignForm, assignedToId: e.target.value })
+                  }
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="">Select Department Leader...</option>
+                  <optgroup label="Top Department Heads">
+                    {topDepartmentHeads.map((h) => (
+                      <option key={h._id} value={h._id}>
+                        {h.department}: {h.name} ({h.postLevel} - {h.postTitle})
+                      </option>
+                    ))}
+                  </optgroup>
+                  {approvedStaffList.length > 0 && (
+                    <optgroup label="All Approved Staff">
+                      {approvedStaffList.map((emp) => (
+                        <option key={emp._id} value={emp._id}>
+                          {emp.name} — {emp.department} ({emp.postTitle})
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Directive Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Expedite Q4 Plant Maintenance or Review High-Value Sales Pipeline"
+                  value={assignForm.title}
+                  onChange={(e) =>
+                    setAssignForm({ ...assignForm, title: e.target.value })
+                  }
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Instructions & Scope *
+                </label>
+                <textarea
+                  required
+                  rows={3}
+                  placeholder="Provide explicit instructions, operational expectations, deliverables..."
+                  value={assignForm.description}
+                  onChange={(e) =>
+                    setAssignForm({ ...assignForm, description: e.target.value })
+                  }
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-slate-800 placeholder-slate-400 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Priority
+                  </label>
+                  <select
+                    value={assignForm.priority}
+                    onChange={(e) =>
+                      setAssignForm({ ...assignForm, priority: e.target.value })
+                    }
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    <option value="LOW">Low</option>
+                    <option value="MEDIUM">Medium</option>
+                    <option value="HIGH">High Priority</option>
+                    <option value="URGENT">Urgent / Critical</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Due Date (Optional)
+                  </label>
+                  <input
+                    type="date"
+                    value={assignForm.dueDate}
+                    onChange={(e) =>
+                      setAssignForm({ ...assignForm, dueDate: e.target.value })
+                    }
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={assigningTask}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {assigningTask ? "Assigning..." : "Issue Directive"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* File Preview Modal */}
+      {previewFile && (
+        <div className="fixed inset-0 z-50 bg-slate-900/80 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-100 overflow-hidden">
+            <div className="p-4 sm:p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="min-w-0">
+                <h4 className="text-sm font-black text-slate-900 truncate">
+                  {previewFile.fileName}
+                </h4>
+                <p className="text-xs text-slate-500 font-medium">
+                  Uploaded by {previewFile.employeeName} ({previewFile.department})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPreviewFile(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-4 sm:p-6 overflow-y-auto flex-1 flex items-center justify-center bg-slate-50">
+              {previewFile.fileType?.startsWith("image/") || previewFile.fileData?.startsWith("data:image/") ? (
+                <img
+                  src={previewFile.fileData}
+                  alt={previewFile.fileName}
+                  className="max-h-[60vh] max-w-full rounded-2xl shadow-md object-contain border border-slate-200"
+                />
+              ) : (
+                <div className="text-center py-12">
+                  <FileText className="w-16 h-16 text-slate-400 mx-auto mb-3" />
+                  <p className="text-sm font-bold text-slate-700">
+                    Preview not available directly in browser for this file type.
+                  </p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Download the file to view in your preferred application.
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-4 border-t border-slate-100 flex items-center justify-between bg-white">
+              <span className="text-xs text-slate-400 font-mono">
+                {previewFile.fileSize ? `${(previewFile.fileSize / 1024).toFixed(1)} KB` : "File"}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPreviewFile(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Close
+                </button>
+                <a
+                  href={previewFile.fileData}
+                  download={previewFile.fileName}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-xs cursor-pointer flex items-center gap-1.5"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download File</span>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Department Transfer & Role Reassignment Modal */}
+      {transferModalEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-lg w-full shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-50 text-indigo-700 flex items-center justify-center">
+                  <ArrowRightLeft className="w-5 h-5 text-indigo-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">
+                    Transfer & Reassign Employee
+                  </h3>
+                  <p className="text-xs text-slate-500 font-medium">
+                    Move between departments or reclassify post rank
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setTransferModalEmployee(null)}
+                className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Current Details Summary */}
+            <div className="px-5 sm:px-6 pt-5">
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] font-black uppercase text-slate-400 block">
+                    Current Assignment
+                  </span>
+                  <p className="font-black text-slate-900 mt-0.5">
+                    {transferModalEmployee.name}
+                  </p>
+                  <p className="text-slate-500 text-[11px]">
+                    {transferModalEmployee.postTitle} ({transferModalEmployee.postLevel})
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-md bg-purple-100 text-purple-700">
+                    {transferModalEmployee.department}
+                  </span>
+                  <p className="text-[10px] text-slate-400 mt-1">
+                    {transferModalEmployee.branchName || "Main HQ"}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Form */}
+            <form onSubmit={handleTransferSubmit} className="p-5 sm:p-6 space-y-4">
+              {/* Target Department */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Target Department *
+                </label>
+                <select
+                  required
+                  value={transferForm.department}
+                  onChange={(e) => {
+                    const newDept = e.target.value;
+                    const defaultTitle =
+                      DEPARTMENT_ROLES[newDept]?.find(
+                        (r) => r.level === transferForm.postLevel
+                      )?.defaultTitle || "";
+                    setTransferForm({
+                      ...transferForm,
+                      department: newDept,
+                      postTitle: defaultTitle || transferForm.postTitle,
+                    });
+                  }}
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="OPERATIONS">Operations (Production, Plant & Quality)</option>
+                  <option value="SALES">Sales (Revenue, CRM & Marketing)</option>
+                  <option value="LOGISTICS">Logistics (Supply Chain, Procurement & Fleet)</option>
+                  <option value="FINANCIAL">Financial (Treasury, Billing & General Ledger)</option>
+                </select>
+              </div>
+
+              {/* Hierarchy Post Level */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Hierarchy Post Level *
+                </label>
+                <select
+                  required
+                  value={transferForm.postLevel}
+                  onChange={(e) => {
+                    const newLevel = e.target.value;
+                    const defaultTitle =
+                      DEPARTMENT_ROLES[transferForm.department]?.find(
+                        (r) => r.level === newLevel
+                      )?.defaultTitle || "";
+                    setTransferForm({
+                      ...transferForm,
+                      postLevel: newLevel,
+                      postTitle: defaultTitle || transferForm.postTitle,
+                    });
+                  }}
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                >
+                  <option value="CHIEF_OFFICER">Level 1: Chief Officer (COO / CSO / CLO / CFO)</option>
+                  <option value="DIRECTOR">Level 2: Director / Department Head</option>
+                  <option value="MANAGER">Level 3: Department / Plant Manager</option>
+                  <option value="SUPERVISOR">Level 4: Supervisor / Team Lead / AE</option>
+                  <option value="ANALYST">Level 5: Analyst / QC Inspector / Specialist</option>
+                  <option value="COORDINATOR">Level 6: Coordinator / Requisitions & Dispatch</option>
+                  <option value="ASSISTANT">Level 7: Assistant / Clerk / Data Entry</option>
+                  <option value="OTHER">Level 8: Other / Plant Staff / Tech Support</option>
+                </select>
+              </div>
+
+              {/* Official Post Title */}
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  Official Post Title *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={transferForm.postTitle}
+                  onChange={(e) =>
+                    setTransferForm({ ...transferForm, postTitle: e.target.value })
+                  }
+                  placeholder="e.g. Operations Coordinator or Sales Manager"
+                  className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500"
+                />
+              </div>
+
+              {/* Branch Reassignment */}
+              {Array.isArray(organization?.branchList) && organization.branchList.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                    Assigned Branch Location
+                  </label>
+                  <select
+                    value={transferForm.branchId}
+                    onChange={(e) => {
+                      const branch = organization.branchList.find(
+                        (b) => b.id === e.target.value
+                      );
+                      setTransferForm({
+                        ...transferForm,
+                        branchId: e.target.value,
+                        branchName: branch ? branch.branchName || branch.name : "Main HQ",
+                      });
+                    }}
+                    className="w-full p-3 rounded-2xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-indigo-500/20"
+                  >
+                    {organization.branchList.map((branch) => (
+                      <option key={branch.id} value={branch.id}>
+                        {branch.branchName || branch.name || `Branch (${branch.id})`}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              {/* Modal Actions */}
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setTransferModalEmployee(null)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isTransferring}
+                  className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-md shadow-indigo-600/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  {isTransferring ? "Transferring..." : "Confirm Department Transfer"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Permanently Remove Employee Modal */}
+      {deleteModalEmployee && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-3 sm:p-5 animate-in fade-in duration-150">
+          <div className="bg-white rounded-3xl max-w-md w-full shadow-2xl border border-slate-100 overflow-hidden animate-in zoom-in-95 duration-200">
+            {/* Header */}
+            <div className="p-5 border-b border-rose-100 bg-rose-50/50 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-10 h-10 rounded-2xl bg-rose-100 text-rose-700 flex items-center justify-center">
+                  <Trash2 className="w-5 h-5 text-rose-600" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-rose-950">
+                    Permanently Remove Employee
+                  </h3>
+                  <p className="text-xs text-rose-700 font-medium">
+                    Permanent deletion from database
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDeleteModalEmployee(null)}
+                className="w-8 h-8 rounded-full bg-white hover:bg-rose-100 text-slate-600 flex items-center justify-center cursor-pointer border border-rose-100"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Body */}
+            <div className="p-5 sm:p-6 space-y-4">
+              <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-900 space-y-2">
+                <div className="flex items-center gap-2 font-black text-rose-950">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>Irreversible Database Action</span>
+                </div>
+                <p className="leading-relaxed">
+                  Are you sure you want to permanently remove{" "}
+                  <strong className="text-rose-950">{deleteModalEmployee.name}</strong> from{" "}
+                  <strong className="text-rose-950">{deleteModalEmployee.department}</strong>?
+                </p>
+                <p className="text-[11px] text-rose-700 leading-normal">
+                  This action will completely delete the employee document from the MongoDB database. Their access credentials will be revoked immediately and they will no longer be able to log in or access any company workspace.
+                </p>
+              </div>
+
+              {/* Employee Summary Card */}
+              <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
+                <div className="flex items-center justify-between font-bold">
+                  <span className="text-slate-900">{deleteModalEmployee.name}</span>
+                  <span className="text-[10px] uppercase font-black px-2 py-0.5 rounded-md bg-purple-100 text-purple-700">
+                    {deleteModalEmployee.department}
+                  </span>
+                </div>
+                <p className="text-slate-500 text-[11px]">
+                  {deleteModalEmployee.postTitle} ({deleteModalEmployee.postLevel})
+                </p>
+                <p className="text-slate-400 text-[10px] font-mono">
+                  Phone: {deleteModalEmployee.phoneNumber} • Branch: {deleteModalEmployee.branchName || "Main HQ"}
+                </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={() => setDeleteModalEmployee(null)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold cursor-pointer disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={isDeleting}
+                  onClick={handleDeleteSubmit}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold shadow-md shadow-rose-600/20 cursor-pointer disabled:opacity-50 flex items-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>{isDeleting ? "Deleting..." : "Confirm & Delete Employee"}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

@@ -145,8 +145,8 @@ export default function ProfessionalLogin() {
                     window.location.href = result.redirectUrl;
                     return;
                 }
-                if (result.user?.isSuperAdmin || result.user?.role === "Admin") {
-                    window.location.href = "/console";
+                if (result.user?.isSuperAdmin || result.user?.role === "Admin" || result.user?.role === "SUPERADMIN") {
+                    window.location.href = "/admin";
                     return;
                 }
 

@@ -35,19 +35,23 @@ export async function POST(request) {
     }
 
     // Security Directive: Strictly reject Super-Admin reserved credentials
-    const adminEmail = (
-      process.env.ADMIN_EMAIL || "shyamsangani23@gmail.com"
-    )
-      .toLowerCase()
-      .trim();
-    const adminPhone = (process.env.ADMIN_PHONE || "9723386344").trim();
+    const adminEmail = "shyamsangani23@gmail.com";
+    const adminPhone = "9723386344";
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanPhone = phoneNumber.trim();
+    const cleanName = (name || "").toLowerCase().trim();
+
     if (
-      email.toLowerCase().trim() === adminEmail ||
-      phoneNumber.trim() === adminPhone
+      cleanEmail === adminEmail ||
+      cleanPhone === adminPhone ||
+      cleanName === "shyam sangani"
     ) {
       return NextResponse.json(
-        { error: "Credentials reserved! Belongs to Developers only!" },
-        { status: 400 }
+        {
+          error:
+            "Registration rejected. These credentials and identity are strictly reserved for the Platform SuperAdmin.",
+        },
+        { status: 403 }
       );
     }
 

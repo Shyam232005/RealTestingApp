@@ -94,6 +94,17 @@ const SubmissionSchema = new mongoose.Schema(
       default: null,
     },
 
+    // Work Deliverable File Attachments
+    files: [
+      {
+        fileName: { type: String, trim: true },
+        fileType: { type: String, trim: true },
+        fileSize: { type: Number, default: 0 },
+        fileData: { type: String, default: "" }, // Base64 Data URL or storage URL
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     status: {
       type: String,
       enum: ["SUBMITTED", "ACKNOWLEDGED"],
