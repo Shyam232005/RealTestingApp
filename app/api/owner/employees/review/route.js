@@ -92,9 +92,33 @@ export async function POST(request) {
         await owner.save();
       }
 
+      // Live update Organization approved headcount
+      const totalApproved = await Employee.countDocuments({
+        companyId: owner._id,
+        approvalStatus: "APPROVED",
+      });
+
+      if (organization) {
+        organization.employeeCount = totalApproved;
+        await organization.save();
+      }
+
+      const branchHeadcounts = await Employee.aggregate([
+        { $match: { companyId: owner._id, approvalStatus: "APPROVED" } },
+        { $group: { _id: "$branchId", count: { $sum: 1 } } },
+      ]);
+      const branchCountsMap = {};
+      branchHeadcounts.forEach((b) => {
+        branchCountsMap[b._id || "branch-1"] = b.count;
+      });
+
       return NextResponse.json({
         success: true,
         message: `${employee.name} has been approved for ${employee.department} department (${employee.postTitle || employee.postLevel})!`,
+        headcount: {
+          total: totalApproved,
+          byBranch: branchCountsMap,
+        },
         employee: {
           id: employee._id,
           name: employee.name,
@@ -114,9 +138,32 @@ export async function POST(request) {
       );
       await owner.save();
 
+      const totalApproved = await Employee.countDocuments({
+        companyId: owner._id,
+        approvalStatus: "APPROVED",
+      });
+
+      if (organization) {
+        organization.employeeCount = totalApproved;
+        await organization.save();
+      }
+
+      const branchHeadcounts = await Employee.aggregate([
+        { $match: { companyId: owner._id, approvalStatus: "APPROVED" } },
+        { $group: { _id: "$branchId", count: { $sum: 1 } } },
+      ]);
+      const branchCountsMap = {};
+      branchHeadcounts.forEach((b) => {
+        branchCountsMap[b._id || "branch-1"] = b.count;
+      });
+
       return NextResponse.json({
         success: true,
         message: `Employee request for ${empName} was rejected and removed from database.`,
+        headcount: {
+          total: totalApproved,
+          byBranch: branchCountsMap,
+        },
       });
     } else {
       return NextResponse.json({ error: "Invalid action specified." }, { status: 400 });

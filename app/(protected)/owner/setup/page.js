@@ -1119,7 +1119,7 @@ export default function OrganizationSetupPage() {
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                          PO Approval Threshold (₹) *
+                          Purchase Order (PO) Approval Limit (₹) *
                         </label>
                         <span className="text-[10px] text-slate-500 font-mono">
                           Min ₹1, Max ₹100 Cr
@@ -1178,7 +1178,7 @@ export default function OrganizationSetupPage() {
                     <div>
                       <div className="flex justify-between items-center mb-2">
                         <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
-                          Low Stock Alert Threshold (%) *
+                          Low Stock Alert Level (%) *
                         </label>
                         <span className="text-[10px] text-slate-500 font-mono">
                           Min 1%, Max 100%

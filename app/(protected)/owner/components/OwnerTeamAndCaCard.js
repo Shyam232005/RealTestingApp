@@ -44,6 +44,11 @@ export default function OwnerTeamAndCaCard({
   const [pendingEmployees, setPendingEmployees] = useState([]);
   const [reviewingId, setReviewingId] = useState(null);
   const [reviewFeedback, setReviewFeedback] = useState("");
+  const [headcount, setHeadcount] = useState({
+    total: typeof owner?.approvedStaffCount === "number" ? owner.approvedStaffCount : 0,
+    byBranch: {},
+  });
+  const [headcountLoaded, setHeadcountLoaded] = useState(false);
 
   const employees = owner?.employees || [];
   const linkedCAs = owner?.linkedCAs || [];
@@ -53,32 +58,38 @@ export default function OwnerTeamAndCaCard({
   const embeddedBranches = organization?.branchList || [];
   const activeBranches = embeddedBranches.filter((b) => b.status === "active");
 
-  const totalBranchStaff =
-    activeBranches.reduce((sum, b) => sum + (Number(b.staffCount) || 0), 0) ||
-    Number(organization?.employeeCount || 0);
-
   const currentBranch = embeddedBranches.find(
     (b) => b.branchId === selectedBranch
   );
 
-  const currentBranchStaff = currentBranch
+  const currentBranchCapacity = currentBranch
     ? (Number(currentBranch.staffCount) || (currentBranch.branchNumber === 1 ? Number(organization?.employeeCount || 0) : 0))
     : Number(organization?.employeeCount || 0);
 
-  const displayStaffCount =
-    selectedBranch === "all" ? totalBranchStaff : currentBranchStaff;
+  const approvedStaffCount =
+    selectedBranch === "all"
+      ? headcount.total
+      : (headcount.byBranch?.[selectedBranch] || 0);
 
-  // Load Pending Approvals
+  const displayStaffCount = headcountLoaded
+    ? approvedStaffCount
+    : (typeof owner?.approvedStaffCount === "number" ? owner.approvedStaffCount : 0);
+
+  // Load Pending Approvals and Live Headcount
   useEffect(() => {
     let isCancelled = false;
 
-    async function fetchPending() {
+    async function fetchPendingAndHeadcount() {
       try {
         const res = await fetch("/api/owner/employees/pending");
         if (res.ok) {
           const data = await res.json();
           if (!isCancelled) {
             setPendingEmployees(data.pending || []);
+            if (data.headcount) {
+              setHeadcount(data.headcount);
+              setHeadcountLoaded(true);
+            }
           }
         }
       } catch (err) {
@@ -86,16 +97,46 @@ export default function OwnerTeamAndCaCard({
       }
     }
 
-    fetchPending();
+    fetchPendingAndHeadcount();
+
+    // Listen to real-time updates across the app (approvals, deletes, transfers)
+    const handleStaffUpdate = (e) => {
+      if (e?.detail?.action === "APPROVE") {
+        setHeadcount((prev) => ({
+          total: (prev.total || 0) + 1,
+          byBranch: {
+            ...prev.byBranch,
+            ...(e.detail.branchId
+              ? { [e.detail.branchId]: (prev.byBranch?.[e.detail.branchId] || 0) + 1 }
+              : {}),
+          },
+        }));
+      } else if (e?.detail?.action === "REJECT" || e?.detail?.action === "DELETE") {
+        setHeadcount((prev) => ({
+          total: Math.max(0, (prev.total || 0) - 1),
+          byBranch: {
+            ...prev.byBranch,
+            ...(e.detail?.branchId
+              ? { [e.detail.branchId]: Math.max(0, (prev.byBranch?.[e.detail.branchId] || 0) - 1) }
+              : {}),
+          },
+        }));
+      }
+      fetchPendingAndHeadcount();
+    };
+
+    window.addEventListener("owner-staff-updated", handleStaffUpdate);
 
     return () => {
       isCancelled = true;
+      window.removeEventListener("owner-staff-updated", handleStaffUpdate);
     };
   }, []);
 
   const handleReview = async (employeeId, action) => {
     setReviewingId(employeeId);
     setReviewFeedback("");
+    const cand = pendingEmployees.find((p) => p.id === employeeId);
     try {
       const res = await fetch("/api/owner/employees/review", {
         method: "POST",
@@ -108,6 +149,34 @@ export default function OwnerTeamAndCaCard({
       setReviewFeedback(data.message);
       // Remove from local list
       setPendingEmployees((prev) => prev.filter((p) => p.id !== employeeId));
+
+      // Update real-time headcount
+      if (data.headcount) {
+        setHeadcount(data.headcount);
+        setHeadcountLoaded(true);
+      } else if (action === "APPROVE") {
+        setHeadcount((prev) => ({
+          total: (prev.total || 0) + 1,
+          byBranch: {
+            ...prev.byBranch,
+            ...(cand?.branchId
+              ? { [cand.branchId]: (prev.byBranch?.[cand.branchId] || 0) + 1 }
+              : {}),
+          },
+        }));
+      }
+
+      // Notify entire app in real time
+      window.dispatchEvent(
+        new CustomEvent("owner-staff-updated", {
+          detail: {
+            action,
+            employeeId,
+            branchId: cand?.branchId,
+          },
+        })
+      );
+
       setTimeout(() => setReviewFeedback(""), 4000);
     } catch (err) {
       alert(err.message);
@@ -161,7 +230,7 @@ export default function OwnerTeamAndCaCard({
           <p className="text-[9px] text-purple-600 font-semibold truncate mt-0.5">
             {selectedBranch === "all"
               ? `${activeBranches.length} of ${branchCount} Units Active`
-              : currentBranch?.name || "Main HQ"}
+              : `${currentBranch?.name || "Main HQ"}${currentBranchCapacity ? ` • ${currentBranchCapacity} Cap` : ""}`}
           </p>
         </div>
         <div className="rounded-2xl bg-indigo-50/70 border border-indigo-100 p-2.5">
@@ -279,7 +348,7 @@ export default function OwnerTeamAndCaCard({
             Branch Units ({activeBranches.length}/{branchCount} Active)
           </span>
           <span className="text-[10px] font-mono text-purple-700 font-extrabold bg-purple-100/70 px-1.5 py-0.5 rounded-md">
-            {totalBranchStaff} Total Staff
+             Total Staff
           </span>
         </div>
 

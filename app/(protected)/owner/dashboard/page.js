@@ -118,6 +118,15 @@ export default function OwnerDashboard() {
     }
 
     fetchWorkspace();
+
+    const handleStaffUpdate = () => {
+      fetchWorkspace();
+    };
+    window.addEventListener("owner-staff-updated", handleStaffUpdate);
+
+    return () => {
+      window.removeEventListener("owner-staff-updated", handleStaffUpdate);
+    };
   }, [router]);
 
   const showToast = (msg) => {

@@ -78,9 +78,29 @@ export async function GET() {
       })
     );
 
+    // Calculate live approved headcount across company and per branch
+    const totalApprovedCount = await Employee.countDocuments({
+      companyId: owner._id,
+      approvalStatus: "APPROVED",
+    });
+
+    const branchHeadcounts = await Employee.aggregate([
+      { $match: { companyId: owner._id, approvalStatus: "APPROVED" } },
+      { $group: { _id: "$branchId", count: { $sum: 1 } } },
+    ]);
+
+    const branchCountsMap = {};
+    branchHeadcounts.forEach((b) => {
+      branchCountsMap[b._id || "branch-1"] = b.count;
+    });
+
     return NextResponse.json({
       success: true,
       pending: pendingWithDetails,
+      headcount: {
+        total: totalApprovedCount,
+        byBranch: branchCountsMap,
+      },
     });
   } catch (error) {
     console.error("Pending Employees GET Error:", error);

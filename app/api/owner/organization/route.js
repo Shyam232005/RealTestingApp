@@ -169,15 +169,21 @@ export async function GET() {
     }
 
     // Fetch all employees registered under this owner
-    const employees = await Employee.find({
-      $or: [
-        { companyId: owner._id },
-        { ownerId: owner._id },
-        { _id: { $in: owner.employees || [] } },
-      ],
-    })
-      .select("name email phoneNumber role roleInCompany department isActive createdAt")
-      .lean();
+    const [employees, approvedStaffCount] = await Promise.all([
+      Employee.find({
+        $or: [
+          { companyId: owner._id },
+          { ownerId: owner._id },
+          { _id: { $in: owner.employees || [] } },
+        ],
+      })
+        .select("name email phoneNumber role roleInCompany department approvalStatus isActive createdAt")
+        .lean(),
+      Employee.countDocuments({
+        companyId: owner._id,
+        approvalStatus: "APPROVED",
+      }),
+    ]);
 
     // Fetch linked CAs
     let linkedCAsList = [];
@@ -225,6 +231,7 @@ export async function GET() {
           subscription: owner.subscription,
           dataSharingStatus: owner.dataSharingStatus || "NONE",
           employees: employees || [],
+          approvedStaffCount,
           linkedCAs: linkedCAsList || [],
         },
       },

@@ -3782,7 +3782,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                       Click to browse or attach work files
                     </span>
                     <span className="text-[10px] text-slate-400 mt-0.5 text-center">
-                      Attached deliverables will be archived in employee dossier & Owner Files Vault
+                      Attached files will be saved in your work history & Owner Files Vault
                     </span>
                     <input
                       type="file"

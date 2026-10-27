@@ -106,6 +106,15 @@ export default function ApprovalTab({
 
       // Refresh list
       fetchApprovals();
+
+      // Dispatch global event for live sidebar & dashboard update
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("owner-staff-updated", {
+            detail: { action, requestId, type },
+          })
+        );
+      }
     } catch (err) {
       setToastMessage(err.message || "Failed to update approval.");
       setTimeout(() => setToastMessage(""), 3500);
@@ -201,7 +210,7 @@ export default function ApprovalTab({
             ₹{poLimit.toLocaleString("en-IN")}
           </p>
           <p className="text-[10px] text-slate-500 font-medium mt-0.5">
-            Founder threshold
+            Orders above this need your approval
           </p>
         </div>
 

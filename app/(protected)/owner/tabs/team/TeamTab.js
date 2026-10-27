@@ -241,6 +241,14 @@ export default function TeamTab({
       setTaskFeedbackMsg(data.message || "Employee transferred successfully!");
       setTimeout(() => setTaskFeedbackMsg(""), 5000);
       fetchOwnerTasks();
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("owner-staff-updated", {
+            detail: { action: "TRANSFER" },
+          })
+        );
+      }
     } catch (err) {
       alert(err.message || "Failed to transfer employee");
     } finally {
@@ -269,6 +277,14 @@ export default function TeamTab({
       setTaskFeedbackMsg(data.message || "Employee permanently removed from database.");
       setTimeout(() => setTaskFeedbackMsg(""), 5000);
       fetchOwnerTasks();
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("owner-staff-updated", {
+            detail: { action: "DELETE" },
+          })
+        );
+      }
     } catch (err) {
       alert(err.message || "Failed to delete employee");
     } finally {
@@ -1109,9 +1125,9 @@ export default function TeamTab({
                   <button
                     type="button"
                     onClick={() => handleOpenDossier(emp)}
-                    className="px-3 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer group-hover:bg-purple-600 group-hover:text-white"
+                    className="px-3.5 py-1.5 rounded-xl bg-purple-50 hover:bg-purple-600 text-purple-700 hover:text-white border border-purple-200/70 hover:border-purple-600 text-xs font-bold flex items-center gap-1.5 transition-all duration-200 hover:shadow-md hover:shadow-purple-600/20 active:scale-95 cursor-pointer"
                   >
-                    <span>View Activity Dossier</span>
+                    <span>View Activity Log</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
@@ -2378,7 +2394,7 @@ export default function TeamTab({
                 }}
                 className="px-4 py-2 rounded-xl bg-slate-200 hover:bg-slate-300 text-slate-800 text-xs font-bold cursor-pointer"
               >
-                Close Dossier
+                Close Activity Log
               </button>
             </div>
           </div>

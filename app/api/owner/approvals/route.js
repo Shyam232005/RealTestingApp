@@ -200,9 +200,33 @@ export async function PATCH(request) {
           await owner.save();
         }
 
+        // Live update Organization approved headcount
+        const totalApproved = await Employee.countDocuments({
+          companyId: owner._id,
+          approvalStatus: "APPROVED",
+        });
+
+        if (organization) {
+          organization.employeeCount = totalApproved;
+          await organization.save();
+        }
+
+        const branchHeadcounts = await Employee.aggregate([
+          { $match: { companyId: owner._id, approvalStatus: "APPROVED" } },
+          { $group: { _id: "$branchId", count: { $sum: 1 } } },
+        ]);
+        const branchCountsMap = {};
+        branchHeadcounts.forEach((b) => {
+          branchCountsMap[b._id || "branch-1"] = b.count;
+        });
+
         return NextResponse.json({
           success: true,
           message: `${emp.name} has been approved for ${emp.department} department (${emp.postTitle || emp.postLevel})!`,
+          headcount: {
+            total: totalApproved,
+            byBranch: branchCountsMap,
+          },
         });
       } else if (action === "REJECT") {
         const empName = emp.name;
@@ -213,9 +237,32 @@ export async function PATCH(request) {
         );
         await owner.save();
 
+        const totalApproved = await Employee.countDocuments({
+          companyId: owner._id,
+          approvalStatus: "APPROVED",
+        });
+
+        if (organization) {
+          organization.employeeCount = totalApproved;
+          await organization.save();
+        }
+
+        const branchHeadcounts = await Employee.aggregate([
+          { $match: { companyId: owner._id, approvalStatus: "APPROVED" } },
+          { $group: { _id: "$branchId", count: { $sum: 1 } } },
+        ]);
+        const branchCountsMap = {};
+        branchHeadcounts.forEach((b) => {
+          branchCountsMap[b._id || "branch-1"] = b.count;
+        });
+
         return NextResponse.json({
           success: true,
           message: `Staff registration for ${empName} was rejected and removed from database.`,
+          headcount: {
+            total: totalApproved,
+            byBranch: branchCountsMap,
+          },
         });
       }
     }
