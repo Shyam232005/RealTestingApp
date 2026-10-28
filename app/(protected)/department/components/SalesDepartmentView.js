@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
+import WithZeroErrorOcr from "@/components/ocr/WithZeroErrorOcr";
 
 export default function SalesDepartmentView({
   tabId = "sales_dashboard",
@@ -518,213 +519,237 @@ export default function SalesDepartmentView({
       )}
 
       {/* =========================================================================
-          MODALS
+          MODALS WITH ZERO-ERROR SELF-LEARNING OCR
          ========================================================================= */}
       {/* 1. Lead Modal */}
       {showLeadModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Log New Sales Lead</h3>
-            <form onSubmit={handleCreateLead} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showLeadModal}
+          onClose={() => setShowLeadModal(false)}
+          title="Log New Sales Lead"
+          subtitle="AI auto-extracts contact name, business card details, company & requirements"
+          documentContext="lead_capture"
+          formData={leadForm}
+          setFormData={setLeadForm}
+          onSubmit={handleCreateLead}
+          submitLabel="Save Lead"
+          submitColor="bg-blue-600 hover:bg-blue-700"
+        >
+          <form onSubmit={handleCreateLead} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Contact Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Rajesh Sharma"
+                value={leadForm.contactName}
+                onChange={(e) => setLeadForm({ ...leadForm, contactName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Contact Name</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Company / Store</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Rajesh Sharma"
-                  value={leadForm.contactName}
-                  onChange={(e) => setLeadForm({ ...leadForm, contactName: e.target.value })}
+                  placeholder="e.g. Apex Hardware"
+                  value={leadForm.companyName}
+                  onChange={(e) => setLeadForm({ ...leadForm, companyName: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Company / Store</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Apex Hardware"
-                    value={leadForm.companyName}
-                    onChange={(e) => setLeadForm({ ...leadForm, companyName: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Phone Number</label>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="e.g. 98765 43210"
-                    value={leadForm.phone}
-                    onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Product Requirement</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Phone Number</label>
                 <input
-                  type="text"
-                  placeholder="e.g. 500 units Heavy-Duty Brackets"
-                  value={leadForm.productInterest}
-                  onChange={(e) => setLeadForm({ ...leadForm, productInterest: e.target.value })}
+                  type="tel"
+                  required
+                  placeholder="e.g. 98765 43210"
+                  value={leadForm.phone}
+                  onChange={(e) => setLeadForm({ ...leadForm, phone: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowLeadModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Save Lead
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Product Requirement</label>
+              <input
+                type="text"
+                placeholder="e.g. 500 units Heavy-Duty Brackets"
+                value={leadForm.productInterest}
+                onChange={(e) => setLeadForm({ ...leadForm, productInterest: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowLeadModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Save Lead
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 2. Deal Modal */}
       {showDealModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Enter Deal into Pipeline</h3>
-            <form onSubmit={handleCreateDeal} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showDealModal}
+          onClose={() => setShowDealModal(false)}
+          title="Enter Deal into Pipeline"
+          subtitle="AI auto-extracts quote values, client proposal terms & estimated close dates"
+          documentContext="deal_quote"
+          formData={dealForm}
+          setFormData={setDealForm}
+          onSubmit={handleCreateDeal}
+          submitLabel="Commit Deal"
+          submitColor="bg-blue-600 hover:bg-blue-700"
+        >
+          <form onSubmit={handleCreateDeal} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Client Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Metro Builders Ltd"
+                value={dealForm.clientName}
+                onChange={(e) => setDealForm({ ...dealForm, clientName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Client Name</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Deal Value (₹)</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. Metro Builders Ltd"
-                  value={dealForm.clientName}
-                  onChange={(e) => setDealForm({ ...dealForm, clientName: e.target.value })}
+                  placeholder="e.g. 250000"
+                  value={dealForm.dealValue}
+                  onChange={(e) => setDealForm({ ...dealForm, dealValue: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Deal Value (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 250000"
-                    value={dealForm.dealValue}
-                    onChange={(e) => setDealForm({ ...dealForm, dealValue: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Pipeline Stage</label>
-                  <select
-                    value={dealForm.stage}
-                    onChange={(e) => setDealForm({ ...dealForm, stage: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="QUALIFIED">Qualified</option>
-                    <option value="DEMO_VISIT">Demo / Field Visit</option>
-                    <option value="PRICE_NEGOTIATION">Negotiation</option>
-                    <option value="WON">Closed Won</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowDealModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Pipeline Stage</label>
+                <select
+                  value={dealForm.stage}
+                  onChange={(e) => setDealForm({ ...dealForm, stage: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Commit Deal
-                </button>
+                  <option value="QUALIFIED">Qualified</option>
+                  <option value="DEMO_VISIT">Demo / Field Visit</option>
+                  <option value="PRICE_NEGOTIATION">Negotiation</option>
+                  <option value="WON">Closed Won</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowDealModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Commit Deal
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 3. SO Modal */}
       {showSoModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Book Confirmed Sales Order (SO)</h3>
-            <form onSubmit={handleCreateSo} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showSoModal}
+          onClose={() => setShowSoModal(false)}
+          title="Book Confirmed Sales Order (SO)"
+          subtitle="AI auto-extracts client PO, itemized line quantities & total value"
+          documentContext="sales_order"
+          formData={soForm}
+          setFormData={setSoForm}
+          onSubmit={handleCreateSo}
+          submitLabel="Confirm Sales Order"
+          submitColor="bg-blue-600 hover:bg-blue-700"
+        >
+          <form onSubmit={handleCreateSo} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Client</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Krishna Enterprises"
+                value={soForm.clientName}
+                onChange={(e) => setSoForm({ ...soForm, clientName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Order Items & Quantities</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 200x Bracket A, 50x Fasteners"
+                value={soForm.itemsSummary}
+                onChange={(e) => setSoForm({ ...soForm, itemsSummary: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Client</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Amount (₹)</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. Krishna Enterprises"
-                  value={soForm.clientName}
-                  onChange={(e) => setSoForm({ ...soForm, clientName: e.target.value })}
+                  placeholder="e.g. 85000"
+                  value={soForm.totalAmount}
+                  onChange={(e) => setSoForm({ ...soForm, totalAmount: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Order Items & Quantities</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. 200x Bracket A, 50x Fasteners"
-                  value={soForm.itemsSummary}
-                  onChange={(e) => setSoForm({ ...soForm, itemsSummary: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Total Amount (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 85000"
-                    value={soForm.totalAmount}
-                    onChange={(e) => setSoForm({ ...soForm, totalAmount: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Payment Terms</label>
-                  <select
-                    value={soForm.paymentTerms}
-                    onChange={(e) => setSoForm({ ...soForm, paymentTerms: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="IMMEDIATE_CASH">Cash / UPI Immediate</option>
-                    <option value="NET_15">Net 15 Days</option>
-                    <option value="NET_30">Net 30 Days</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowSoModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Payment Terms</label>
+                <select
+                  value={soForm.paymentTerms}
+                  onChange={(e) => setSoForm({ ...soForm, paymentTerms: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Confirm Sales Order
-                </button>
+                  <option value="IMMEDIATE_CASH">Cash / UPI Immediate</option>
+                  <option value="NET_15">Net 15 Days</option>
+                  <option value="NET_30">Net 30 Days</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowSoModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Confirm Sales Order
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
     </div>
   );

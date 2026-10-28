@@ -22,6 +22,7 @@ import {
   Scale,
 } from "lucide-react";
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
+import WithZeroErrorOcr from "@/components/ocr/WithZeroErrorOcr";
 
 export default function FinancialDepartmentView({
   tabId = "cfo_dashboard",
@@ -533,223 +534,247 @@ export default function FinancialDepartmentView({
       )}
 
       {/* =========================================================================
-          MODALS
+          MODALS WITH ZERO-ERROR SELF-LEARNING OCR
          ========================================================================= */}
       {/* 1. Tax Invoice Modal */}
       {showInvoiceModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Generate GST Tax Invoice</h3>
-            <form onSubmit={handleCreateInvoice} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showInvoiceModal}
+          onClose={() => setShowInvoiceModal(false)}
+          title="Generate GST Tax Invoice"
+          subtitle="AI auto-extracts party, GSTIN & amounts from customer PO, challan, or sales voucher"
+          documentContext="sales_invoice"
+          formData={invoiceForm}
+          setFormData={setInvoiceForm}
+          onSubmit={handleCreateInvoice}
+          submitLabel="Issue Tax Invoice"
+          submitColor="bg-purple-600 hover:bg-purple-700"
+        >
+          <form onSubmit={handleCreateInvoice} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Buyer</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Metro Builders Ltd"
+                value={invoiceForm.customerName}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, customerName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Buyer GSTIN (Optional)</label>
+              <input
+                type="text"
+                placeholder="e.g. 27AAAAA0000A1Z5"
+                value={invoiceForm.buyerGstin}
+                onChange={(e) => setInvoiceForm({ ...invoiceForm, buyerGstin: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Buyer</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Taxable Value (₹)</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. Metro Builders Ltd"
-                  value={invoiceForm.customerName}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, customerName: e.target.value })}
+                  placeholder="e.g. 100000"
+                  value={invoiceForm.taxableValue}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, taxableValue: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Buyer GSTIN (Optional)</label>
-                <input
-                  type="text"
-                  placeholder="e.g. 27AAAAA0000A1Z5"
-                  value={invoiceForm.buyerGstin}
-                  onChange={(e) => setInvoiceForm({ ...invoiceForm, buyerGstin: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Taxable Value (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 100000"
-                    value={invoiceForm.taxableValue}
-                    onChange={(e) => setInvoiceForm({ ...invoiceForm, taxableValue: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">GST Rate</label>
-                  <select
-                    value={invoiceForm.gstRate}
-                    onChange={(e) => setInvoiceForm({ ...invoiceForm, gstRate: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="18">18% (Standard GST)</option>
-                    <option value="12">12% GST</option>
-                    <option value="5">5% GST</option>
-                    <option value="28">28% GST</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowInvoiceModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">GST Rate</label>
+                <select
+                  value={invoiceForm.gstRate}
+                  onChange={(e) => setInvoiceForm({ ...invoiceForm, gstRate: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Issue Tax Invoice
-                </button>
+                  <option value="18">18% (Standard GST)</option>
+                  <option value="12">12% GST</option>
+                  <option value="5">5% GST</option>
+                  <option value="28">28% GST</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowInvoiceModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Issue Tax Invoice
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 2. Vendor Bill Modal */}
       {showBillModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Log Vendor Bill (3-Way Match)</h3>
-            <form onSubmit={handleCreateBill} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showBillModal}
+          onClose={() => setShowBillModal(false)}
+          title="Log Vendor Bill (3-Way Match)"
+          subtitle="AI auto-extracts supplier, PO ref, GRN ref & total payable amount"
+          documentContext="vendor_bill"
+          formData={billForm}
+          setFormData={setBillForm}
+          onSubmit={handleCreateBill}
+          submitLabel="Approve for Payout"
+          submitColor="bg-purple-600 hover:bg-purple-700"
+        >
+          <form onSubmit={handleCreateBill} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vendor / Supplier</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Reliable Polymers Corp"
+                value={billForm.vendorName}
+                onChange={(e) => setBillForm({ ...billForm, vendorName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vendor / Supplier</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">PO Number Ref</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Reliable Polymers Corp"
-                  value={billForm.vendorName}
-                  onChange={(e) => setBillForm({ ...billForm, vendorName: e.target.value })}
+                  placeholder="e.g. PO-89012"
+                  value={billForm.poRef}
+                  onChange={(e) => setBillForm({ ...billForm, poRef: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">PO Number Ref</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. PO-89012"
-                    value={billForm.poRef}
-                    onChange={(e) => setBillForm({ ...billForm, poRef: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">GRN Ref Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. GRN-1002"
-                    value={billForm.grnRef}
-                    onChange={(e) => setBillForm({ ...billForm, grnRef: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Bill Amount (₹)</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">GRN Ref Number</label>
                 <input
-                  type="number"
+                  type="text"
                   required
-                  placeholder="e.g. 220000"
-                  value={billForm.billAmount}
-                  onChange={(e) => setBillForm({ ...billForm, billAmount: e.target.value })}
+                  placeholder="e.g. GRN-1002"
+                  value={billForm.grnRef}
+                  onChange={(e) => setBillForm({ ...billForm, grnRef: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBillModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Approve for Payout
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Bill Amount (₹)</label>
+              <input
+                type="number"
+                required
+                placeholder="e.g. 220000"
+                value={billForm.billAmount}
+                onChange={(e) => setBillForm({ ...billForm, billAmount: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBillModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Approve for Payout
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 3. Journal Voucher Modal */}
       {showJvModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Post Journal Voucher (JV)</h3>
-            <form onSubmit={handleCreateJv} className="space-y-3">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Debit Account (Dr.)</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Factory Rent Account"
-                    value={jvForm.debitAccount}
-                    onChange={(e) => setJvForm({ ...jvForm, debitAccount: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Credit Account (Cr.)</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Bank Account"
-                    value={jvForm.creditAccount}
-                    onChange={(e) => setJvForm({ ...jvForm, creditAccount: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-              </div>
+        <WithZeroErrorOcr
+          isOpen={showJvModal}
+          onClose={() => setShowJvModal(false)}
+          title="Post Journal Voucher (JV)"
+          subtitle="AI auto-extracts bank debit/credit amounts, RTGS memos & expense narrations"
+          documentContext="journal_voucher"
+          formData={jvForm}
+          setFormData={setJvForm}
+          onSubmit={handleCreateJv}
+          submitLabel="Post to Ledger"
+          submitColor="bg-purple-600 hover:bg-purple-700"
+        >
+          <form onSubmit={handleCreateJv} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Amount (₹)</label>
-                <input
-                  type="number"
-                  required
-                  placeholder="e.g. 50000"
-                  value={jvForm.amount}
-                  onChange={(e) => setJvForm({ ...jvForm, amount: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Narration</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Debit Account (Dr.)</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Monthly rent paid via RTGS for Plot 45"
-                  value={jvForm.narration}
-                  onChange={(e) => setJvForm({ ...jvForm, narration: e.target.value })}
+                  placeholder="e.g. Factory Rent Account"
+                  value={jvForm.debitAccount}
+                  onChange={(e) => setJvForm({ ...jvForm, debitAccount: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowJvModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Post to Ledger
-                </button>
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Credit Account (Cr.)</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Bank Account"
+                  value={jvForm.creditAccount}
+                  onChange={(e) => setJvForm({ ...jvForm, creditAccount: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+                />
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Amount (₹)</label>
+              <input
+                type="number"
+                required
+                placeholder="e.g. 50000"
+                value={jvForm.amount}
+                onChange={(e) => setJvForm({ ...jvForm, amount: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Narration</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Monthly rent paid via RTGS for Plot 45"
+                value={jvForm.narration}
+                onChange={(e) => setJvForm({ ...jvForm, narration: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowJvModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Post to Ledger
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
     </div>
   );

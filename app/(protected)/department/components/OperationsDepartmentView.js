@@ -24,6 +24,7 @@ import {
   X,
 } from "lucide-react";
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
+import WithZeroErrorOcr from "@/components/ocr/WithZeroErrorOcr";
 
 export default function OperationsDepartmentView({
   tabId = "ops_dashboard",
@@ -618,250 +619,281 @@ export default function OperationsDepartmentView({
       )}
 
       {/* =========================================================================
-          MODALS
+          MODALS WITH ZERO-ERROR SELF-LEARNING OCR
          ========================================================================= */}
       {/* 1. Work Order Modal */}
       {showWorkOrderModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Issue Production Work Order</h3>
-            <form onSubmit={handleCreateWorkOrder} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showWorkOrderModal}
+          onClose={() => setShowWorkOrderModal(false)}
+          title="Issue Production Work Order"
+          subtitle="AI auto-extracts batch code, product specs & target run quantity"
+          documentContext="work_order"
+          formData={woForm}
+          setFormData={setWoForm}
+          onSubmit={handleCreateWorkOrder}
+          submitLabel="Confirm & Release Batch"
+          submitColor="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <form onSubmit={handleCreateWorkOrder} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Product Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Standard Polymer Bracket 10mm"
+                value={woForm.productName}
+                onChange={(e) => setWoForm({ ...woForm, productName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Product Name</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Quantity</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. Standard Polymer Bracket 10mm"
-                  value={woForm.productName}
-                  onChange={(e) => setWoForm({ ...woForm, productName: e.target.value })}
+                  min="1"
+                  placeholder="e.g. 5000"
+                  value={woForm.targetQty}
+                  onChange={(e) => setWoForm({ ...woForm, targetQty: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Quantity</label>
-                  <input
-                    type="number"
-                    required
-                    min="1"
-                    placeholder="e.g. 5000"
-                    value={woForm.targetQty}
-                    onChange={(e) => setWoForm({ ...woForm, targetQty: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Line</label>
-                  <select
-                    value={woForm.lineId}
-                    onChange={(e) => setWoForm({ ...woForm, lineId: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="Line-A1">Line A1 (Fabrication)</option>
-                    <option value="Line-A2">Line A2 (Assembly)</option>
-                    <option value="Line-B1">Line B1 (Packaging)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowWorkOrderModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Target Line</label>
+                <select
+                  value={woForm.lineId}
+                  onChange={(e) => setWoForm({ ...woForm, lineId: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Confirm & Release Batch
-                </button>
+                  <option value="Line-A1">Line A1 (Fabrication)</option>
+                  <option value="Line-A2">Line A2 (Assembly)</option>
+                  <option value="Line-B1">Line B1 (Packaging)</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowWorkOrderModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Confirm & Release Batch
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 2. QC Inspection Modal */}
       {showQcModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Log Quality Inspection</h3>
-            <form onSubmit={handleCreateQc} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showQcModal}
+          onClose={() => setShowQcModal(false)}
+          title="Log Quality Inspection"
+          subtitle="AI auto-extracts lot number, test certificates & QC stamps"
+          documentContext="qc_inspection"
+          formData={qcForm}
+          setFormData={setQcForm}
+          onSubmit={handleCreateQc}
+          submitLabel="Submit Inspection"
+          submitColor="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <form onSubmit={handleCreateQc} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Inspection Type</label>
+              <select
+                value={qcForm.inspectionType}
+                onChange={(e) => setQcForm({ ...qcForm, inspectionType: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
+              >
+                <option value="INCOMING_GRN">Incoming Material QC (GRN Gate)</option>
+                <option value="IN_PROCESS_BATCH">In-Process Batch QC</option>
+                <option value="FINAL_FINISHED_GOODS">Final Finished Goods QC</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Lot / Batch & Material Name</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Lot #8819 - Polymer Resins"
+                value={qcForm.materialName}
+                onChange={(e) => setQcForm({ ...qcForm, materialName: e.target.value, lotNumber: "LOT-8819" })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Inspection Type</label>
-                <select
-                  value={qcForm.inspectionType}
-                  onChange={(e) => setQcForm({ ...qcForm, inspectionType: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                >
-                  <option value="INCOMING_GRN">Incoming Material QC (GRN Gate)</option>
-                  <option value="IN_PROCESS_BATCH">In-Process Batch QC</option>
-                  <option value="FINAL_FINISHED_GOODS">Final Finished Goods QC</option>
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Lot / Batch & Material Name</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Sample Size</label>
                 <input
-                  type="text"
-                  required
-                  placeholder="e.g. Lot #8819 - Polymer Resins"
-                  value={qcForm.materialName}
-                  onChange={(e) => setQcForm({ ...qcForm, materialName: e.target.value, lotNumber: "LOT-8819" })}
+                  type="number"
+                  value={qcForm.sampleSize}
+                  onChange={(e) => setQcForm({ ...qcForm, sampleSize: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Sample Size</label>
-                  <input
-                    type="number"
-                    value={qcForm.sampleSize}
-                    onChange={(e) => setQcForm({ ...qcForm, sampleSize: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Inspection Result</label>
-                  <select
-                    value={qcForm.result}
-                    onChange={(e) => setQcForm({ ...qcForm, result: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="PASSED">Passed (Standard Met)</option>
-                    <option value="FAILED">Failed (Quarantined)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowQcModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Inspection Result</label>
+                <select
+                  value={qcForm.result}
+                  onChange={(e) => setQcForm({ ...qcForm, result: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Submit Inspection
-                </button>
+                  <option value="PASSED">Passed (Standard Met)</option>
+                  <option value="FAILED">Failed (Quarantined)</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowQcModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Submit Inspection
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 3. Material Requisition Modal */}
       {showMrModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Raise Material Requisition (MR)</h3>
-            <p className="text-[11px] text-slate-500">Sends internal dispatch ticket to Logistics warehouse.</p>
-            <form onSubmit={handleCreateMr} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showMrModal}
+          onClose={() => setShowMrModal(false)}
+          title="Raise Material Requisition (MR)"
+          subtitle="AI auto-extracts required items, quantities & warehouse units"
+          documentContext="material_requisition"
+          formData={mrForm}
+          setFormData={setMrForm}
+          onSubmit={handleCreateMr}
+          submitLabel="Send to Logistics"
+          submitColor="bg-emerald-600 hover:bg-emerald-700"
+        >
+          <form onSubmit={handleCreateMr} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Item Description</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 500kg Masterbatch Compound A"
+                value={mrForm.itemDescription}
+                onChange={(e) => setMrForm({ ...mrForm, itemDescription: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Item Description</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Required Quantity</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. 500kg Masterbatch Compound A"
-                  value={mrForm.itemDescription}
-                  onChange={(e) => setMrForm({ ...mrForm, itemDescription: e.target.value })}
+                  placeholder="e.g. 500"
+                  value={mrForm.quantityRequired}
+                  onChange={(e) => setMrForm({ ...mrForm, quantityRequired: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Required Quantity</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 500"
-                    value={mrForm.quantityRequired}
-                    onChange={(e) => setMrForm({ ...mrForm, quantityRequired: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Urgency</label>
-                  <select
-                    value={mrForm.urgency}
-                    onChange={(e) => setMrForm({ ...mrForm, urgency: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="NORMAL">Normal Buffer</option>
-                    <option value="CRITICAL_LINE_DOWN">Critical (Line Awaiting)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMrModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              <div>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Urgency</label>
+                <select
+                  value={mrForm.urgency}
+                  onChange={(e) => setMrForm({ ...mrForm, urgency: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
                 >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Send to Logistics
-                </button>
+                  <option value="NORMAL">Normal Buffer</option>
+                  <option value="CRITICAL_LINE_DOWN">Critical (Line Awaiting)</option>
+                </select>
               </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowMrModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Send to Logistics
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 4. Breakdown Modal */}
       {showBreakdownModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-rose-700">Log Machine Breakdown Ticket</h3>
-            <form onSubmit={handleCreateBreakdown} className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Machine Asset Tag</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Injection Molding Machine #3"
-                  value={ticketForm.machineName}
-                  onChange={(e) => setTicketForm({ ...ticketForm, machineName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Problem Description</label>
-                <textarea
-                  rows={3}
-                  required
-                  placeholder="Describe failure symptoms, smoke, motor stalling, hydraulic leak..."
-                  value={ticketForm.problemDescription}
-                  onChange={(e) => setTicketForm({ ...ticketForm, problemDescription: e.target.value })}
-                  className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowBreakdownModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Dispatch Ticket
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+        <WithZeroErrorOcr
+          isOpen={showBreakdownModal}
+          onClose={() => setShowBreakdownModal(false)}
+          title="Log Machine Breakdown Ticket"
+          subtitle="AI auto-extracts equipment tag, fault codes & handwritten maintenance notes"
+          documentContext="maintenance_ticket"
+          formData={ticketForm}
+          setFormData={setTicketForm}
+          onSubmit={handleCreateBreakdown}
+          submitLabel="Dispatch Ticket"
+          submitColor="bg-rose-600 hover:bg-rose-700"
+        >
+          <form onSubmit={handleCreateBreakdown} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Machine Asset Tag</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Injection Molding Machine #3"
+                value={ticketForm.machineName}
+                onChange={(e) => setTicketForm({ ...ticketForm, machineName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Problem Description</label>
+              <textarea
+                rows={3}
+                required
+                placeholder="Describe failure symptoms, smoke, motor stalling, hydraulic leak..."
+                value={ticketForm.problemDescription}
+                onChange={(e) => setTicketForm({ ...ticketForm, problemDescription: e.target.value })}
+                className="w-full p-3 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowBreakdownModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Dispatch Ticket
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
     </div>
   );

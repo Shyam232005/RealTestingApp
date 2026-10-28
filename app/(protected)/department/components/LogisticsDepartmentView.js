@@ -28,6 +28,7 @@ import {
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
 import GrnOcrScannerModal from "./GrnOcrScannerModal";
 import GrnDetailsModal from "./GrnDetailsModal";
+import WithZeroErrorOcr from "@/components/ocr/WithZeroErrorOcr";
 
 export default function LogisticsDepartmentView({
   tabId = "logistics_dashboard",
@@ -548,78 +549,86 @@ export default function LogisticsDepartmentView({
       )}
 
       {/* =========================================================================
-          MODALS
+          MODALS WITH ZERO-ERROR SELF-LEARNING OCR
          ========================================================================= */}
       {/* 1. PO Modal */}
       {showPoModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Create Purchase Order (PO)</h3>
-            <form onSubmit={handleCreatePo} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showPoModal}
+          onClose={() => setShowPoModal(false)}
+          title="Create Purchase Order (PO)"
+          subtitle="AI auto-extracts vendor, material description, quantities & unit pricing"
+          documentContext="purchase_order"
+          formData={poForm}
+          setFormData={setPoForm}
+          onSubmit={handleCreatePo}
+          submitLabel="Issue Purchase Order"
+          submitColor="bg-amber-600 hover:bg-amber-700"
+        >
+          <form onSubmit={handleCreatePo} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vendor / Supplier</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Reliable Polymers Corp"
+                value={poForm.vendorName}
+                onChange={(e) => setPoForm({ ...poForm, vendorName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Material Description</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. High Density Polyethylene (HDPE) Grade 5"
+                value={poForm.materialDescription}
+                onChange={(e) => setPoForm({ ...poForm, materialDescription: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vendor / Supplier</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Quantity (KG / Ton)</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. Reliable Polymers Corp"
-                  value={poForm.vendorName}
-                  onChange={(e) => setPoForm({ ...poForm, vendorName: e.target.value })}
+                  placeholder="e.g. 2000"
+                  value={poForm.quantity}
+                  onChange={(e) => setPoForm({ ...poForm, quantity: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Material Description</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Unit Rate (₹)</label>
                 <input
-                  type="text"
+                  type="number"
                   required
-                  placeholder="e.g. High Density Polyethylene (HDPE) Grade 5"
-                  value={poForm.materialDescription}
-                  onChange={(e) => setPoForm({ ...poForm, materialDescription: e.target.value })}
+                  placeholder="e.g. 110"
+                  value={poForm.unitPrice}
+                  onChange={(e) => setPoForm({ ...poForm, unitPrice: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Quantity (KG / Ton)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 2000"
-                    value={poForm.quantity}
-                    onChange={(e) => setPoForm({ ...poForm, quantity: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Unit Rate (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 110"
-                    value={poForm.unitPrice}
-                    onChange={(e) => setPoForm({ ...poForm, unitPrice: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowPoModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Issue Purchase Order
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowPoModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Issue Purchase Order
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
 
       {/* 2. Automatic AI OCR GRN Scanner Modal (Zero Manual Entry) */}
@@ -640,74 +649,82 @@ export default function LogisticsDepartmentView({
 
       {/* 3. Delivery Challan Modal */}
       {showChallanModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Generate Delivery Challan & e-Way Bill</h3>
-            <form onSubmit={handleCreateChallan} className="space-y-3">
+        <WithZeroErrorOcr
+          isOpen={showChallanModal}
+          onClose={() => setShowChallanModal(false)}
+          title="Generate Delivery Challan & e-Way Bill"
+          subtitle="AI auto-extracts consignee, cargo summary, vehicle number & destination"
+          documentContext="delivery_challan"
+          formData={challanForm}
+          setFormData={setChallanForm}
+          onSubmit={handleCreateChallan}
+          submitLabel="Dispatch Cargo"
+          submitColor="bg-amber-600 hover:bg-amber-700"
+        >
+          <form onSubmit={handleCreateChallan} className="space-y-3 bg-white p-5 rounded-2xl border border-slate-200">
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Consignee</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. Apex Hardware Stores"
+                value={challanForm.customerName}
+                onChange={(e) => setChallanForm({ ...challanForm, customerName: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Packages & Cargo Summary</label>
+              <input
+                type="text"
+                required
+                placeholder="e.g. 50 Cartons Finished Brackets (Total: 450 KG)"
+                value={challanForm.itemsSummary}
+                onChange={(e) => setChallanForm({ ...challanForm, itemsSummary: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Customer / Consignee</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vehicle Number</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Apex Hardware Stores"
-                  value={challanForm.customerName}
-                  onChange={(e) => setChallanForm({ ...challanForm, customerName: e.target.value })}
+                  placeholder="e.g. MH-12-AB-1234"
+                  value={challanForm.vehicleNumber}
+                  onChange={(e) => setChallanForm({ ...challanForm, vehicleNumber: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
               <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Packages & Cargo Summary</label>
+                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Destination City</label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. 50 Cartons Finished Brackets (Total: 450 KG)"
-                  value={challanForm.itemsSummary}
-                  onChange={(e) => setChallanForm({ ...challanForm, itemsSummary: e.target.value })}
+                  placeholder="e.g. Pune Central"
+                  value={challanForm.destinationCity}
+                  onChange={(e) => setChallanForm({ ...challanForm, destinationCity: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
               </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Vehicle Number</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. MH-12-AB-1234"
-                    value={challanForm.vehicleNumber}
-                    onChange={(e) => setChallanForm({ ...challanForm, vehicleNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Destination City</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="e.g. Pune Central"
-                    value={challanForm.destinationCity}
-                    onChange={(e) => setChallanForm({ ...challanForm, destinationCity: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowChallanModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Dispatch Cargo
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowChallanModal(false)}
+                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs cursor-pointer shadow-xs"
+              >
+                Dispatch Cargo
+              </button>
+            </div>
+          </form>
+        </WithZeroErrorOcr>
       )}
     </div>
   );
