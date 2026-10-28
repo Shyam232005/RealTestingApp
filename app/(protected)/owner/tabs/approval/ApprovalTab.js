@@ -15,8 +15,9 @@ import {
   Check,
   X,
   AlertCircle,
-  Loader2,
 } from "lucide-react";
+import CrownZeroState from "@/components/ui/CrownZeroState";
+import { TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 export default function ApprovalTab({
   organization,
@@ -532,17 +533,12 @@ export default function ApprovalTab({
           )}
 
           {totalPending === 0 && (
-            <div className="rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/30 p-10 text-center space-y-2">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto">
-                <CheckCircle2 className="w-6 h-6" />
-              </div>
-              <p className="text-sm font-bold text-slate-900">
-                All Clear — 0 Pending Approvals
-              </p>
-              <p className="text-xs text-slate-500 max-w-md mx-auto">
-                No staff department registrations, employee purchase orders, or CA data-access requests are waiting for your signature.
-              </p>
-            </div>
+            <CrownZeroState
+              compact
+              variant="ca_hub"
+              title="Approvals Desk is Clear"
+              description="No staff department registrations, employee purchase orders, or CA data-access requests are waiting for your signature. 0 items pending."
+            />
           )}
         </div>
       )}

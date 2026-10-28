@@ -7,7 +7,7 @@ import {
   ArrowUpRight,
   Landmark,
   Coins,
-  Loader2,
+  Sparkles,
   CheckCircle2,
 } from "lucide-react";
 
@@ -307,7 +307,7 @@ export default function NewTransactionModal({
             >
               {loading ? (
                 <>
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  <Sparkles className="w-3.5 h-3.5 animate-pulse text-purple-200" />
                   Recording...
                 </>
               ) : (

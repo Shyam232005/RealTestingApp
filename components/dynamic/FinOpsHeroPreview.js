@@ -102,7 +102,7 @@ export default function FinOpsHeroPreview() {
             disabled={isScanning}
             className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-spin text-emerald-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${isScanning ? "animate-pulse text-emerald-600" : ""}`} />
             {isScanning ? "Processing Ingestion..." : "Switch Sample Bill"}
           </button>
 

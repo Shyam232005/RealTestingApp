@@ -4,7 +4,7 @@ import { useSearchParams, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   CreditCard, Smartphone, ShieldCheck, 
-  IndianRupee, CheckCircle2, Loader2, Lock, ChevronRight, Building
+  IndianRupee, CheckCircle2, Sparkles, Lock, ChevronRight, Building
 } from "lucide-react";
 import LiveComplianceTicker from "@/components/dynamic/LiveComplianceTicker";
 
@@ -191,7 +191,7 @@ function PaymentCheckoutContent() {
               >
                 {isProcessing ? (
                   <span className="flex items-center gap-2">
-                    <Loader2 className="w-6 h-6 animate-spin text-indigo-200" />
+                    <Sparkles className="w-5 h-5 animate-pulse text-indigo-200" />
                     Processing Payment...
                   </span>
                 ) : (
@@ -230,7 +230,7 @@ export default function PaymentPage() {
       <Suspense fallback={
         <div className="flex min-h-screen items-center justify-center">
           <div className="flex flex-col items-center gap-4">
-            <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+            <Sparkles className="w-10 h-10 animate-pulse text-indigo-600" />
             <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Initializing Secure Checkout...</p>
           </div>
         </div>

@@ -73,7 +73,7 @@ export default function PlansTab({
           onClick={onRefresh}
           className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold border border-slate-700 transition-all flex items-center gap-2 cursor-pointer self-start md:self-auto"
         >
-          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`} />
+          <RefreshCw className={`w-3.5 h-3.5 ${loading ? "animate-pulse" : ""}`} />
           <span>Refresh Plans</span>
         </button>
       </div>

@@ -20,11 +20,11 @@ import {
   ShieldCheck,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   Send,
   X,
 } from "lucide-react";
 import confetti from "canvas-confetti";
+import CrownZeroState from "@/components/ui/CrownZeroState";
 
 export default function BranchDashboardView({
   organization,
@@ -582,20 +582,14 @@ export default function BranchDashboardView({
           </div>
 
           {stockItems.length === 0 ? (
-            <div className="p-8 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 space-y-2">
-              <Package className="w-8 h-8 text-slate-300 mx-auto" />
-              <p className="text-xs font-bold text-slate-700">No stock items added yet</p>
-              <p className="text-[11px] text-slate-400">
-                Add products or items this branch sells so your store staff and accountants know inventory levels.
-              </p>
-              <button
-                type="button"
-                onClick={() => setIsStockModalOpen(true)}
-                className="mt-2 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold"
-              >
-                + Add First Product
-              </button>
-            </div>
+            <CrownZeroState
+              compact
+              variant="warehouse"
+              title="No Stock Items Added Yet"
+              description="Add products or items this branch sells so store staff and accountants know inventory levels in real-time."
+              actionText="+ Add First Product"
+              onAction={() => setIsStockModalOpen(true)}
+            />
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -702,20 +696,14 @@ export default function BranchDashboardView({
               </div>
 
               {customers.length === 0 ? (
-                <div className="p-6 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 space-y-2">
-                  <Users className="w-7 h-7 text-slate-300 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">No customers registered yet</p>
-                  <p className="text-[11px] text-slate-400">
-                    Add loyal or regular buyers to notify them of special stock arrivals and urgent offers.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsCustomerModalOpen(true)}
-                    className="mt-1 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold cursor-pointer"
-                  >
-                    + Register Customer
-                  </button>
-                </div>
+                <CrownZeroState
+                  compact
+                  variant="team"
+                  title="No Customers Registered Yet"
+                  description="Add loyal or regular buyers to notify them of special stock arrivals and urgent offers."
+                  actionText="+ Register Customer"
+                  onAction={() => setIsCustomerModalOpen(true)}
+                />
               ) : (
                 <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                   {customers.map((cust, idx) => (
@@ -781,20 +769,14 @@ export default function BranchDashboardView({
               </div>
 
               {offers.length === 0 ? (
-                <div className="p-6 text-center rounded-2xl bg-slate-50 border border-dashed border-slate-200 space-y-2">
-                  <Zap className="w-7 h-7 text-amber-400 mx-auto" />
-                  <p className="text-xs font-bold text-slate-700">No active promotional offers</p>
-                  <p className="text-[11px] text-slate-400">
-                    Broadcast a limited-time flash discount or seasonal stock update to regular clients.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => setIsOfferModalOpen(true)}
-                    className="mt-1 px-3 py-1.5 rounded-xl bg-purple-600 text-white text-xs font-bold cursor-pointer"
-                  >
-                    + Create First Offer
-                  </button>
-                </div>
+                <CrownZeroState
+                  compact
+                  variant="invoices"
+                  title="No Active Promotional Offers"
+                  description="Broadcast a limited-time flash discount or seasonal stock update to regular clients."
+                  actionText="+ Create First Offer"
+                  onAction={() => setIsOfferModalOpen(true)}
+                />
               ) : (
                 <div className="max-h-64 overflow-y-auto space-y-2 pr-1">
                   {offers.map((off, idx) => {
@@ -959,7 +941,7 @@ export default function BranchDashboardView({
                     className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5"
                   >
                     {isSubmittingFund ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                     ) : (
                       <CheckCircle2 className="w-3.5 h-3.5" />
                     )}
@@ -1096,7 +1078,7 @@ export default function BranchDashboardView({
                     className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5"
                   >
                     {isSubmittingStock ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                     ) : (
                       <Plus className="w-3.5 h-3.5" />
                     )}
@@ -1212,7 +1194,7 @@ export default function BranchDashboardView({
                     className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5"
                   >
                     {isSubmittingCust ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                     ) : (
                       <Plus className="w-3.5 h-3.5" />
                     )}
@@ -1367,7 +1349,7 @@ export default function BranchDashboardView({
                     className="px-5 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-600/20"
                   >
                     {isSubmittingOffer ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse" />
                     ) : (
                       <Send className="w-3.5 h-3.5" />
                     )}

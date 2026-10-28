@@ -198,6 +198,7 @@ export default function OwnerPlanCard({ owner, organization, setActiveTab }) {
       {/* Upgrade / Change Plan Link */}
       <Link
         href="/purchase"
+        prefetch={true}
         className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold transition-all shadow-xs"
       >
         <span>Upgrade / Change Tier</span>

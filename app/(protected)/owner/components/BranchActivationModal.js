@@ -10,7 +10,6 @@ import {
   Package,
   Plus,
   Trash2,
-  Loader2,
   Sparkles,
   ShieldCheck,
   Wallet,
@@ -408,7 +407,7 @@ export default function BranchActivationModal({
               >
                 {loading ? (
                   <>
-                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <Sparkles className="w-4 h-4 animate-pulse text-purple-200" />
                     <span>Activating Branch...</span>
                   </>
                 ) : (

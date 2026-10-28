@@ -27,6 +27,7 @@ import {
   Tag,
   Hash,
 } from "lucide-react";
+import { ScannerLaserSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 export default function GrnOcrScannerModal({
   isOpen,
@@ -282,52 +283,10 @@ export default function GrnOcrScannerModal({
             </div>
           )}
 
-          {/* STATE 2: SCANNING IN PROGRESS ANIMATION */}
+          {/* STATE 2: SCANNING IN PROGRESS ANIMATION (ZERO SPINNER LASER SKELETON) */}
           {isScanning && (
-            <div className="py-12 px-6 rounded-3xl bg-slate-900 text-white text-center space-y-6 relative overflow-hidden">
-              {/* Laser beam effect */}
-              <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-pulse top-1/4 blur-xs" />
-
-              <div className="w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-500/50 text-amber-400 flex items-center justify-center mx-auto animate-spin">
-                <RefreshCw className="w-8 h-8" />
-              </div>
-
-              <div>
-                <h3 className="text-base font-black tracking-wide">
-                  AI Optical Character Recognition (OCR) Engine Scanning...
-                </h3>
-                <p className="text-xs text-slate-400 mt-1">
-                  Parsing {file?.name || "inward physical document"} at dock resolution...
-                </p>
-              </div>
-
-              {/* Step by step verification checklist */}
-              <div className="max-w-md mx-auto space-y-2 text-left text-xs font-mono">
-                <div className={`flex items-center gap-2 ${scanStep >= 1 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>1. Decoding document geometry and raster layers...</span>
-                </div>
-                <div className={`flex items-center gap-2 ${scanStep >= 2 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>2. Extracting header metadata & PO reference match...</span>
-                </div>
-                <div className={`flex items-center gap-2 ${scanStep >= 3 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>3. Verifying supplier GSTIN & warehouse destination...</span>
-                </div>
-                <div className={`flex items-center gap-2 ${scanStep >= 4 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>4. Parsing tabular line items, batch & lot codes...</span>
-                </div>
-                <div className={`flex items-center gap-2 ${scanStep >= 5 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>5. Auditing logistics freight, seal & vehicle weights...</span>
-                </div>
-                <div className={`flex items-center gap-2 ${scanStep >= 6 ? "text-emerald-400 font-bold" : "text-slate-500"}`}>
-                  <CheckCircle2 className="w-4 h-4 shrink-0" />
-                  <span>6. Detecting QC stamps, signatures, temperature & handwritten notes...</span>
-                </div>
-              </div>
+            <div className="py-4">
+              <ScannerLaserSkeleton label={`Parsing ${file?.name || "inward physical document"} at dock resolution...`} />
             </div>
           )}
 

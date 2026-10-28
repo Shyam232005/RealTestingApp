@@ -233,7 +233,7 @@ export default function AntigravityPlayground() {
       {/* Section Header */}
       <div className="text-center max-w-3xl mx-auto mb-8 space-y-3">
         <div className="inline-flex items-center gap-2 rounded-full border border-indigo-200 bg-indigo-50 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-indigo-700">
-          <Orbit className="w-3.5 h-3.5 text-indigo-600 animate-spin" />
+          <Orbit className="w-3.5 h-3.5 text-indigo-600 animate-pulse" />
           Interactive FinOps Physics Simulation
         </div>
         <h2 className="text-3xl font-black text-slate-900 sm:text-4xl">

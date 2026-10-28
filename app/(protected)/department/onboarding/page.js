@@ -9,12 +9,12 @@ import {
   FileText,
   CheckCircle2,
   AlertCircle,
-  Loader2,
   Sparkles,
   ArrowRight,
   LogOut,
   Users,
 } from "lucide-react";
+import { PageHeaderSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 const DEPARTMENTS = [
   {
@@ -162,9 +162,17 @@ export default function EmployeeOnboardingPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-3" />
-        <p className="text-sm font-semibold text-slate-600">Loading your staff profile...</p>
+      <div className="min-h-screen bg-slate-50 p-6 sm:p-8">
+        <div className="max-w-4xl mx-auto space-y-6">
+          <PageHeaderSkeleton title="Loading your staff profile..." />
+          <div className="rounded-3xl bg-white p-8 border border-slate-200/80 space-y-4">
+            <div className="h-6 w-48 bg-slate-200 rounded animate-pulse" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
+              <div className="h-24 bg-slate-100 rounded-2xl animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -431,7 +439,7 @@ export default function EmployeeOnboardingPage() {
             >
               {submitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Sparkles className="w-4 h-4 animate-pulse text-indigo-200" />
                   Submitting to Owner...
                 </>
               ) : (

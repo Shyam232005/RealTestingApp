@@ -2,8 +2,9 @@
 import React, { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Loader2, CheckCircle2 } from "lucide-react";
+import { CheckCircle2 } from "lucide-react";
 import confetti from "canvas-confetti";
+import { PageHeaderSkeleton, MetricsCardsSkeleton, TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 // Sub-components
 import OwnerHeader from "../components/OwnerHeader";
@@ -24,6 +25,7 @@ import {
   TaxReportsTab,
   ProfileSettingsTab,
 } from "../tabs";
+import BusinessInsightsDashboard from "@/components/accounting/BusinessInsightsDashboard";
 
 export default function OwnerDashboard() {
   const router = useRouter();
@@ -168,11 +170,19 @@ export default function OwnerDashboard() {
 
   if (loading) {
     return (
-      <div className="min-h-screen w-full bg-[#FAF9FD] flex flex-col items-center justify-center text-slate-800">
-        <Loader2 className="w-10 h-10 animate-spin text-purple-600 mb-3" />
-        <p className="text-sm font-bold tracking-wide text-slate-600">
-          Loading Owner Crown Ecosystems Workspace...
-        </p>
+      <div className="min-h-screen w-full bg-[#FAF9FD] p-6 sm:p-8 font-sans">
+        <div className="max-w-[1720px] mx-auto space-y-6">
+          <PageHeaderSkeleton title="Loading Crownops Enterprise Workspace..." />
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-7">
+            <div className="lg:col-span-4 space-y-4">
+              <MetricsCardsSkeleton count={2} />
+            </div>
+            <div className="lg:col-span-8 space-y-4">
+              <MetricsCardsSkeleton count={4} />
+              <TableSkeleton rows={5} cols={5} />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -187,6 +197,7 @@ export default function OwnerDashboard() {
     { id: "banking", label: "Bank & Cash" },
     { id: "ca-hub", label: "CA-Hub" },
     { id: "financial", label: "Books & Balances" },
+    { id: "insights", label: "Insights" },
     { id: "purchase", label: "Purchases" },
     { id: "sales", label: "Sales" },
     { id: "tax-reports", label: "GST & Tax" },
@@ -296,6 +307,13 @@ export default function OwnerDashboard() {
 
             {activeTab === "financial" && (
               <FinancialTab
+                organization={organization}
+                selectedBranch={selectedBranch}
+              />
+            )}
+
+            {activeTab === "insights" && (
+              <BusinessInsightsDashboard
                 organization={organization}
                 selectedBranch={selectedBranch}
               />

@@ -23,6 +23,8 @@ import {
   Tag,
   Hash,
 } from "lucide-react";
+import { ScannerLaserSkeleton } from "@/components/ui/CrownSkeletonLoader";
+import { writeLocalRecord } from "@/lib/localCrdtSync";
 
 export default function CrownSmartScanner({
   documentContext = "general",
@@ -94,9 +96,20 @@ export default function CrownSmartScanner({
       clearInterval(stageTimer);
       setTelemetryStage(TELEMETRY_STAGES.length - 1);
 
-      setTimeout(() => {
+      setTimeout(async () => {
         setScanResult(data);
         setIsScanning(false);
+
+        // Optimistic local CRDT cache
+        try {
+          await writeLocalRecord("ocr_scans", {
+            ...data,
+            documentContext,
+            scannedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn("Local CRDT scan cache fallback:", e);
+        }
 
         // Notify parent with extracted data & dynamic fields
         onScanComplete(data);
@@ -365,79 +378,11 @@ export default function CrownSmartScanner({
       )}
 
       {/* =========================================================================
-          STATE 2: ACTIVE SCANNING CHOREOGRAPHY (60fps FRAMER MOTION LASER & TELEMETRY)
+          STATE 2: ACTIVE SCANNING CHOREOGRAPHY (PULSING LASER SKELETON LOADER)
          ========================================================================= */}
       {isScanning && (
-        <div className="relative z-10 py-10 px-4 text-center space-y-6">
-          {/* 3D-Tilted Document Preview with Dual Laser Sweep */}
-          <div
-            className="relative mx-auto w-64 h-80 rounded-2xl bg-slate-900 border border-emerald-500/40 shadow-2xl overflow-hidden flex flex-col justify-between p-4"
-            style={{
-              transform: "perspective(1000px) rotateX(10deg)",
-              boxShadow: "0 25px 50px -12px rgba(16, 185, 129, 0.25)",
-            }}
-          >
-            {/* Visual faux document text lines */}
-            <div className="space-y-2 opacity-30">
-              <div className="h-4 bg-emerald-400 rounded w-3/4" />
-              <div className="h-2 bg-slate-400 rounded w-1/2" />
-              <div className="h-2 bg-slate-400 rounded w-5/6" />
-              <div className="h-24 bg-slate-800/80 rounded w-full border border-slate-700/50 mt-3" />
-              <div className="h-2 bg-slate-400 rounded w-2/3" />
-            </div>
-
-            {/* Glowing Laser Sweep Beam */}
-            <motion.div
-              animate={{
-                top: ["5%", "90%", "5%"],
-              }}
-              transition={{
-                duration: 2.2,
-                repeat: Infinity,
-                ease: "easeInOut",
-              }}
-              className="absolute left-0 right-0 h-1 bg-gradient-to-r from-transparent via-emerald-400 to-transparent pointer-events-none"
-              style={{
-                boxShadow: "0 0 18px 4px rgba(16, 185, 129, 0.8), 0 0 30px 8px rgba(245, 158, 11, 0.5)",
-              }}
-            />
-
-            {/* Simulated bounding boxes over text regions */}
-            <motion.div
-              animate={{ opacity: [0.3, 0.8, 0.3] }}
-              transition={{ duration: 1.5, repeat: Infinity }}
-              className="absolute top-8 left-6 w-32 h-6 border border-emerald-400/80 rounded bg-emerald-400/10 pointer-events-none"
-            />
-            <motion.div
-              animate={{ opacity: [0.2, 0.7, 0.2] }}
-              transition={{ duration: 1.8, repeat: Infinity, delay: 0.3 }}
-              className="absolute top-28 left-6 right-6 h-16 border border-amber-400/80 rounded bg-amber-400/10 pointer-events-none"
-            />
-            <motion.div
-              animate={{ opacity: [0.3, 0.9, 0.3] }}
-              transition={{ duration: 1.4, repeat: Infinity, delay: 0.6 }}
-              className="absolute bottom-6 right-6 w-24 h-8 border border-emerald-400/80 rounded bg-emerald-400/10 pointer-events-none"
-            />
-
-            <div className="flex items-center justify-between text-[10px] text-slate-500 font-mono">
-              <span>OPTICAL RESOLUTION 300DPI</span>
-              <span>RGB/MULTI-BAND</span>
-            </div>
-          </div>
-
-          {/* Floating Glass Telemetry Pill */}
-          <div className="max-w-md mx-auto">
-            <motion.div
-              key={telemetryStage}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ type: "spring", stiffness: 300, damping: 25 }}
-              className="inline-flex items-center gap-2.5 px-4 py-2 rounded-2xl bg-slate-900/90 border border-emerald-500/40 text-emerald-300 font-mono text-xs font-bold shadow-lg"
-            >
-              <RefreshCw className="w-3.5 h-3.5 animate-spin text-emerald-400" />
-              <span>{TELEMETRY_STAGES[telemetryStage]}</span>
-            </motion.div>
-          </div>
+        <div className="relative z-10 py-4">
+          <ScannerLaserSkeleton label={TELEMETRY_STAGES[telemetryStage]} />
         </div>
       )}
 

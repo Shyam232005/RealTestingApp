@@ -224,7 +224,7 @@ export default function PendingApprovalPage() {
               disabled={checking}
               className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all cursor-pointer disabled:opacity-50"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${checking ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${checking ? "animate-pulse" : ""}`} />
               {checking ? "Checking Approval..." : "Check Approval Status"}
             </button>
             <p className="text-[11px] text-slate-400 font-medium">

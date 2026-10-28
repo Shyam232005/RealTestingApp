@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 
 import CaReportModal from "./CaReportModal";
+import { getSocketClient } from "@/lib/socketClient";
 
 export default function CaHubTab({ owner, organization, showToast }) {
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,19 @@ export default function CaHubTab({ owner, organization, showToast }) {
           ? "CA Data Access Revoked."
           : "CA Data Access Request Declined."
       );
+
+      // Emit real-time unlock event via Socket.io
+      if (action === "APPROVE") {
+        getSocketClient().then((socket) => {
+          if (socket && (organization?._id || owner?._id)) {
+            socket.emit("owner-approve-data", {
+              companyId: organization?._id || owner?._id,
+              requestId,
+              timestamp: new Date().toISOString(),
+            });
+          }
+        }).catch(() => {});
+      }
 
       // Refresh list
       fetchCaHubData();

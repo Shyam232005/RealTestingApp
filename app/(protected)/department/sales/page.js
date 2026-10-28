@@ -1,13 +1,16 @@
 "use client";
 import React, { Suspense } from "react";
 import DepartmentWorkspace from "../components/DepartmentWorkspace";
-import { Loader2 } from "lucide-react";
+import { PageHeaderSkeleton, MetricsCardsSkeleton, TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 function WorkspaceLoadingFallback() {
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-3" />
-      <p className="text-sm font-semibold text-slate-600">Loading Sales Workspace...</p>
+    <div className="min-h-screen bg-slate-50 p-6 sm:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <PageHeaderSkeleton title="Loading Sales & Dispatch Workspace..." />
+        <MetricsCardsSkeleton count={4} />
+        <TableSkeleton rows={5} cols={5} />
+      </div>
     </div>
   );
 }

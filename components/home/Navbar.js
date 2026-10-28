@@ -34,6 +34,7 @@ const Navbar = () => {
             <div className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                 <Link
                     href="/"
+                    prefetch={true}
                     className="group flex items-center gap-2 text-2xl font-extrabold tracking-tighter transition-all animate-slide-down"
                 >
                     <span className="text-slate-900 transition-colors group-hover:text-slate-700">Crown</span>
@@ -47,6 +48,7 @@ const Navbar = () => {
                             <Link
                                 key={link.name}
                                 href={link.href}
+                                prefetch={true}
                                 className={`relative px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-md
                                   ${isActive
                                         ? 'text-emerald-700 bg-emerald-50/50'
@@ -65,14 +67,14 @@ const Navbar = () => {
                 </nav>
                 <div className="hidden items-center gap-4 md:flex animate-slide-down delay-200">
                     <Link
-                        href="/login"
+                        href="/login" prefetch={true}
                         className="relative px-4 py-2 text-sm font-semibold transition-all duration-200 rounded-md hover:bg-slate-50 w-25 h-8 text-center pt-1"
                     >
                         Sign In
                     </Link>
 
                     <Link
-                        href="demo/owner"
+                        href="demo/owner" prefetch={true}
                         className="group relative inline-flex items-center gap-2 overflow-hidden rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-md shadow-emerald-900/20 ring-1 ring-emerald-800 transition-all hover:-translate-y-0.5 hover:bg-emerald-600 hover:shadow-lg hover:shadow-emerald-900/30 active:translate-y-0"
                     >
                         <LayoutDashboard size={20} />
@@ -105,6 +107,7 @@ const Navbar = () => {
                             <Link
                                 key={link.name}
                                 href={link.href}
+                                prefetch={true}
                                 onClick={() => setMobileMenuOpen(false)}
                                 className={`block rounded-lg px-4 py-3 text-base font-semibold transition-all ${isActive
                                     ? 'bg-emerald-50 text-emerald-700'
@@ -118,7 +121,7 @@ const Navbar = () => {
 
                     <div className="mt-4 flex flex-col gap-3 pt-4 border-t border-slate-100">
                         <Link
-                            href="/login"
+                            href="/login" prefetch={true}
                             onClick={() => setMobileMenuOpen(false)}
                             className="flex w-full items-center justify-center rounded-lg border-2 border-slate-200 bg-transparent px-4 py-3 text-base font-bold text-slate-700 transition-all hover:border-slate-300 hover:bg-slate-50"
                         >

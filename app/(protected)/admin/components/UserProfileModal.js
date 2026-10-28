@@ -161,10 +161,13 @@ export default function UserProfileModal({
         {/* Modal Body */}
         <div className="flex-1 p-5 sm:p-6 overflow-y-auto space-y-6">
           {loading ? (
-            <div className="py-16 text-center space-y-3">
-              <div className="w-8 h-8 border-2 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto" />
-              <p className="text-sm font-bold text-white">Loading deep user profile...</p>
-              <p className="text-xs text-slate-400">Querying identity, enterprise hierarchy, and activity records.</p>
+            <div className="space-y-4 py-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-20 rounded-2xl bg-slate-800/60 animate-pulse border border-slate-800" />
+                ))}
+              </div>
+              <div className="h-48 rounded-2xl bg-slate-800/40 animate-pulse border border-slate-800" />
             </div>
           ) : (
             <>

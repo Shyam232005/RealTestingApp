@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   ChevronRight,
   ChevronLeft,
-  Loader2,
   AlertCircle,
   Sparkles,
   TrendingUp,
@@ -501,11 +500,16 @@ export default function OrganizationSetupPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-slate-900 flex flex-col items-center justify-center text-white">
-        <Loader2 className="w-10 h-10 animate-spin text-emerald-400 mb-4" />
-        <p className="text-sm font-semibold tracking-wide text-slate-300">
-          Verifying your Crown Ecosystems workspace...
-        </p>
+      <div className="min-h-screen bg-slate-900 p-8 flex flex-col justify-center max-w-4xl mx-auto space-y-6">
+        <div className="h-6 w-48 rounded bg-slate-800 animate-pulse mx-auto" />
+        <div className="rounded-3xl border border-slate-800 bg-slate-950 p-8 space-y-6">
+          <div className="h-8 w-64 rounded bg-slate-800 animate-pulse" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="h-14 rounded-2xl bg-slate-850 animate-pulse" />
+            <div className="h-14 rounded-2xl bg-slate-850 animate-pulse" />
+          </div>
+          <div className="h-32 rounded-2xl bg-slate-850 animate-pulse" />
+        </div>
       </div>
     );
   }
@@ -1500,7 +1504,7 @@ export default function OrganizationSetupPage() {
                 >
                   {isSubmitting ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Sparkles className="w-4 h-4 animate-pulse text-slate-950" />
                       Provisioning FinOps Organization...
                     </>
                   ) : (

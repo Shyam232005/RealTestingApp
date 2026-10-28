@@ -26,8 +26,10 @@ import {
   UserCheck,
   UserPlus,
   CheckCheck,
+  Zap,
 } from "lucide-react";
 import BranchActivationModal from "./BranchActivationModal";
+import { getSocketClient, joinTenantRoom } from "@/lib/socketClient";
 
 const TAB_ICONS = {
   dashboard: LayoutDashboard,
@@ -36,6 +38,7 @@ const TAB_ICONS = {
   banking: Landmark,
   "ca-hub": Briefcase,
   financial: BookOpen,
+  insights: Zap,
   purchase: ShoppingBag,
   sales: TrendingUp,
   "tax-reports": FileSpreadsheet,
@@ -188,12 +191,37 @@ export default function OwnerHeader({
     };
 
     fetchNotifications();
+
+    // Hybrid Socket.io real-time event listener (0ms notification push)
+    let cleanupSocket = () => {};
+    const companyId = organization?._id || owner?._id;
+    if (companyId) {
+      joinTenantRoom(companyId, owner?._id, "OWNER");
+      getSocketClient().then((socket) => {
+        if (!socket) return;
+        const onRealtimeAlert = () => {
+          if (!isCancelled) fetchNotifications();
+        };
+        socket.on("live-attendance-update", onRealtimeAlert);
+        socket.on("owner-receive-request", onRealtimeAlert);
+        socket.on("employee-transferred", onRealtimeAlert);
+        socket.on("new-approval-raised", onRealtimeAlert);
+        cleanupSocket = () => {
+          socket.off("live-attendance-update", onRealtimeAlert);
+          socket.off("owner-receive-request", onRealtimeAlert);
+          socket.off("employee-transferred", onRealtimeAlert);
+          socket.off("new-approval-raised", onRealtimeAlert);
+        };
+      });
+    }
+
     const interval = setInterval(fetchNotifications, 15000);
     return () => {
       isCancelled = true;
       clearInterval(interval);
+      cleanupSocket();
     };
-  }, []);
+  }, [organization?._id, owner?._id]);
 
   // Close notifications dropdown on outside click
   useEffect(() => {

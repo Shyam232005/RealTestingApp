@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import {
     Building2, User, Mail, Phone, Lock, Award,
-    RefreshCw, Loader2, AlertCircle, MapPin, CreditCard,
+    RefreshCw, AlertCircle, MapPin, CreditCard,
     Crown, ShieldCheck, CheckCircle2, Sparkles, ShieldAlert, Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -251,7 +251,7 @@ function SignupFormContent() {
                                     <ShieldAlert className="w-12 h-12 text-slate-400 mb-4" />
                                     <h3 className="text-xl font-black text-slate-800 tracking-tight">Premium Account Required</h3>
                                     <p className="text-sm font-medium text-slate-500 mt-2 mb-8 max-w-sm leading-relaxed">You must purchase a plan to register a new workspace and begin operations.</p>
-                                    <Link href="/purchase" className="py-3.5 px-8 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20">View Pricing & Plans</Link>
+                                    <Link href="/purchase" prefetch={true} className="py-3.5 px-8 bg-indigo-600 text-white text-sm font-bold rounded-xl hover:bg-indigo-700 transition-all shadow-md shadow-indigo-600/20">View Pricing & Plans</Link>
                                 </motion.div>
                             ) : bizRole === "Employee" && !inviteCodeParam && !isCodeVerified ? (
                                 <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center p-10 text-center bg-slate-50 rounded-2xl border border-dashed border-slate-300 mt-2">
@@ -262,7 +262,7 @@ function SignupFormContent() {
                                     <div className="flex w-full max-w-sm gap-2">
                                         <input type="text" value={manualCode} onChange={(e) => setManualCode(e.target.value.toUpperCase())} placeholder="e.g. BIZ-XXXX" className="flex-1 px-4 py-3.5 rounded-xl text-sm font-bold bg-white border border-slate-200 focus:ring-2 focus:border-indigo-500 focus:ring-indigo-500/10 outline-none uppercase transition-all" />
                                         <button type="button" onClick={() => handleVerifyCode("Employee")} disabled={isVerifying} className="px-6 py-3.5 bg-indigo-600 text-white rounded-xl font-bold text-sm hover:bg-indigo-700 transition-colors flex items-center justify-center min-w-[90px] cursor-pointer">
-                                            {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify"}
+                                            {isVerifying ? <Sparkles className="w-5 h-5 animate-pulse" /> : "Verify"}
                                         </button>
                                     </div>
                                     {verifyError && <p className="text-rose-500 text-xs font-bold mt-4 flex items-center justify-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> {verifyError}</p>}
@@ -322,7 +322,7 @@ function SignupFormContent() {
                                         </div>
                                     </div>
                                     <button type="submit" disabled={isBizSubmitting} className="w-full py-4 mt-6 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 disabled:opacity-70 cursor-pointer">
-                                        {isBizSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Complete Registration"}
+                                        {isBizSubmitting ? <Sparkles className="w-5 h-5 animate-pulse mx-auto" /> : "Complete Registration"}
                                     </button>
                                 </form>
                             )}
@@ -355,7 +355,7 @@ function SignupFormContent() {
                                     <div className="flex w-full max-w-sm gap-2">
                                         <input type="text" value={manualCode} onChange={(e) => setManualCode(e.target.value.toUpperCase())} placeholder={caRole === "CA" ? "e.g. BIZ-XXXX" : "e.g. CA-XXXX"} className="flex-1 px-4 py-3.5 rounded-xl text-sm font-bold bg-slate-900 border border-slate-700 text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none uppercase transition-all" />
                                         <button type="button" onClick={() => handleVerifyCode(caRole)} disabled={isVerifying} className="px-6 py-3.5 bg-emerald-600 text-white rounded-xl font-bold text-sm hover:bg-emerald-500 transition-colors flex items-center justify-center min-w-[90px] cursor-pointer">
-                                            {isVerifying ? <Loader2 className="w-5 h-5 animate-spin" /> : "Verify"}
+                                            {isVerifying ? <Sparkles className="w-5 h-5 animate-pulse" /> : "Verify"}
                                         </button>
                                     </div>
                                     {verifyError && <p className="text-rose-400 text-xs font-bold mt-4 flex items-center justify-center gap-1.5"><AlertCircle className="w-3.5 h-3.5" /> {verifyError}</p>}
@@ -400,7 +400,7 @@ function SignupFormContent() {
                                         </div>
                                     </div>
                                     <button type="submit" disabled={isCaSubmitting} className="w-full py-4 mt-6 bg-emerald-600 text-white text-sm font-black rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 disabled:opacity-70 cursor-pointer">
-                                        {isCaSubmitting ? <Loader2 className="w-5 h-5 animate-spin mx-auto" /> : "Complete Registration"}
+                                        {isCaSubmitting ? <Sparkles className="w-5 h-5 animate-pulse mx-auto" /> : "Complete Registration"}
                                     </button>
                                 </form>
                             )}
@@ -417,7 +417,7 @@ export default function ProfessionalSignup() {
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-[#FAFAFA]">
                 <div className="flex flex-col items-center gap-4">
-                    <Loader2 className="w-10 h-10 animate-spin text-indigo-600" />
+                    <Sparkles className="w-10 h-10 animate-pulse text-indigo-600" />
                     <p className="text-sm font-bold text-slate-500 uppercase tracking-widest">Loading secure workspace...</p>
                 </div>
             </div>

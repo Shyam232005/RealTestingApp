@@ -38,6 +38,9 @@ import {
   Trash2,
   UserMinus,
 } from "lucide-react";
+import CrownZeroState from "@/components/ui/CrownZeroState";
+import { TableSkeleton, MetricsCardsSkeleton } from "@/components/ui/CrownSkeletonLoader";
+import { getSocketClient } from "@/lib/socketClient";
 
 const DEPARTMENTS = [
   { id: "ALL", label: "All Departments" },
@@ -274,6 +277,17 @@ export default function TeamTab({
           })
         );
       }
+
+      // Broadcast department transfer to employee's active session
+      getSocketClient().then((socket) => {
+        if (socket && (organization?._id || organization?.ownerId)) {
+          socket.emit("employee-department-transfer", {
+            companyId: organization._id || organization.ownerId,
+            employeeId: transferModalEmployee._id,
+            newDepartment: data.employee?.department,
+          });
+        }
+      }).catch(() => {});
     } catch (err) {
       alert(err.message || "Failed to transfer employee");
     } finally {
@@ -605,7 +619,7 @@ export default function TeamTab({
             disabled={refreshing}
             className="px-4 py-2 rounded-xl bg-slate-50 hover:bg-slate-100 border border-slate-200/90 text-xs font-bold text-slate-700 flex items-center gap-2 transition-all cursor-pointer shadow-xs disabled:opacity-60"
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin text-purple-600" : ""}`} />
+            <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-pulse text-purple-600" : ""}`} />
             <span>{refreshing ? "Refreshing..." : "Refresh Live"}</span>
           </button>
 
@@ -929,36 +943,35 @@ export default function TeamTab({
 
       {/* Staff Roster Grid */}
       {loading ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80">
-          <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-3" />
-          <p className="text-xs font-bold text-slate-600">Loading team operations roster...</p>
-        </div>
+        <TableSkeleton rows={6} cols={5} />
       ) : filteredEmployees.length === 0 ? (
-        <div className="bg-white rounded-3xl p-12 text-center border border-slate-200/80 shadow-xs">
-          <div className="w-16 h-16 rounded-3xl bg-purple-50 text-purple-600 flex items-center justify-center mx-auto mb-4">
-            <Users className="w-8 h-8" />
-          </div>
-          <h3 className="text-base font-black text-slate-900">
-            {employees.length === 0
+        <CrownZeroState
+          variant="team"
+          title={
+            employees.length === 0
               ? "No Approved Staff In Organization"
-              : "No Staff Match Selected Filters"}
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto mt-1.5 leading-relaxed">
-            {employees.length === 0
+              : "No Staff Match Selected Filters"
+          }
+          description={
+            employees.length === 0
               ? "New employees register under your company with their email or OTP and choose their branch & department. Review and approve incoming requests in the Approvals Desk."
-              : "Try choosing 'All Departments' or 'All Statuses', or clear your search query."}
-          </p>
-          {employees.length === 0 && setActiveTab && (
-            <button
-              type="button"
-              onClick={() => setActiveTab("approval")}
-              className="mt-5 px-5 py-2.5 rounded-2xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold shadow-md shadow-purple-600/20 cursor-pointer inline-flex items-center gap-2"
-            >
-              <ShieldCheck className="w-4 h-4" />
-              <span>Check Pending Staff Approvals</span>
-            </button>
-          )}
-        </div>
+              : "Try choosing 'All Departments' or 'All Statuses', or clear your search query."
+          }
+          actionText={
+            employees.length === 0
+              ? "Check Pending Staff Approvals"
+              : "Reset All Filters"
+          }
+          onAction={() => {
+            if (employees.length === 0 && setActiveTab) {
+              setActiveTab("approval");
+            } else {
+              setSelectedDepartment("ALL");
+              setSelectedStatus("ALL");
+              setSearchQuery("");
+            }
+          }}
+        />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filteredEmployees.map((emp) => {
@@ -1198,7 +1211,7 @@ export default function TeamTab({
                   className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
                   title="Refresh Tasks"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loadingTasks ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-4 h-4 ${loadingTasks ? "animate-pulse" : ""}`} />
                 </button>
                 <button
                   type="button"
@@ -1509,7 +1522,7 @@ export default function TeamTab({
                   className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
                   title="Refresh Vault"
                 >
-                  <RefreshCw className={`w-4 h-4 ${loadingFiles ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-4 h-4 ${loadingFiles ? "animate-pulse" : ""}`} />
                 </button>
               </div>
             </div>
@@ -1830,7 +1843,7 @@ export default function TeamTab({
                   className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 text-white border border-white/10 transition-all cursor-pointer"
                   title="Refresh Employees"
                 >
-                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                  <RefreshCw className={`w-4 h-4 ${refreshing ? "animate-pulse" : ""}`} />
                 </button>
               </div>
             </div>
@@ -2187,12 +2200,7 @@ export default function TeamTab({
             {/* Dossier Content Body */}
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
               {dossierLoading ? (
-                <div className="py-12 text-center">
-                  <RefreshCw className="w-8 h-8 animate-spin text-purple-600 mx-auto mb-2" />
-                  <p className="text-xs font-bold text-slate-600">
-                    Retrieving full activity records...
-                  </p>
-                </div>
+                <TableSkeleton rows={4} cols={4} />
               ) : dossierTab === "submissions" ? (
                 /* Submissions Tab */
                 <div className="space-y-4">

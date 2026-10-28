@@ -9,7 +9,6 @@ import {
   EyeOff,
   CheckCircle2,
   X,
-  Loader2,
   Trash2,
   Copy,
   Check,
@@ -326,7 +325,7 @@ export default function SuperClearDatabaseModal({
                 >
                   {isPurging ? (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin" />
+                      <Flame className="w-4 h-4 animate-pulse text-amber-300" />
                       <span>Purging All Collections...</span>
                     </>
                   ) : (

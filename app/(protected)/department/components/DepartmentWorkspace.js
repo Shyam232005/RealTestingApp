@@ -31,7 +31,6 @@ import {
   ShieldAlert,
   Sparkles,
   ArrowRight,
-  Loader2,
   Lock,
   Check,
   X,
@@ -50,6 +49,8 @@ import {
   Paperclip,
   Download,
 } from "lucide-react";
+import { PageHeaderSkeleton, MetricsCardsSkeleton, TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
+import { getSocketClient, joinTenantRoom } from "@/lib/socketClient";
 
 export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }) {
   const router = useRouter();
@@ -334,6 +335,11 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
         setAssignedByMeTasks(data.assignedByMeTasks || []);
         setNotifications(data.notifications || []);
         setUnreadNotificationsCount(data.unreadNotificationsCount || 0);
+
+        // Join company real-time room for instant socket events
+        if (data.company?.id) {
+          joinTenantRoom(data.company.id, data.employee?.id, data.employee?.department);
+        }
       } catch (err) {
         if (!isCancelled) {
           setFeedback({ type: "error", message: err.message });
@@ -347,8 +353,20 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
 
     loadWorkspaceData();
 
+    // Attach real-time transfer listener
+    let cleanupSocket = () => {};
+    getSocketClient().then((socket) => {
+      if (!socket) return;
+      const onTransfer = () => {
+        if (!isCancelled) refreshAllData();
+      };
+      socket.on("employee-transferred", onTransfer);
+      cleanupSocket = () => socket.off("employee-transferred", onTransfer);
+    });
+
     return () => {
       isCancelled = true;
+      cleanupSocket();
     };
   }, [router, refreshTrigger, currentDepartment]);
 
@@ -452,6 +470,18 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
         }
         return [data.attendance, ...prev];
       });
+
+      // Broadcast real-time attendance update via Socket.io
+      getSocketClient().then((socket) => {
+        if (socket && company?.id) {
+          socket.emit("new-submission", {
+            companyId: company.id,
+            employeeName: employee?.name,
+            type: "ATTENDANCE_PUNCH_IN",
+            timestamp: nowIso,
+          });
+        }
+      }).catch(() => {});
     } catch (err) {
       if (err.message?.toLowerCase().includes("already actively punched in")) {
         setTodayAttendance({
@@ -514,6 +544,18 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
       setAttendanceHistory((prev) =>
         prev.map((item) => (item._id === data.attendance?._id ? data.attendance : item))
       );
+
+      // Broadcast real-time attendance update via Socket.io
+      getSocketClient().then((socket) => {
+        if (socket && company?.id) {
+          socket.emit("new-submission", {
+            companyId: company.id,
+            employeeName: employee?.name,
+            type: "ATTENDANCE_PUNCH_OUT",
+            timestamp: new Date().toISOString(),
+          });
+        }
+      }).catch(() => {});
     } catch (err) {
       // Rollback on network failure
       setTodayAttendance(previousAttendance);
@@ -1119,9 +1161,12 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-        <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-3" />
-        <p className="text-sm font-semibold text-slate-600">Loading your department workspace...</p>
+      <div className="min-h-screen bg-slate-50 p-6 sm:p-8">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <PageHeaderSkeleton title="Loading your department workspace..." />
+          <MetricsCardsSkeleton count={4} />
+          <TableSkeleton rows={6} cols={5} />
+        </div>
       </div>
     );
   }
@@ -1531,7 +1576,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
           >
             {loggingOut ? (
               <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                <Sparkles className="w-3.5 h-3.5 animate-pulse text-rose-600" />
                 Signing Out...
               </>
             ) : (
@@ -1682,7 +1727,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
               title="Sign Out of Crown Ecosystems"
             >
               {loggingOut ? (
-                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                <Sparkles className="w-3.5 h-3.5 animate-pulse text-rose-600" />
               ) : (
                 <LogOut className="w-3.5 h-3.5" />
               )}
@@ -3124,7 +3169,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                       className="px-4 py-2 rounded-xl border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 text-xs font-bold flex items-center gap-1.5 cursor-pointer disabled:opacity-50 transition-colors"
                     >
                       {loggingOut ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-600" />
+                        <Sparkles className="w-3.5 h-3.5 animate-pulse text-rose-600" />
                       ) : (
                         <LogOut className="w-3.5 h-3.5" />
                       )}

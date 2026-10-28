@@ -14,7 +14,7 @@ import {
   AlertCircle,
   CheckCircle2,
   XCircle,
-  Loader2,
+  Sparkles,
 } from "lucide-react";
 
 const ROLE_NAME_MAP = {
@@ -328,7 +328,7 @@ export default function OwnerTeamAndCaCard({
                     className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-extrabold shadow-xs cursor-pointer disabled:opacity-50"
                   >
                     {reviewingId === cand.id ? (
-                      <Loader2 className="w-3.5 h-3.5 animate-spin inline" />
+                      <Sparkles className="w-3.5 h-3.5 animate-pulse inline text-white" />
                     ) : cand.isBranchFull ? (
                       "Branch Full"
                     ) : (

@@ -7,6 +7,18 @@ const nextConfig = {
   },
   cacheComponents: true,
   partialPrefetching: true,
+  async rewrites() {
+    return [
+      {
+        source: "/app/books/ledger",
+        destination: "/books/ledger",
+      },
+      {
+        source: "/app/insights",
+        destination: "/insights",
+      },
+    ];
+  },
   turbopack: {
     rules: {
       "*.css": {

@@ -6,7 +6,7 @@ import {
   TrendingUp,
   ShieldCheck,
   Check,
-  Loader2,
+  Sparkles,
   Lock,
 } from "lucide-react";
 
@@ -35,7 +35,7 @@ export default function ProfileSettingsTab({
         >
           {isSavingSettings ? (
             <>
-              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              <Sparkles className="w-3.5 h-3.5 animate-pulse text-purple-300" />
               Saving Changes...
             </>
           ) : (

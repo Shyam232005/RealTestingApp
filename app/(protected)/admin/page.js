@@ -53,6 +53,7 @@ import UserProfileModal from "./components/UserProfileModal";
 import PlansTab from "./components/PlansTab";
 import SubscriptionEditModal from "./components/SubscriptionEditModal";
 import SuperClearDatabaseModal from "./components/SuperClearDatabaseModal";
+import CrownZeroState from "@/components/ui/CrownZeroState";
 
 const USER_ROLES_FILTER = [
   { id: "ALL", label: "All Users" },
@@ -571,7 +572,7 @@ export default function SuperAdminDashboard() {
             title="Refresh System Data"
           >
             <RefreshCw
-              className={`w-4 h-4 ${loadingMetrics ? "animate-spin" : ""}`}
+              className={`w-4 h-4 ${loadingMetrics ? "animate-pulse" : ""}`}
             />
           </button>
 
@@ -2298,20 +2299,22 @@ export default function SuperAdminDashboard() {
 
       {/* Loading State */}
       {loadingAuditData ? (
-        <div className="p-16 flex flex-col items-center justify-center space-y-3 text-slate-400">
-          <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
-          <p className="text-sm font-bold text-white">
-            Aggregating User Activity & Data Footprint...
-          </p>
-          <p className="text-xs text-slate-500">
-            Querying submissions, file deliverables, attendance clocks, and workflow logs since day 1.
-          </p>
+        <div className="p-6 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-20 bg-slate-800/60 rounded-2xl animate-pulse border border-slate-800" />
+            ))}
+          </div>
+          <div className="h-44 bg-slate-800/40 rounded-2xl animate-pulse border border-slate-800" />
         </div>
       ) : !auditData ? (
-        <div className="p-16 text-center text-slate-400">
-          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-2" />
-          <p className="text-sm font-bold text-white">No Generated Data Found</p>
-          <p className="text-xs text-slate-500 mt-1">Unable to compile activity logs for this user.</p>
+        <div className="p-6">
+          <CrownZeroState
+            compact
+            variant="search"
+            title="No Generated Data Found"
+            description="Unable to compile activity logs for this user."
+          />
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">

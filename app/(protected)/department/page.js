@@ -1,7 +1,7 @@
 "use client";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2 } from "lucide-react";
+import { PageHeaderSkeleton, MetricsCardsSkeleton, TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
 
 export default function DepartmentIndexPage() {
   const router = useRouter();
@@ -66,11 +66,12 @@ export default function DepartmentIndexPage() {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-      <Loader2 className="w-10 h-10 animate-spin text-indigo-600 mb-3" />
-      <p className="text-sm font-semibold text-slate-600">
-        Routing to your assigned department workspace...
-      </p>
+    <div className="min-h-screen bg-slate-50 p-6 sm:p-8">
+      <div className="max-w-7xl mx-auto space-y-6">
+        <PageHeaderSkeleton title="Routing to your assigned department workspace..." />
+        <MetricsCardsSkeleton count={4} />
+        <TableSkeleton rows={5} cols={5} />
+      </div>
     </div>
   );
 }

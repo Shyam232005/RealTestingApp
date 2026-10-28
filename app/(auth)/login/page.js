@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import {
   Building2, Mail, Lock, Phone, MessageSquare,
-  RefreshCw, Loader2, AlertCircle,
+  RefreshCw, Sparkles, AlertCircle,
   Crown, ShieldCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -283,7 +283,7 @@ export default function ProfessionalLogin() {
                         />
                         {!bizOtpSent && (
                           <button type="button" onClick={() => handleSendOtp("biz")} disabled={isOtpLoading} className="h-[52px] px-5 bg-indigo-50 text-indigo-700 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-indigo-100 transition-colors shrink-0 flex items-center justify-center min-w-[100px] cursor-pointer">
-                            {isOtpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Get OTP"}
+                            {isOtpLoading ? <Sparkles className="w-4 h-4 animate-pulse" /> : "Get OTP"}
                           </button>
                         )}
                       </div>
@@ -302,12 +302,12 @@ export default function ProfessionalLogin() {
                   disabled={isBizSubmitting || (bizMethod === "otp" && !bizOtpSent)} 
                   className="w-full py-4 bg-indigo-600 text-white text-sm font-black rounded-xl hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-600/20 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {isBizSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Secure Login"}
+                  {isBizSubmitting ? <Sparkles className="w-5 h-5 animate-pulse" /> : "Secure Login"}
                 </motion.button>
               </form>
 
               <div className="mt-8 text-center text-sm font-medium text-slate-500">
-                Don't have an account? <Link href="/signup" className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Create workspace</Link>
+                Don't have an account? <Link href="/signup" prefetch={true} className="font-bold text-indigo-600 hover:text-indigo-800 transition-colors">Create workspace</Link>
               </div>
             </div>
 
@@ -364,7 +364,7 @@ export default function ProfessionalLogin() {
                         />
                         {!caOtpSent && (
                           <button type="button" onClick={() => handleSendOtp("ca")} disabled={isOtpLoading} className="h-[52px] px-5 bg-slate-800/80 text-emerald-400 font-bold text-xs uppercase tracking-wider rounded-xl hover:bg-slate-700 transition-colors shrink-0 flex items-center justify-center min-w-[100px] border border-slate-700 cursor-pointer">
-                            {isOtpLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Get OTP"}
+                            {isOtpLoading ? <Sparkles className="w-4 h-4 animate-pulse" /> : "Get OTP"}
                           </button>
                         )}
                       </div>
@@ -383,12 +383,12 @@ export default function ProfessionalLogin() {
                   disabled={isCaSubmitting || (caMethod === "otp" && !caOtpSent)} 
                   className="w-full py-4 mt-auto bg-emerald-600 text-white text-sm font-black rounded-xl hover:bg-emerald-500 transition-all shadow-lg shadow-emerald-600/20 flex justify-center items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
                 >
-                  {isCaSubmitting ? <Loader2 className="w-5 h-5 animate-spin" /> : "Secure Login"}
+                  {isCaSubmitting ? <Sparkles className="w-5 h-5 animate-pulse" /> : "Secure Login"}
                 </motion.button>
               </form>
 
               <div className="mt-8 text-center text-sm font-medium text-slate-400">
-                Don't have an account? <Link href="/signup" className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Register firm</Link>
+                Don't have an account? <Link href="/signup" prefetch={true} className="font-bold text-emerald-400 hover:text-emerald-300 transition-colors">Register firm</Link>
               </div>
             </div>
 
