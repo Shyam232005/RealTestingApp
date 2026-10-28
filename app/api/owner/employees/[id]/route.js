@@ -5,6 +5,7 @@ import Attendance from "@/models/Attendance";
 import Leave from "@/models/Leave";
 import TaskAssignment from "@/models/TaskAssignment";
 import Submission from "@/models/Submission";
+import { createEmployeeNotification } from "@/lib/notifications";
 
 // PATCH /api/owner/employees/[id] - Transfer / Reassign employee to another department or role
 export async function PATCH(request, { params }) {
@@ -33,6 +34,7 @@ export async function PATCH(request, { params }) {
     const { department, postLevel, postTitle, branchId, branchName } = body;
 
     const previousDept = employee.department;
+    const previousPostLevel = employee.postLevel;
     const previousPost = employee.postTitle;
 
     // Validate and update Department if provided
@@ -72,6 +74,45 @@ export async function PATCH(request, { params }) {
     }
 
     await employee.save();
+
+    // Notify employee of department transfer or role update
+    const isDeptChanged = department && employee.department !== previousDept;
+    const isRoleChanged =
+      (postLevel && employee.postLevel !== previousPostLevel) ||
+      (postTitle && employee.postTitle !== previousPost);
+
+    if (isDeptChanged || isRoleChanged) {
+      const deptName = employee.department;
+      const roleName = employee.postTitle || employee.postLevel?.replace(/_/g, " ");
+      const notifTitle = isDeptChanged
+        ? `Department Transfer: You have been moved to ${deptName}`
+        : `Role & Position Updated to ${roleName}`;
+
+      const notifMessage = isDeptChanged
+        ? `Your Business Owner (${owner.name || "Owner"}) has officially transferred you from the ${previousDept} department to ${deptName} as ${roleName}. Your workspace and access clearance have been updated accordingly.`
+        : `Your position in the ${deptName} department has been updated to ${roleName}.`;
+
+      await createEmployeeNotification({
+        recipientId: employee._id,
+        companyId: owner._id,
+        senderId: owner._id,
+        senderName: owner.name || "Business Owner",
+        type: "DEPARTMENT_TRANSFER",
+        title: notifTitle,
+        message: notifMessage,
+        linkTab: "profile",
+        metadata: {
+          previousDepartment: previousDept,
+          newDepartment: employee.department,
+          previousPost: previousPost,
+          newPost: roleName,
+          previousPostLevel,
+          newPostLevel: employee.postLevel,
+          branchName: employee.branchName,
+          transferredAt: new Date().toISOString(),
+        },
+      });
+    }
 
     return NextResponse.json({
       success: true,

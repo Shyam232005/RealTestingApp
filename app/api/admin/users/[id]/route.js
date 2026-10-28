@@ -11,6 +11,7 @@ import Submission from "@/models/Submission";
 import TaskAssignment from "@/models/TaskAssignment";
 import Leave from "@/models/Leave";
 import { buildFullPlanDetails } from "@/lib/subscriptionHelper";
+import { createEmployeeNotification } from "@/lib/notifications";
 
 // GET /api/admin/users/[id] - Fetch comprehensive user profile details
 export async function GET(request, { params }) {
@@ -381,11 +382,39 @@ export async function PUT(request, { params }) {
 
     // Employee updates
     if (targetDoc.constructor.modelName === "Employee") {
+      const prevDept = targetDoc.department;
+      const prevPost = targetDoc.postTitle || targetDoc.postLevel;
+
       if (department) targetDoc.department = department.toUpperCase();
       if (postLevel) targetDoc.postLevel = postLevel;
       if (postTitle) targetDoc.postTitle = postTitle.trim();
       if (branchName) targetDoc.branchName = branchName.trim();
       if (approvalStatus) targetDoc.approvalStatus = approvalStatus;
+
+      const isDeptChanged = department && targetDoc.department !== prevDept;
+      const isPostChanged =
+        (postLevel && postLevel !== targetDoc.postLevel) ||
+        (postTitle && postTitle.trim() !== prevPost);
+
+      if (isDeptChanged || isPostChanged) {
+        await createEmployeeNotification({
+          recipientId: targetDoc._id,
+          companyId: targetDoc.companyId,
+          senderId: null,
+          senderName: "Platform Administration",
+          type: "DEPARTMENT_TRANSFER",
+          title: isDeptChanged
+            ? `Department Transfer: Moved to ${targetDoc.department}`
+            : `Position Updated to ${targetDoc.postTitle || targetDoc.postLevel}`,
+          message: `Your department assignment has been updated to ${targetDoc.department} as ${targetDoc.postTitle || targetDoc.postLevel?.replace(/_/g, " ")}.`,
+          linkTab: "profile",
+          metadata: {
+            previousDepartment: prevDept,
+            newDepartment: targetDoc.department,
+            transferredAt: new Date().toISOString(),
+          },
+        });
+      }
     }
 
     // Owner updates

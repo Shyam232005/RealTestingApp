@@ -180,8 +180,13 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
   // Feedback Banner
   const [feedback, setFeedback] = useState({ type: "", message: "" });
 
-  const isPunchedIn = Boolean(todayAttendance?.isPunchedIn);
-  const isShiftCompleted = Boolean(todayAttendance?.isCompleted);
+  // Self-Healing Attendance State: Evaluates explicitly from punch timestamps if boolean flag is missing
+  const isPunchedIn = Boolean(
+    todayAttendance?.isPunchedIn ?? (todayAttendance?.punchIn && !todayAttendance?.punchOut)
+  );
+  const isShiftCompleted = Boolean(
+    todayAttendance?.isCompleted ?? Boolean(todayAttendance?.punchOut)
+  );
 
   const requestedTab = searchParams ? searchParams.get("tab") : null;
 
@@ -409,7 +414,26 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
         body: JSON.stringify({ shiftType, punchInNotes: noteToSend }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Punch in failed");
+      if (!res.ok) {
+        // Self-Healing reconciliation: If backend indicates shift is already running
+        if (
+          data.attendance?.punchIn ||
+          data.error?.toLowerCase().includes("already actively punched in")
+        ) {
+          const activeRecord = data.attendance || previousAttendance || {};
+          setTodayAttendance({
+            ...activeRecord,
+            isPunchedIn: true,
+            isCompleted: false,
+          });
+          setFeedback({
+            type: "success",
+            message: "Active shift detected and restored! Your shift timer is running.",
+          });
+          return;
+        }
+        throw new Error(data.error || "Punch in failed");
+      }
 
       // Server reconciliation
       setTodayAttendance({
@@ -428,9 +452,21 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
         return [data.attendance, ...prev];
       });
     } catch (err) {
-      // Rollback on network failure
-      setTodayAttendance(previousAttendance);
-      setFeedback({ type: "error", message: err.message || "Punch in failed" });
+      if (err.message?.toLowerCase().includes("already actively punched in")) {
+        setTodayAttendance({
+          ...(previousAttendance || {}),
+          isPunchedIn: true,
+          isCompleted: false,
+        });
+        setFeedback({
+          type: "success",
+          message: "Active shift is running. You can punch out when your shift ends.",
+        });
+      } else {
+        // Rollback on network failure
+        setTodayAttendance(previousAttendance);
+        setFeedback({ type: "error", message: err.message || "Punch in failed" });
+      }
     } finally {
       setPunchingIn(false);
     }
@@ -1605,13 +1641,22 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                         <div
                           key={n._id}
                           className={`p-2.5 rounded-xl border text-xs space-y-1 ${
-                            n.isRead
+                            n.type === "DEPARTMENT_TRANSFER"
+                              ? "bg-purple-50/80 border-purple-200 text-purple-950 font-medium"
+                              : n.isRead
                               ? "bg-slate-50/50 border-slate-100 text-slate-600"
                               : "bg-indigo-50/40 border-indigo-100 text-slate-900"
                           }`}
                         >
                           <div className="flex items-center justify-between">
-                            <span className="font-extrabold text-[11px] truncate">{n.title}</span>
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              {n.type === "DEPARTMENT_TRANSFER" && (
+                                <span className="px-1.5 py-0.2 rounded bg-purple-600 text-white text-[8px] font-black uppercase shrink-0">
+                                  Transfer
+                                </span>
+                              )}
+                              <span className="font-extrabold text-[11px] truncate">{n.title}</span>
+                            </div>
                             <span className="text-[9px] text-slate-400">
                               {new Date(n.createdAt).toLocaleTimeString([], {
                                 hour: "2-digit",
@@ -1676,6 +1721,49 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
               className="px-3 py-1 rounded-xl bg-rose-600 text-white font-extrabold text-[11px] hover:bg-rose-700 cursor-pointer shrink-0 ml-3"
             >
               Clear URL Parameter
+            </button>
+          </div>
+        )}
+
+        {/* Department Transfer Real-Time Alert Banner */}
+        {notifications.some((n) => n.type === "DEPARTMENT_TRANSFER" && !n.isRead) && (
+          <div className="mx-6 sm:mx-8 mt-4 p-4 rounded-2xl bg-gradient-to-r from-purple-50 via-indigo-50 to-blue-50 border border-purple-200 text-purple-950 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-purple-600/30">
+                <Briefcase className="w-5 h-5" />
+              </div>
+              <div>
+                <p className="font-black text-slate-900 text-xs flex items-center gap-2">
+                  <span>Official Department Transfer Notice</span>
+                  <span className="px-2 py-0.2 rounded-full bg-purple-200 text-purple-800 text-[9px] font-black uppercase">
+                    New Assignment
+                  </span>
+                </p>
+                <p className="text-[11px] text-slate-600 mt-0.5 leading-relaxed">
+                  {notifications.find((n) => n.type === "DEPARTMENT_TRANSFER" && !n.isRead)?.message ||
+                    `You have been transferred to the ${employee?.department} department as ${employee?.postTitle || employee?.postLevel}.`}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                const transferNotif = notifications.find((n) => n.type === "DEPARTMENT_TRANSFER" && !n.isRead);
+                if (transferNotif) {
+                  fetch("/api/employee/notifications", {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ notificationId: transferNotif._id }),
+                  }).catch(() => {});
+                  setNotifications((prev) =>
+                    prev.map((n) => (n._id === transferNotif._id ? { ...n, isRead: true } : n))
+                  );
+                  setUnreadNotificationsCount((prev) => Math.max(0, prev - 1));
+                }
+              }}
+              className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-extrabold text-[11px] transition-colors cursor-pointer shrink-0"
+            >
+              Acknowledge & Mark Read
             </button>
           </div>
         )}

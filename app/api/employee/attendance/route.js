@@ -20,11 +20,20 @@ export async function GET() {
 
     const { employee } = auth;
     const todayStr = getTodayString();
+    const todayUtcStr = new Date().toISOString().split("T")[0];
 
-    const todayRecord = await Attendance.findOne({
+    // Find any active running shift first, then today's record
+    let todayRecord = await Attendance.findOne({
       employeeId: employee._id,
-      date: todayStr,
-    });
+      punchOut: null,
+    }).sort({ punchIn: -1 });
+
+    if (!todayRecord) {
+      todayRecord = await Attendance.findOne({
+        employeeId: employee._id,
+        $or: [{ date: todayStr }, { date: todayUtcStr }],
+      }).sort({ punchIn: -1 });
+    }
 
     const pastRecords = await Attendance.find({
       employeeId: employee._id,
@@ -72,23 +81,47 @@ export async function POST(request) {
 
     const { employee, owner } = auth;
     const todayStr = getTodayString();
+    const todayUtcStr = new Date().toISOString().split("T")[0];
 
     const body = await request.json().catch(() => ({}));
     const { shiftType, punchInNotes } = body;
     const chosenShift = shiftType || "GENERAL";
     const chosenNotes = (punchInNotes || "").trim();
 
-    // Check if attendance document already exists for today
-    const existing = await Attendance.findOne({
+    // Check if an open running shift already exists first, then today's record
+    let existing = await Attendance.findOne({
       employeeId: employee._id,
-      date: todayStr,
-    });
+      punchOut: null,
+    }).sort({ punchIn: -1 });
+
+    if (!existing) {
+      existing = await Attendance.findOne({
+        employeeId: employee._id,
+        $or: [{ date: todayStr }, { date: todayUtcStr }],
+      }).sort({ punchIn: -1 });
+    }
 
     if (existing) {
-      // If currently active (not punched out), don't allow duplicate active punch-in
+      // If currently active (not punched out), don't allow duplicate active punch-in, but reconcile state
       if (!existing.punchOut) {
         return NextResponse.json(
-          { error: "You are already actively punched in for this shift.", attendance: existing },
+          {
+            error: "You are already actively punched in for this shift.",
+            attendance: {
+              id: existing._id,
+              date: existing.date,
+              punchIn: existing.punchIn,
+              punchOut: existing.punchOut,
+              durationMinutes: existing.durationMinutes,
+              status: existing.status,
+              shiftType: existing.shiftType,
+              punchInNotes: existing.punchInNotes,
+              punchOutNotes: existing.punchOutNotes,
+              isPunchedIn: true,
+              isCompleted: false,
+              sessions: existing.sessions || [],
+            },
+          },
           { status: 400 }
         );
       }
@@ -251,15 +284,24 @@ export async function PUT(request) {
 
     const { employee } = auth;
     const todayStr = getTodayString();
+    const todayUtcStr = new Date().toISOString().split("T")[0];
 
-    const record = await Attendance.findOne({
+    // Find any open running shift first (punchOut: null), then check by date
+    let record = await Attendance.findOne({
       employeeId: employee._id,
-      date: todayStr,
-    });
+      punchOut: null,
+    }).sort({ punchIn: -1 });
+
+    if (!record) {
+      record = await Attendance.findOne({
+        employeeId: employee._id,
+        $or: [{ date: todayStr }, { date: todayUtcStr }],
+      }).sort({ punchIn: -1 });
+    }
 
     if (!record) {
       return NextResponse.json(
-        { error: "No punch-in found for today. You cannot punch out without punching in first." },
+        { error: "No punch-in found. You cannot punch out without punching in first." },
         { status: 400 }
       );
     }

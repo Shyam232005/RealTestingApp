@@ -76,14 +76,17 @@ export async function GET(request) {
       });
     }
 
-    // Today's date string YYYY-MM-DD
-    const todayStr = new Date().toISOString().split("T")[0];
+    // Today's date string YYYY-MM-DD in both local server time and UTC
+    const d = new Date();
+    const todayLocalStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    const todayUtcStr = d.toISOString().split("T")[0];
     const myRank = getHierarchyRank(employee.postLevel);
     const isUpper = isUpperRole(employee.postLevel);
 
     // Single-Roundtrip Concurrent Pipeline (all lean, multi-tenant scoped)
     const [
-      todayAttDoc,
+      activeOpenShift,
+      todayDatedShift,
       attendanceHistory,
       leavesList,
       submissionsList,
@@ -97,11 +100,21 @@ export async function GET(request) {
       notificationsList,
       unreadNotificationsCount,
     ] = await Promise.all([
-      // 1. Today's attendance session
+      // 1. Any active open shift (not punched out) - highest priority
       Attendance.findOne({
         employeeId,
-        date: todayStr,
-      }).lean(),
+        punchOut: null,
+      })
+        .sort({ punchIn: -1 })
+        .lean(),
+
+      // 1b. Today's attendance session (if shift already completed today)
+      Attendance.findOne({
+        employeeId,
+        $or: [{ date: todayLocalStr }, { date: todayUtcStr }],
+      })
+        .sort({ punchIn: -1 })
+        .lean(),
 
       // 2. Attendance history (last 30 records)
       Attendance.find({
@@ -206,12 +219,16 @@ export async function GET(request) {
       }),
     ]);
 
-    // Format today's attendance status
-    const todayAttendance = todayAttDoc
+    // Format today's attendance status: prioritize running open shift
+    const resolvedAttDoc = activeOpenShift || todayDatedShift;
+    const isPunchedIn = Boolean(resolvedAttDoc?.punchIn && !resolvedAttDoc?.punchOut);
+    const isCompleted = Boolean(resolvedAttDoc?.punchOut);
+    const todayAttendance = resolvedAttDoc
       ? {
-          ...todayAttDoc,
-          isPunchedIn: Boolean(todayAttDoc.isPunchedIn),
-          isCompleted: Boolean(todayAttDoc.isCompleted),
+          ...resolvedAttDoc,
+          id: resolvedAttDoc._id.toString(),
+          isPunchedIn,
+          isCompleted,
         }
       : null;
 

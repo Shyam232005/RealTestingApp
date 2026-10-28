@@ -50,6 +50,7 @@ const NotificationSchema = new mongoose.Schema(
         "TASK_REVISION",
         "PO_REQUEST",
         "SYSTEM",
+        "DEPARTMENT_TRANSFER",
       ],
       required: true,
       index: true,
