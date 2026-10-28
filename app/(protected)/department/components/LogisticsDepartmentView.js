@@ -18,8 +18,16 @@ import {
   ArrowRight,
   ClipboardList,
   Upload,
+  ScanLine,
+  Eye,
+  Thermometer,
+  AlertTriangle,
+  Receipt,
+  ShieldCheck,
 } from "lucide-react";
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
+import GrnOcrScannerModal from "./GrnOcrScannerModal";
+import GrnDetailsModal from "./GrnDetailsModal";
 
 export default function LogisticsDepartmentView({
   tabId = "logistics_dashboard",
@@ -44,13 +52,7 @@ export default function LogisticsDepartmentView({
 
   const [grnList, setGrnList] = useState([]);
   const [showGrnModal, setShowGrnModal] = useState(false);
-  const [grnForm, setGrnForm] = useState({
-    poRef: "",
-    vendorName: "",
-    receivedQty: "",
-    dockNumber: "Dock-1",
-    inspectedBy: employee?.name || "Dock Assistant",
-  });
+  const [selectedGrnDossier, setSelectedGrnDossier] = useState(null);
 
   const [deliveryChallans, setDeliveryChallans] = useState([]);
   const [showChallanModal, setShowChallanModal] = useState(false);
@@ -84,24 +86,51 @@ export default function LogisticsDepartmentView({
     onNotify("Purchase Order (PO) issued to vendor!");
   };
 
-  const handleCreateGrn = (e) => {
-    e.preventDefault();
+  // Automatic AI OCR GRN Admission Handler (Zero manual drafting)
+  const handleConfirmGrnFromOcr = (extractedData) => {
+    const meta = extractedData.documentMetadata || {};
+    const vendor = extractedData.vendorInfo || {};
+    const lineItems = extractedData.lineItems || [];
+    const transit = extractedData.logisticsTransit || {};
+    const fin = extractedData.financialsBilling || {};
+    const markers = extractedData.edgeCasesMarkers || {};
+
+    const totalQty = lineItems.reduce(
+      (sum, item) => sum + (Number(item.quantityInvoiced) || 0),
+      0
+    );
+
     const newGrn = {
-      id: `GRN-${Date.now().toString().slice(-5)}`,
-      ...grnForm,
+      id: meta.documentNumber || `GRN-${Date.now().toString().slice(-5)}`,
+      poRef: meta.referencePoNumber || "PO-DIRECT",
+      vendorName: vendor.supplierName || "Direct Vendor",
+      vendorGstin: vendor.supplierTaxId || "N/A",
+      receivedQty: totalQty || 1,
+      itemsCount: lineItems.length,
+      dockNumber: vendor.destinationWarehouseId || "Dock 1",
+      inspectedBy: employee?.name || "Dock Assistant",
       status: "ACCEPTED_INTO_STOCK",
       receivedAt: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+      date: meta.deliveryDate || new Date().toISOString().split("T")[0],
+      vehicleNumber: transit.vehicleNumber || "N/A",
+      transporter: transit.transporterName || "Direct Delivery",
+      grandTotal: fin.grandTotal || 0,
+      hasTemperature: !!markers.temperatureReading && !markers.temperatureReading.includes("Ambient"),
+      temperature: markers.temperatureReading,
+      hasQcStamp: !!markers.stampDetected,
+      qcStampText: markers.stampDetails,
+      hasHandwrittenNote: !!markers.handwrittenNotesPresent,
+      handwrittenNoteText: markers.handwrittenNotesText,
+      ocrData: extractedData,
     };
+
     setGrnList([newGrn, ...grnList]);
     setShowGrnModal(false);
-    setGrnForm({
-      poRef: "",
-      vendorName: "",
-      receivedQty: "",
-      dockNumber: "Dock-1",
-      inspectedBy: employee?.name || "Dock Assistant",
+    onNotify({
+      type: "SUCCESS",
+      title: "GRN Booked via AI OCR Scanner",
+      message: `Inward delivery #${newGrn.id} from ${newGrn.vendorName} admitted into inventory ledger.`,
     });
-    onNotify("Goods Receipt Note (GRN) booked into warehouse ledger!");
   };
 
   const handleCreateChallan = (e) => {
@@ -368,39 +397,100 @@ export default function LogisticsDepartmentView({
          ========================================================================= */}
       {tabId === "warehouse_stock" && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-900 uppercase">Warehouse Inventory & Goods Receipts (GRN)</h3>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-sm font-black text-slate-900 uppercase">Warehouse Inventory & Goods Receipts (GRN)</h3>
+                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-800 border border-amber-300">
+                  AI OCR Scanner Enabled
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Logistics Assistant: Automatically scan inward photos & PDFs directly into inventory ledger without manual entry.
+              </p>
+            </div>
             <button
               onClick={() => setShowGrnModal(true)}
-              className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs shadow-sm flex items-center gap-2 cursor-pointer transition-all shrink-0"
+              title="Automatically extract all 6 data categories from photo or PDF"
             >
-              <Plus className="w-3.5 h-3.5" />
-              + Draft Goods Receipt (GRN)
+              <ScanLine className="w-4 h-4" />
+              <span>📸 AI OCR Scanner: Draft Goods Receipt (GRN)</span>
             </button>
           </div>
 
           <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
             {grnList.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <Warehouse className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-semibold">No Goods Receipt Notes (GRN) logged today.</p>
-                <p className="text-[11px] text-slate-400">Incoming deliveries at loading dock are verified and admitted into inventory here.</p>
+              <div className="py-12 text-center text-slate-400 space-y-3">
+                <Warehouse className="w-12 h-12 mx-auto text-slate-300" />
+                <div>
+                  <p className="text-sm font-bold text-slate-700">No Goods Receipt Notes (GRN) logged today</p>
+                  <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
+                    Incoming deliveries at loading dock are automatically extracted from vendor photos or PDF slips and admitted into inventory.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowGrnModal(true)}
+                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs shadow-xs inline-flex items-center gap-1.5 cursor-pointer"
+                >
+                  <ScanLine className="w-3.5 h-3.5" />
+                  Scan Physical Document (Photo / PDF)
+                </button>
               </div>
             ) : (
               <div className="space-y-3">
                 {grnList.map((g) => (
-                  <div key={g.id} className="p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900">{g.id} • PO: {g.poRef}</span>
+                  <div key={g.id} className="p-4 rounded-2xl border border-slate-200 bg-white hover:border-amber-300 transition-colors flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-mono font-black text-xs text-slate-900">{g.id}</span>
+                        <span className="text-[10px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded">
+                          PO: {g.poRef}
+                        </span>
                         <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
                           {g.status}
                         </span>
+                        <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3 text-blue-600" />
+                          AI OCR Verified
+                        </span>
+                        {g.hasTemperature && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 text-cyan-800 border border-cyan-200 flex items-center gap-1">
+                            <Thermometer className="w-3 h-3 text-cyan-600" />
+                            {g.temperature}
+                          </span>
+                        )}
+                        {g.hasQcStamp && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
+                            QC Passed
+                          </span>
+                        )}
+                        {g.hasHandwrittenNote && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-amber-100 text-amber-900 border border-amber-300 flex items-center gap-1">
+                            <AlertTriangle className="w-3 h-3 text-amber-700" />
+                            Review Flagged
+                          </span>
+                        )}
                       </div>
-                      <p className="text-xs text-slate-700 mt-1">Vendor: {g.vendorName} • Qty Received: {g.receivedQty}</p>
-                      <p className="text-[10px] text-slate-400">Dock: {g.dockNumber} • Checked by: {g.inspectedBy}</p>
+                      <p className="text-xs font-semibold text-slate-800">
+                        Vendor: <strong className="text-slate-900">{g.vendorName}</strong> {g.vendorGstin !== "N/A" && `(GSTIN: ${g.vendorGstin})`}
+                      </p>
+                      <p className="text-[11px] text-slate-500">
+                        {g.itemsCount ? `${g.itemsCount} Line Items • ` : ""}Total Qty: <strong className="text-slate-700 font-mono">{g.receivedQty}</strong> • Vehicle: <strong className="font-mono text-slate-700">{g.vehicleNumber}</strong> • Dock: {g.dockNumber} • Checked by: {g.inspectedBy}
+                      </p>
                     </div>
-                    <span className="text-xs font-mono font-bold text-emerald-700">Stock Updated</span>
+
+                    <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
+                      <button
+                        type="button"
+                        onClick={() => setSelectedGrnDossier(g)}
+                        className="px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                      >
+                        <Eye className="w-3.5 h-3.5 text-slate-500" />
+                        View Full OCR Dossier
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -532,77 +622,21 @@ export default function LogisticsDepartmentView({
         </div>
       )}
 
-      {/* 2. GRN Modal */}
-      {showGrnModal && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-xl space-y-4">
-            <h3 className="text-base font-black text-slate-900">Draft Goods Receipt Note (GRN)</h3>
-            <form onSubmit={handleCreateGrn} className="space-y-3">
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">PO Reference Number</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. PO-89012"
-                  value={grnForm.poRef}
-                  onChange={(e) => setGrnForm({ ...grnForm, poRef: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Supplier / Vendor</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Reliable Polymers Corp"
-                  value={grnForm.vendorName}
-                  onChange={(e) => setGrnForm({ ...grnForm, vendorName: e.target.value })}
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Received Qty</label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="e.g. 2000"
-                    value={grnForm.receivedQty}
-                    onChange={(e) => setGrnForm({ ...grnForm, receivedQty: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[11px] font-bold text-slate-700 uppercase mb-1">Unload Dock</label>
-                  <select
-                    value={grnForm.dockNumber}
-                    onChange={(e) => setGrnForm({ ...grnForm, dockNumber: e.target.value })}
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-700 focus:outline-hidden"
-                  >
-                    <option value="Dock-1">Dock 1 (Heavy Freight)</option>
-                    <option value="Dock-2">Dock 2 (Light Vans)</option>
-                  </select>
-                </div>
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowGrnModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50 cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-black text-xs cursor-pointer shadow-xs"
-                >
-                  Sign GRN & Admit Stock
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* 2. Automatic AI OCR GRN Scanner Modal (Zero Manual Entry) */}
+      <GrnOcrScannerModal
+        isOpen={showGrnModal}
+        onClose={() => setShowGrnModal(false)}
+        onConfirmGrn={handleConfirmGrnFromOcr}
+        employee={employee}
+      />
+
+      {/* 2b. Full Scanned OCR GRN Dossier Modal */}
+      <GrnDetailsModal
+        isOpen={!!selectedGrnDossier}
+        onClose={() => setSelectedGrnDossier(null)}
+        grn={selectedGrnDossier}
+        company={company}
+      />
 
       {/* 3. Delivery Challan Modal */}
       {showChallanModal && (
