@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { DEPARTMENT_CONFIGS, TAB_ICON_MAP } from "./departmentConfig";
 import OperationsDepartmentView from "./OperationsDepartmentView";
 import SalesDepartmentView from "./SalesDepartmentView";
@@ -27,6 +27,7 @@ import {
   Trash2,
   ChevronRight,
   ShieldCheck,
+  ShieldAlert,
   Sparkles,
   ArrowRight,
   Loader2,
@@ -51,11 +52,13 @@ import {
 
 export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   // Core Navigation State
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("attendance"); // attendance | desk | assign-work | leaves | submissions | profile
   const [searchQuery, setSearchQuery] = useState("");
+  const [departmentMismatch, setDepartmentMismatch] = useState(null);
 
   // Employee & Company State
   const [employee, setEmployee] = useState(null);
@@ -179,8 +182,35 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
 
   const isPunchedIn = Boolean(todayAttendance?.isPunchedIn);
   const isShiftCompleted = Boolean(todayAttendance?.isCompleted);
-  // Shift Gating: must punch in to access other tabs
-  const effectiveTab = isPunchedIn ? activeTab : "attendance";
+
+  const requestedTab = searchParams ? searchParams.get("tab") : null;
+
+  // Determine if requested URL tab violates role or hierarchy clearance
+  const isUrlTabForbidden = useMemo(() => {
+    if (!requestedTab || !employee) return null;
+    if (requestedTab === "assign-work" && !hierarchyData.isUpperRole) {
+      return `Clearance Denied: Work Delegation (Assign Work) is reserved for supervisory roles (Tier 2 and above). Your current rank (${employee?.postLevel?.replace(/_/g, " ")}) cannot access this module.`;
+    }
+    const targetDeptTab = activeDeptConfig?.tabs?.find((t) => t.id === requestedTab);
+    if (targetDeptTab && !targetDeptTab.allowedLevels.includes(employee.postLevel)) {
+      return `Clearance Denied: The "${targetDeptTab.title}" module is restricted to [${targetDeptTab.allowedLevels.map((l) => l.replace(/_/g, " ")).join(", ")}]. Your current rank is ${employee.postLevel?.replace(/_/g, " ")}.`;
+    }
+    return null;
+  }, [requestedTab, employee, hierarchyData.isUpperRole, activeDeptConfig]);
+
+  // Resolved active tab: respects attendance punch-in requirement and security clearance
+  const effectiveTab = useMemo(() => {
+    if (!isPunchedIn) return "attendance";
+    if (isUrlTabForbidden) return "attendance";
+    if (requestedTab) {
+      const commonTabs = ["attendance", "desk", "assign-work", "leaves", "submissions", "profile"];
+      const isDeptTab = activeDeptConfig?.tabs?.some((t) => t.id === requestedTab);
+      if (commonTabs.includes(requestedTab) || isDeptTab) {
+        return requestedTab;
+      }
+    }
+    return activeTab;
+  }, [isPunchedIn, isUrlTabForbidden, requestedTab, activeTab, activeDeptConfig]);
 
   // Live Timer for On-Duty Shift
   const [now, setNow] = useState(0);
@@ -218,15 +248,43 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
 
     async function loadWorkspaceData() {
       try {
-        // High-Performance Consolidated Fetch: 1 single HTTP roundtrip instead of 9 separate calls
-        const res = await fetch("/api/employee/workspace-data");
+        const targetDept = (currentDepartment || "OPERATIONS").toUpperCase();
+        // High-Performance Consolidated Fetch with Strict Department Validation
+        const res = await fetch(`/api/employee/workspace-data?department=${targetDept}`);
         if (res.status === 401) {
           router.push("/login");
           return;
         }
+
         const data = await res.json();
         if (isCancelled) return;
+
+        // Security Barrier: Server rejected department access
+        if (res.status === 403 && data.isDepartmentMismatch) {
+          setDepartmentMismatch({
+            attempted: targetDept,
+            authorized: data.authorizedDepartment || "OPERATIONS",
+            message: data.error,
+          });
+          setLoading(false);
+          return;
+        }
+
         if (!res.ok) throw new Error(data.error || "Failed to load workspace data");
+
+        // Client-side Double Check for Department Consistency
+        if (
+          data.employee?.department &&
+          data.employee.department.toUpperCase() !== targetDept
+        ) {
+          setDepartmentMismatch({
+            attempted: targetDept,
+            authorized: data.employee.department.toUpperCase(),
+            message: `You are officially registered in the ${data.employee.department.toUpperCase()} department. You cannot access or view ${targetDept} workspace unless transferred by the Business Owner.`,
+          });
+          setLoading(false);
+          return;
+        }
 
         // Protection Gate: If employee is not yet approved
         if (!data.isApproved) {
@@ -286,9 +344,9 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
     return () => {
       isCancelled = true;
     };
-  }, [router, refreshTrigger]);
+  }, [router, refreshTrigger, currentDepartment]);
 
-  // TAB CLICK HANDLER: Gates other tabs unless actively punched in
+  // TAB CLICK HANDLER: Gates other tabs unless actively punched in & validates role clearance
   const handleTabClick = (tabId) => {
     if (!isPunchedIn && tabId !== "attendance") {
       setFeedback({
@@ -298,7 +356,28 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
       });
       return;
     }
+
+    // Work Delegation Role Gate
+    if (tabId === "assign-work" && !hierarchyData.isUpperRole) {
+      setFeedback({
+        type: "error",
+        message: `Clearance Denied: Work Delegation is reserved for supervisory roles. Your current rank (${employee?.postLevel?.replace(/_/g, " ")}) does not have permission.`,
+      });
+      return;
+    }
+
+    // Department Module Allowed Levels Gate
+    const targetDeptTab = activeDeptConfig.tabs.find((t) => t.id === tabId);
+    if (targetDeptTab && !targetDeptTab.allowedLevels.includes(employee?.postLevel)) {
+      setFeedback({
+        type: "error",
+        message: `Clearance Denied: The "${targetDeptTab.title}" module is restricted to higher clearance levels.`,
+      });
+      return;
+    }
+
     setActiveTab(tabId);
+    router.replace(`/department/${currentDepartment.toLowerCase()}?tab=${tabId}`, { scroll: false });
   };
 
   // PUNCH IN HANDLER: Sub-millisecond (0ms) Optimistic UI with background sync
@@ -1010,6 +1089,53 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
     );
   }
 
+  // Security Barrier: Cross-department access violation (URL manipulation prevention)
+  if (departmentMismatch) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 text-center text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-radial from-rose-900/20 via-transparent to-transparent pointer-events-none" />
+        <div className="relative z-10 max-w-lg w-full bg-slate-900/90 border border-slate-800 rounded-3xl p-8 sm:p-10 shadow-2xl backdrop-blur-md">
+          <div className="h-20 w-20 mx-auto rounded-3xl bg-rose-500/10 border border-rose-500/30 text-rose-500 flex items-center justify-center mb-5 shadow-inner">
+            <ShieldAlert className="w-10 h-10" />
+          </div>
+          <span className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 inline-block mb-3">
+            Department Isolation Protocol
+          </span>
+          <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            Access Blocked: Department Restriction
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-400 mt-3 leading-relaxed">
+            You attempted to view the <span className="font-extrabold text-amber-400 uppercase tracking-wide">{departmentMismatch.attempted}</span> workspace, but your registered department is <span className="font-extrabold text-emerald-400 uppercase tracking-wide">{departmentMismatch.authorized}</span>.
+          </p>
+          <div className="p-4 rounded-2xl bg-slate-800/80 border border-slate-700/80 text-xs text-slate-300 mt-5 text-left space-y-1">
+            <p className="font-bold text-slate-200 flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5 text-amber-400" />
+              <span>Security Restriction</span>
+            </p>
+            <p className="text-slate-400 text-[11px] leading-relaxed">
+              Employees can only access their officially assigned department. Cross-department exploration via URL manipulation is locked. To change departments, your Business Owner must officially transfer you in the Staff &amp; Team directory.
+            </p>
+          </div>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              onClick={() => router.replace(`/department/${departmentMismatch.authorized.toLowerCase()}`)}
+              className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-lg shadow-indigo-600/30 transition-all cursor-pointer flex items-center justify-center gap-2"
+            >
+              <span>Return to {departmentMismatch.authorized} Workspace</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+            <button
+              onClick={handleLogout}
+              className="w-full sm:w-auto px-5 py-3 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold text-xs cursor-pointer border border-slate-700"
+            >
+              Log Out
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // Strict Protection Gate: Unapproved employees NEVER see department content
   if (!employee?.isApproved) {
     return (
@@ -1534,6 +1660,22 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
               className="text-xs font-bold underline cursor-pointer"
             >
               Dismiss
+            </button>
+          </div>
+        )}
+
+        {/* URL Role Clearance Restriction Banner */}
+        {isUrlTabForbidden && (
+          <div className="mx-6 sm:mx-8 mt-4 p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between shadow-2xs">
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-5 h-5 text-rose-600 shrink-0" />
+              <span className="font-semibold leading-relaxed">{isUrlTabForbidden}</span>
+            </div>
+            <button
+              onClick={() => router.replace(`/department/${currentDepartment.toLowerCase()}`, { scroll: false })}
+              className="px-3 py-1 rounded-xl bg-rose-600 text-white font-extrabold text-[11px] hover:bg-rose-700 cursor-pointer shrink-0 ml-3"
+            >
+              Clear URL Parameter
             </button>
           </div>
         )}
@@ -2454,6 +2596,28 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
             </div>
           )}
 
+          {/* Security Clearance Fallback: Assign Work Restricted for Lower Ranks */}
+          {effectiveTab === "assign-work" && !hierarchyData.isUpperRole && (
+            <div className="rounded-3xl bg-white border border-rose-200 p-8 text-center space-y-4 shadow-xs">
+              <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+                <ShieldAlert className="w-7 h-7 text-rose-500" />
+              </div>
+              <div>
+                <h3 className="text-lg font-black text-slate-900">Work Delegation Access Restricted</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1 leading-relaxed">
+                  Assigning work is strictly reserved for supervisory ranks (Coordinator, Analyst, Supervisor, Manager, Director, Chief Officer). 
+                  Your current rank is <strong>{employee?.postLevel?.replace(/_/g, " ")}</strong>.
+                </p>
+              </div>
+              <button
+                onClick={() => handleTabClick("attendance")}
+                className="px-5 py-2.5 rounded-xl bg-slate-900 text-white font-bold text-xs hover:bg-slate-800 cursor-pointer"
+              >
+                Return to Attendance
+              </button>
+            </div>
+          )}
+
           {/* =========================================================================
               TAB 4: LEAVES (Common Tab with Corporate Hierarchy Routing)
              ========================================================================= */}
@@ -2806,7 +2970,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
             !allowedDeptTabs.some((t) => t.id === effectiveTab) && (
               <div className="rounded-3xl bg-white border border-rose-200 p-8 text-center space-y-4">
                 <div className="w-14 h-14 mx-auto rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
-                  <ShieldCheck className="w-7 h-7 text-rose-500" />
+                  <ShieldAlert className="w-7 h-7 text-rose-500" />
                 </div>
                 <div>
                   <h3 className="text-lg font-black text-slate-900">Access Restricted</h3>

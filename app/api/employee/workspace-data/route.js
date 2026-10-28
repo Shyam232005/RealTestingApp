@@ -14,7 +14,7 @@ import {
 
 // GET /api/employee/workspace-data
 // High-performance consolidated endpoint: replaces 9 separate HTTP calls with a single lean query roundtrip
-export async function GET() {
+export async function GET(request) {
   try {
     const auth = await getAuthenticatedEmployee({ requireApproved: false });
     if (auth.error) {
@@ -23,12 +23,26 @@ export async function GET() {
 
     const { employee, owner, organization } = auth;
 
-    // Strict Tenant Boundary Definition
+    // Strict Tenant & Department Boundary Definition
     const companyId = owner._id;
     const branchId = employee.branchId || "branch-1";
-    const department = employee.department || "OPERATIONS";
+    const department = (employee.department || "OPERATIONS").toUpperCase();
     const employeeId = employee._id;
     const isApproved = employee.approvalStatus === "APPROVED";
+
+    // Strict Department Isolation Validation
+    const { searchParams } = new URL(request.url);
+    const requestedDept = searchParams.get("department");
+    if (requestedDept && requestedDept.toUpperCase() !== department) {
+      return NextResponse.json(
+        {
+          error: `Department Access Denied: You are officially registered in the ${department} department. You cannot access or view ${requestedDept.toUpperCase()} data unless transferred by the Business Owner.`,
+          authorizedDepartment: department,
+          isDepartmentMismatch: true,
+        },
+        { status: 403 }
+      );
+    }
 
     const companyData = {
       id: owner._id.toString(),

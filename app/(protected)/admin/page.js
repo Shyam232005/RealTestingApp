@@ -46,11 +46,13 @@ import {
   Boxes,
   FileCheck,
   Calendar,
+  Flame,
 } from "lucide-react";
 import { performClientLogout } from "@/lib/clientLogout";
 import UserProfileModal from "./components/UserProfileModal";
 import PlansTab from "./components/PlansTab";
 import SubscriptionEditModal from "./components/SubscriptionEditModal";
+import SuperClearDatabaseModal from "./components/SuperClearDatabaseModal";
 
 const USER_ROLES_FILTER = [
   { id: "ALL", label: "All Users" },
@@ -163,6 +165,9 @@ export default function SuperAdminDashboard() {
   const [loadingSubscriptions, setLoadingSubscriptions] = useState(true);
   const [editingSubscriptionOwner, setEditingSubscriptionOwner] = useState(null);
   const [isSavingSubscription, setIsSavingSubscription] = useState(false);
+
+  // Super Clear Database Modal State
+  const [showClearDbModal, setShowClearDbModal] = useState(false);
 
   // 1. Fetch Metrics
   const fetchMetrics = async () => {
@@ -570,6 +575,17 @@ export default function SuperAdminDashboard() {
             />
           </button>
 
+          {/* Super Clear Entire Database Button */}
+          <button
+            type="button"
+            onClick={() => setShowClearDbModal(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-rose-600/20 hover:bg-rose-600/30 text-rose-300 hover:text-white border border-rose-500/30 text-xs font-bold transition-all cursor-pointer shadow-sm shadow-rose-950/20"
+            title="Super Clear Entire Database (Factory Reset)"
+          >
+            <Flame className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Super Clear DB</span>
+          </button>
+
           <button
             type="button"
             onClick={performClientLogout}
@@ -872,6 +888,18 @@ export default function SuperAdminDashboard() {
                         <span>Export Users Registry (JSON)</span>
                       </div>
                       <ChevronRight className="w-4 h-4 text-slate-500" />
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setShowClearDbModal(true)}
+                      className="w-full p-3 rounded-2xl bg-rose-950/40 hover:bg-rose-900/60 border border-rose-500/30 text-rose-200 text-xs font-bold transition-all flex items-center justify-between cursor-pointer shadow-sm shadow-rose-950/40"
+                    >
+                      <div className="flex items-center gap-2">
+                        <Flame className="w-4 h-4 text-rose-400" />
+                        <span>Super Clear Entire Database</span>
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-rose-400" />
                     </button>
                   </div>
                 </div>
@@ -1494,6 +1522,39 @@ export default function SuperAdminDashboard() {
                   <span className="text-slate-400 block text-[10px]">Phone Number:</span>
                   <span className="text-white font-bold">9723386344</span>
                 </div>
+              </div>
+            </div>
+
+            {/* Danger Zone: Super Clear Database */}
+            <div className="p-6 rounded-3xl bg-gradient-to-r from-rose-950/40 via-red-950/30 to-slate-900 border border-rose-500/40 shadow-xl space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-rose-600/20 border border-rose-500/40 text-rose-400 flex items-center justify-center font-black">
+                    <Flame className="w-6 h-6 text-rose-500 animate-pulse" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h4 className="text-base font-black text-white">
+                        Super Database Purge Engine (Factory Reset)
+                      </h4>
+                      <span className="px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[9px] font-black uppercase tracking-wider">
+                        Irreversible
+                      </span>
+                    </div>
+                    <p className="text-xs text-slate-400 mt-0.5 max-w-xl">
+                      Permanently wipe all records across all collections in MongoDB to 0. Protected by root authorization key.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowClearDbModal(true)}
+                  className="px-5 py-3 rounded-2xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white font-black text-xs transition-all shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+                >
+                  <Flame className="w-4 h-4" />
+                  <span>Super Clear Database to 0</span>
+                </button>
               </div>
             </div>
           </div>
@@ -2847,6 +2908,22 @@ export default function SuperAdminDashboard() {
           </div>
         </div>
       )}
+
+      {/* =========================================================================
+          MODAL 6: SUPER CLEAR DATABASE (FACTORY RESET)
+         ========================================================================= */}
+      <SuperClearDatabaseModal
+        isOpen={showClearDbModal}
+        onClose={() => setShowClearDbModal(false)}
+        onSuccess={(result) => {
+          setFeedbackMsg(
+            `Database Cleared! Purged ${result.totalDeletedCount || 0} records across ${result.collectionsWipedCount || 0} collections to 0.`
+          );
+          fetchMetrics();
+          fetchUsers();
+          fetchOrganizations();
+        }}
+      />
     </div>
   );
 }
