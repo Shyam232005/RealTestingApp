@@ -286,6 +286,11 @@ export async function POST(request) {
       lowStockThresholdPercent,
       inventoryValuationMethod,
       mcaAuditLog,
+      posCounters,
+      posStoreType,
+      hasBarcodeBilling,
+      dailyFootfallTarget,
+      walkinCustomerLedger,
     } = body;
 
     // Strict Validations with Min & Max Limits
@@ -395,6 +400,17 @@ export async function POST(request) {
       );
     }
 
+    // Retail & FMCG Specific POS / Counter validation
+    if (industry && industry.trim() === "Retail & FMCG") {
+      const counters = Number(posCounters);
+      if (posCounters !== undefined && (isNaN(counters) || counters < 1 || counters > 1000)) {
+        return NextResponse.json(
+          { error: "Retail & FMCG organizations must specify at least 1 active POS/billing counter." },
+          { status: 400 }
+        );
+      }
+    }
+
     // Format multiple stock items if submitted
     let cleanStockCatalog = [];
     if (Array.isArray(body.stockItems)) {
@@ -494,6 +510,11 @@ export async function POST(request) {
       lowStockThresholdPercent: lowStock || 15,
       inventoryValuationMethod: inventoryValuationMethod || "lot_wise",
       mcaAuditLog: mcaAuditLog !== undefined ? Boolean(mcaAuditLog) : true,
+      posCounters: Number(posCounters) || (industry && industry.trim() === "Retail & FMCG" ? 1 : 0),
+      posStoreType: posStoreType ? posStoreType.trim() : (industry && industry.trim() === "Retail & FMCG" ? "Supermarket & Walk-in Mart (D-Mart Model)" : ""),
+      hasBarcodeBilling: hasBarcodeBilling !== undefined ? Boolean(hasBarcodeBilling) : true,
+      dailyFootfallTarget: Math.max(0, Number(dailyFootfallTarget) || 0),
+      walkinCustomerLedger: walkinCustomerLedger ? walkinCustomerLedger.trim() : "Walk-in Cash Customer",
     };
 
     // Upsert Organization directly to MongoDB

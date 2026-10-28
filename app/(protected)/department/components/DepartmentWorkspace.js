@@ -6,6 +6,7 @@ import OperationsDepartmentView from "./OperationsDepartmentView";
 import SalesDepartmentView from "./SalesDepartmentView";
 import LogisticsDepartmentView from "./LogisticsDepartmentView";
 import FinancialDepartmentView from "./FinancialDepartmentView";
+import RetailDepartmentView from "./RetailDepartmentView";
 import { performClientLogout } from "@/lib/clientLogout";
 import {
   Clock,
@@ -3044,6 +3045,15 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
 
               {activeDepartmentKey === "FINANCIAL" && (
                 <FinancialDepartmentView
+                  tabId={effectiveTab}
+                  employee={employee}
+                  company={company}
+                  onNotify={handleModuleNotify}
+                />
+              )}
+
+              {(activeDepartmentKey === "RETAIL" || activeDepartmentKey === "RETAIL_POS") && (
+                <RetailDepartmentView
                   tabId={effectiveTab}
                   employee={employee}
                   company={company}

@@ -18,6 +18,8 @@ import {
   CreditCard,
   BookOpen,
   FileCheck2,
+  Store,
+  ScanLine,
 } from "lucide-react";
 
 export const TAB_ICON_MAP = {
@@ -47,6 +49,12 @@ export const TAB_ICON_MAP = {
   payables_ap: CreditCard,
   general_ledger: BookOpen,
   tax_audit_portal: FileCheck2,
+
+  // Retail & POS Counter (D-Mart & Haldiram's Model)
+  pos_terminal: ShoppingCart,
+  daily_cash_register: Receipt,
+  store_inventory: Store,
+  walkin_customers: TrendingUp,
 };
 
 export const DEPARTMENT_CONFIGS = {
@@ -409,4 +417,87 @@ export const DEPARTMENT_CONFIGS = {
       },
     ],
   },
+  RETAIL: {
+    name: "Retail & POS Counter",
+    subtitle: "Point of Sale, Walk-in Counter & Fast Billing (D-Mart & Haldiram's Model)",
+    accentColor: "rose",
+    rolesByLevel: {
+      CHIEF_OFFICER: {
+        title: "Chief Retail Officer (CRO) / Head of Retail",
+        tasks: "Multi-store retail network strategy, store profitability, POS technology oversight.",
+      },
+      DIRECTOR: {
+        title: "Director of Retail Store Operations",
+        tasks: "Store floor layouts, counter throughput SLAs, retail pricing & discount rules.",
+      },
+      MANAGER: {
+        title: "Store / Supermarket Manager",
+        tasks: "D-Mart style store execution, daily cash register closing, managing cashiers & counter staff.",
+      },
+      SUPERVISOR: {
+        title: "POS & Billing Counter Supervisor",
+        tasks: "Counter float allocation, till overrides, void/refund approvals, shift change handovers.",
+      },
+      ANALYST: {
+        title: "Retail & Basket Analyst",
+        tasks: "Average basket size (ATV), fast-moving FMCG items, sweets/counter shrinkage analytics.",
+      },
+      COORDINATOR: {
+        title: "Counter Stock & Shelf Replenisher",
+        tasks: "Replenishing billing counter racks & shelves from back-godown, price barcode labeling.",
+      },
+      ASSISTANT: {
+        title: "Cashier & Counter Billing Operator",
+        tasks: "Walk-in customer barcode scanning, cash/UPI/card payment collection, printing invoices.",
+      },
+      OTHER: {
+        title: "Store Associate & Counter Sweets Clerk",
+        tasks: "Haldiram's style sweets/item packaging, weighing scale entry, bag packing, customer greetings.",
+      },
+    },
+    tabs: [
+      {
+        id: "pos_terminal",
+        title: "POS Counter Billing Terminal",
+        allowedLevels: ["MANAGER", "SUPERVISOR", "COORDINATOR", "ASSISTANT", "OTHER"],
+        subViews: [
+          { id: "counter_checkout", label: "Live Walk-in Checkout (D-Mart / Haldiram's)" },
+          { id: "recent_receipts", label: "Recent Cash & Thermal Receipts" },
+          { id: "barcode_lookup", label: "Barcode / Item Lookup" },
+        ],
+      },
+      {
+        id: "daily_cash_register",
+        title: "Cash Register & Till Close",
+        allowedLevels: ["CHIEF_OFFICER", "DIRECTOR", "MANAGER", "SUPERVISOR", "ASSISTANT"],
+        subViews: [
+          { id: "drawer_reconciliation", label: "Till & Drawer Reconciliation" },
+          { id: "shift_float", label: "Shift Opening Float" },
+          { id: "day_end_summary", label: "End-of-Day Sales Report" },
+        ],
+      },
+      {
+        id: "store_inventory",
+        title: "Store Shelves & FMCG Racks",
+        allowedLevels: ["DIRECTOR", "MANAGER", "SUPERVISOR", "ANALYST", "COORDINATOR"],
+        subViews: [
+          { id: "fast_moving_skus", label: "Fast-Moving FMCG Goods" },
+          { id: "shelf_restock", label: "Shelf Restock Alerts" },
+          { id: "wastage_spoilage", label: "Spillage & Expiry Logs" },
+        ],
+      },
+      {
+        id: "walkin_customers",
+        title: "Walk-in Footfall & Loyalty",
+        allowedLevels: ["CHIEF_OFFICER", "DIRECTOR", "MANAGER", "ANALYST"],
+        subViews: [
+          { id: "footfall_tracker", label: "Daily Footfall Tracker" },
+          { id: "walkin_directory", label: "Walk-in Customer Ledger" },
+          { id: "loyalty_discounts", label: "Store Promos & Combos" },
+        ],
+      },
+    ],
+  },
 };
+
+DEPARTMENT_CONFIGS.RETAIL_POS = DEPARTMENT_CONFIGS.RETAIL;

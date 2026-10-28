@@ -45,6 +45,7 @@ const DEPARTMENTS = [
   { id: "SALES", label: "Sales" },
   { id: "LOGISTICS", label: "Logistics" },
   { id: "FINANCIAL", label: "Financial" },
+  { id: "RETAIL", label: "Retail & Counter POS" },
 ];
 
 const DEPARTMENT_ROLES = {
@@ -88,7 +89,19 @@ const DEPARTMENT_ROLES = {
     { level: "ASSISTANT", defaultTitle: "Cashier / Vouchers Data Entry Assistant" },
     { level: "OTHER", defaultTitle: "Tax Auditor / Statutory Compliance Assistant" },
   ],
+  RETAIL: [
+    { level: "CHIEF_OFFICER", defaultTitle: "Chief Retail Officer (CRO) / Head of Retail" },
+    { level: "DIRECTOR", defaultTitle: "Director of Retail Store Operations" },
+    { level: "MANAGER", defaultTitle: "Store / Supermarket Manager" },
+    { level: "SUPERVISOR", defaultTitle: "POS & Billing Counter Supervisor" },
+    { level: "ANALYST", defaultTitle: "Retail & Basket Analyst" },
+    { level: "COORDINATOR", defaultTitle: "Counter Stock & Shelf Replenisher" },
+    { level: "ASSISTANT", defaultTitle: "Cashier & Counter Billing Operator" },
+    { level: "OTHER", defaultTitle: "Store Associate & Counter Sweets Clerk" },
+  ],
 };
+
+DEPARTMENT_ROLES.RETAIL_POS = DEPARTMENT_ROLES.RETAIL;
 
 const DUTY_STATUSES = [
   { id: "ALL", label: "All Statuses" },
@@ -122,6 +135,18 @@ const DEPT_COLORS = {
     text: "text-purple-700",
     border: "border-purple-200",
     accent: "bg-purple-600",
+  },
+  RETAIL: {
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    border: "border-rose-200",
+    accent: "bg-rose-600",
+  },
+  RETAIL_POS: {
+    bg: "bg-rose-50",
+    text: "text-rose-700",
+    border: "border-rose-200",
+    accent: "bg-rose-600",
   },
 };
 

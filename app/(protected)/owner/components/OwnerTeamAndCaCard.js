@@ -31,6 +31,8 @@ const DEPARTMENT_NAME_MAP = {
   "sales&marketing": "Sales & Marketing",
   "supplies&logistics": "Godown & Logistics",
   "finance&accounts": "Finance & Accounts",
+  retail: "Retail Store, POS & Counter Sales",
+  retail_pos: "Retail Store, POS & Counter Sales",
   general: "General Business Operations",
 };
 

@@ -41,6 +41,12 @@ const DEPARTMENTS = [
     desc: "Daily vouchers, cashier accounts, expense logging & ledger entries",
     color: "purple",
   },
+  {
+    id: "RETAIL",
+    title: "Retail & Counter POS",
+    desc: "Store billing counter, walk-in customers, rapid barcode scanning & daily cash drawer (D-Mart & Haldiram's Model)",
+    color: "rose",
+  },
 ];
 
 const POST_LEVELS = [

@@ -134,6 +134,21 @@ const OrganizationSchema = new mongoose.Schema(
     },
     primaryWarehouse: { type: String, default: "Main Factory", trim: true },
 
+    // 4b. Retail Store & POS Counter Architecture (for Retail & FMCG businesses)
+    posCounters: { type: Number, default: 1, min: 0 },
+    posStoreType: {
+      type: String,
+      default: "Supermarket & Walk-in Mart (D-Mart Model)",
+      trim: true,
+    },
+    hasBarcodeBilling: { type: Boolean, default: true },
+    dailyFootfallTarget: { type: Number, default: 0, min: 0 },
+    walkinCustomerLedger: {
+      type: String,
+      default: "Walk-in Cash Customer",
+      trim: true,
+    },
+
     // 5. Opening Balances & Stock Valuation
     openingBalance: { type: Number, default: 0 },
     openingCash: { type: Number, default: 0 },

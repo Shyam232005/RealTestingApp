@@ -22,7 +22,7 @@ export async function POST(request) {
     const normDept = (department || "").trim().toUpperCase();
     if (!DEPARTMENT_LIST.includes(normDept)) {
       return NextResponse.json(
-        { error: "Invalid department. Choose Operations, Sales, Logistics, or Financial." },
+        { error: "Invalid department. Choose Operations, Sales, Logistics, Financial, or Retail." },
         { status: 400 }
       );
     }

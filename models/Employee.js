@@ -22,7 +22,9 @@ export const DEPARTMENT_LIST = [
   "OPERATIONS",
   "SALES",
   "LOGISTICS",
-  "FINANCIAL"
+  "FINANCIAL",
+  "RETAIL",
+  "RETAIL_POS"
 ];
 
 export const POST_HIERARCHY_LEVELS = [

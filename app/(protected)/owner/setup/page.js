@@ -17,6 +17,9 @@ import {
   Package,
   Plus,
   Trash2,
+  Store,
+  ScanLine,
+  ShoppingCart,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 
@@ -37,6 +40,14 @@ const AVAILABLE_DEPARTMENTS = [
   { id: "supplies&logistics", label: "Supplies & Logistics" },
   { id: "finance&accounts", label: "Finance & Accounts" },
 ];
+
+const RETAIL_DEPARTMENT_OPTION = {
+  id: "retail_pos",
+  label: "Retail Store, POS & Counter Sales",
+  isRetailSpecial: true,
+  tag: "D-Mart & Haldiram's Model",
+  description: "Walk-in retail cash desk where random customers purchase goods with fast barcode billing.",
+};
 
 export default function OrganizationSetupPage() {
   const router = useRouter();
@@ -67,6 +78,13 @@ export default function OrganizationSetupPage() {
     AccNo: "",
     primaryWarehouse: "",
     activeDepartments: [],
+
+    // Step 2 (Retail & FMCG filling)
+    posStoreType: "",
+    posCounters: "",
+    hasBarcodeBilling: true,
+    dailyFootfallTarget: "",
+    walkinCustomerLedger: "Walk-in Cash Customer",
 
     // Step 3: Opening Balances & Target Metrics (Empty)
     openingBalance: "",
@@ -283,6 +301,39 @@ export default function OrganizationSetupPage() {
       if (formData.activeDepartments.length === 0) {
         setErrorMsg("Please select at least one active Operational Department.");
         return false;
+      }
+
+      // Retail & FMCG Specific POS & Counter Architecture Validation
+      if (formData.industry === "Retail & FMCG") {
+        if (!formData.posStoreType || !formData.posStoreType.trim()) {
+          setErrorMsg("Please select your Retail Store / Counter Model (e.g. D-Mart or Haldiram's style).");
+          return false;
+        }
+
+        const posNum = Number(formData.posCounters);
+        if (
+          formData.posCounters === "" ||
+          isNaN(posNum) ||
+          posNum < 1 ||
+          posNum > 100
+        ) {
+          setErrorMsg("Please enter the number of active POS / Billing Counters (between 1 and 100).");
+          return false;
+        }
+
+        const footfall = Number(formData.dailyFootfallTarget);
+        if (
+          formData.dailyFootfallTarget !== "" &&
+          (isNaN(footfall) || footfall < 0)
+        ) {
+          setErrorMsg("Daily footfall target must be a valid number (0 or greater).");
+          return false;
+        }
+
+        if (!formData.walkinCustomerLedger || formData.walkinCustomerLedger.trim().length < 2) {
+          setErrorMsg("Please specify a Default Walk-in Customer Ledger / Account (e.g. Walk-in Cash Customer).");
+          return false;
+        }
       }
     }
 
@@ -656,7 +707,26 @@ export default function OrganizationSetupPage() {
                       </label>
                       <select
                         value={formData.industry}
-                        onChange={(e) => updateField("industry", e.target.value)}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          if (val === "Retail & FMCG") {
+                            setFormData((prev) => ({
+                              ...prev,
+                              industry: val,
+                              activeDepartments: prev.activeDepartments.includes("retail_pos")
+                                ? prev.activeDepartments
+                                : [...prev.activeDepartments, "retail_pos"],
+                              posStoreType: prev.posStoreType || "Supermarket & Walk-in Mart (D-Mart Style)",
+                              posCounters: prev.posCounters || "2",
+                              hasBarcodeBilling: prev.hasBarcodeBilling !== undefined ? prev.hasBarcodeBilling : true,
+                              dailyFootfallTarget: prev.dailyFootfallTarget || "200",
+                              walkinCustomerLedger: prev.walkinCustomerLedger || "Walk-in Cash Customer",
+                            }));
+                            setErrorMsg("");
+                          } else {
+                            updateField("industry", val);
+                          }
+                        }}
                         className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none text-sm font-medium transition-all"
                       >
                         <option value="" disabled className="bg-slate-900 text-slate-500">
@@ -819,6 +889,135 @@ export default function OrganizationSetupPage() {
                       />
                     </div>
 
+                    {/* DEDICATED RETAIL & FMCG STORE POS / COUNTER FILLING (D-Mart & Haldiram's Model) */}
+                    {formData.industry === "Retail & FMCG" && (
+                      <div className="sm:col-span-2 p-5 rounded-2xl bg-gradient-to-br from-rose-950/30 via-slate-900 to-amber-950/20 border border-rose-500/40 space-y-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-rose-500/20 pb-3">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-8 h-8 rounded-xl bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400">
+                              <Store className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-sm font-bold text-white">
+                                  Point of Sale (POS) & Retail Counter Setup
+                                </h3>
+                                <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-rose-500/20 border border-rose-500/40 text-rose-300">
+                                  D-Mart & Haldiram's Model
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-400">
+                                Dedicated setup for retail stores where random walk-in customers purchase sweets, groceries, or FMCG goods over the counter.
+                              </p>
+                            </div>
+                          </div>
+                          <span className="text-[10px] text-rose-300/90 font-mono bg-rose-950/60 px-2.5 py-1 rounded-lg border border-rose-800/40 shrink-0 self-start sm:self-auto">
+                            Retail & FMCG Required
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-1">
+                          <div>
+                            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">
+                              Store & Counter Sales Model *
+                            </label>
+                            <select
+                              value={formData.posStoreType}
+                              onChange={(e) => updateField("posStoreType", e.target.value)}
+                              className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none text-xs font-medium transition-all"
+                            >
+                              <option value="Supermarket & Walk-in Mart (D-Mart Style)">
+                                Supermarket & Walk-in Mart (D-Mart Style)
+                              </option>
+                              <option value="Sweets, Snacks & Quick Food Counter (Haldiram's Style)">
+                                Sweets, Snacks & Quick Food Counter (Haldiram's Style)
+                              </option>
+                              <option value="Fast-Moving Consumer Goods (FMCG) Retail Store">
+                                Fast-Moving Consumer Goods (FMCG) Retail Store
+                              </option>
+                              <option value="Express Checkout Cash & Carry Counter">
+                                Express Checkout Cash & Carry Counter
+                              </option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                                Active Billing Counters / Desks *
+                              </label>
+                              <span className="text-[10px] text-slate-500 font-mono">Min 1, Max 100</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="1"
+                              max="100"
+                              value={formData.posCounters}
+                              onChange={(e) => updateField("posCounters", e.target.value)}
+                              placeholder="e.g. 2 billing desks"
+                              className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none text-xs font-medium transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                                Daily Walk-in Footfall Target
+                              </label>
+                              <span className="text-[10px] text-slate-500 font-mono">Customers / day</span>
+                            </div>
+                            <input
+                              type="number"
+                              min="0"
+                              value={formData.dailyFootfallTarget}
+                              onChange={(e) => updateField("dailyFootfallTarget", e.target.value)}
+                              placeholder="e.g. 250 walk-in visitors"
+                              className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none text-xs font-medium transition-all"
+                            />
+                          </div>
+
+                          <div>
+                            <div className="flex justify-between items-center mb-2">
+                              <label className="text-xs font-bold text-slate-300 uppercase tracking-wider">
+                                Default Walk-in Customer Ledger *
+                              </label>
+                              <span className="text-[10px] text-slate-500 font-mono">Direct sales</span>
+                            </div>
+                            <input
+                              type="text"
+                              maxLength={80}
+                              value={formData.walkinCustomerLedger}
+                              onChange={(e) => updateField("walkinCustomerLedger", e.target.value)}
+                              placeholder="e.g. Walk-in Cash Customer"
+                              className="w-full px-4 py-3 rounded-xl bg-slate-950/80 border border-slate-700/80 text-white placeholder-slate-600 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 outline-none text-xs font-medium transition-all"
+                            />
+                          </div>
+
+                          <div className="sm:col-span-2 pt-1">
+                            <label className="flex items-center gap-3 p-3.5 rounded-xl bg-slate-950/70 border border-slate-800 cursor-pointer hover:border-slate-700 transition-colors">
+                              <input
+                                type="checkbox"
+                                checked={formData.hasBarcodeBilling}
+                                onChange={(e) => updateField("hasBarcodeBilling", e.target.checked)}
+                                className="w-4 h-4 accent-rose-500 cursor-pointer rounded"
+                              />
+                              <div className="flex items-center gap-2">
+                                <ScanLine className="w-4 h-4 text-rose-400 shrink-0" />
+                                <div>
+                                  <span className="text-xs font-bold text-white">
+                                    Enable Rapid Barcode Scanning & Instant POS Thermal Receipts
+                                  </span>
+                                  <p className="text-[11px] text-slate-400">
+                                    Optimized for rapid checkout queues like D-Mart mart aisles and Haldiram's sweet counters.
+                                  </p>
+                                </div>
+                              </div>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Active Departments Selector */}
                     <div className="sm:col-span-2 pt-2">
                       <div className="flex justify-between items-center mb-3">
@@ -830,24 +1029,45 @@ export default function OrganizationSetupPage() {
                         </span>
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        {AVAILABLE_DEPARTMENTS.map((dept) => {
+                        {(formData.industry === "Retail & FMCG"
+                          ? [...AVAILABLE_DEPARTMENTS, RETAIL_DEPARTMENT_OPTION]
+                          : AVAILABLE_DEPARTMENTS
+                        ).map((dept) => {
                           const isSelected = formData.activeDepartments.includes(dept.id);
                           return (
                             <button
                               key={dept.id}
                               type="button"
                               onClick={() => toggleDepartment(dept.id)}
-                              className={`flex items-center justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
+                              className={`flex items-start justify-between p-3.5 rounded-xl border text-left transition-all cursor-pointer ${
                                 isSelected
-                                  ? "bg-emerald-500/15 border-emerald-500/60 text-emerald-300"
+                                  ? dept.isRetailSpecial
+                                    ? "bg-rose-500/15 border-rose-500/60 text-rose-200"
+                                    : "bg-emerald-500/15 border-emerald-500/60 text-emerald-300"
                                   : "bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700"
                               }`}
                             >
-                              <span className="text-xs font-semibold">{dept.label}</span>
+                              <div className="pr-2">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                  <span className="text-xs font-semibold">{dept.label}</span>
+                                  {dept.tag && (
+                                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-rose-500/25 border border-rose-500/40 text-rose-300">
+                                      {dept.tag}
+                                    </span>
+                                  )}
+                                </div>
+                                {dept.description && (
+                                  <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                                    {dept.description}
+                                  </p>
+                                )}
+                              </div>
                               <div
-                                className={`w-5 h-5 rounded-md flex items-center justify-center border text-[10px] ${
+                                className={`w-5 h-5 rounded-md flex items-center justify-center border text-[10px] shrink-0 mt-0.5 ${
                                   isSelected
-                                    ? "bg-emerald-500 border-emerald-500 text-slate-950 font-bold"
+                                    ? dept.isRetailSpecial
+                                      ? "bg-rose-500 border-rose-500 text-white font-bold"
+                                      : "bg-emerald-500 border-emerald-500 text-slate-950 font-bold"
                                     : "border-slate-700 bg-slate-900"
                                 }`}
                               >
