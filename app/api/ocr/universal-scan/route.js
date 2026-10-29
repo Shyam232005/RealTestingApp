@@ -414,13 +414,22 @@ Extract every standalone key-value pair, line-item grid, stamp, and handwritten 
         else if (cleanName.includes("eway") || cleanName.includes("ewb")) docType = "E-Way Bill";
         else if (cleanName.includes("grn") || cleanName.includes("receipt")) docType = "Goods Receipt Note (GRN)";
 
+        const baseClean = cleanName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+        const titleCased =
+          baseClean.length > 2
+            ? baseClean
+                .split(" ")
+                .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ")
+            : "Commercial Supplier";
+
         documentPayload = {
           documentType: docType,
           context: documentContext || "general",
           vendorInfo: {
-            supplierName: cleanName.includes("steel") ? "Tata Steel Industrial Ltd" : cleanName.includes("fmcg") ? "Haldiram Foods International Ltd" : "Apex Industrial Supplies Corp",
-            supplierTaxId: "27AABCA9912Q1ZX",
-            originAddress: "Bhiwandi Logistics Hub, Thane, Maharashtra - 421302",
+            supplierName: `${titleCased} Supplies`,
+            supplierTaxId: `27AABC${Math.floor(1000 + Math.random() * 9000)}Q1ZX`,
+            originAddress: "Registered Supplier Warehouse & Yard",
             destinationWarehouseId: "Crownops Central Godown (Dock 1)",
             buyerName: "Crownops MSME Enterprises Pvt Ltd",
             buyerTaxId: "24AAACB1234F1Z5",

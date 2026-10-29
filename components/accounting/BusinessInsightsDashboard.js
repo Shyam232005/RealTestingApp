@@ -19,9 +19,11 @@ import {
   ExternalLink,
   ShieldCheck,
   Zap,
+  PlusCircle,
 } from "lucide-react";
 import { MetricsCardsSkeleton, ChartSkeleton } from "@/components/ui/CrownSkeletonLoader";
 import CrownZeroState from "@/components/ui/CrownZeroState";
+import QuickDataEntryModal from "@/components/accounting/QuickDataEntryModal";
 import {
   AreaChart,
   Area,
@@ -39,6 +41,8 @@ export default function BusinessInsightsDashboard({
   const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeAgingTab, setActiveAgingTab] = useState("receivables"); // receivables | payables
+  const [showEntryModal, setShowEntryModal] = useState(false);
+  const [entryModalTab, setEntryModalTab] = useState("receivable");
 
   useEffect(() => {
     let ignore = false;
@@ -100,7 +104,7 @@ export default function BusinessInsightsDashboard({
         title="No Insights Available Yet"
         description="Business metrics, runway calculations, and automated WhatsApp payment reminders will appear once sales invoices and vouchers are posted."
         actionText="Refresh Metrics"
-        onAction={fetchInsights}
+        onAction={refreshInsights}
       />
     );
   }
@@ -123,14 +127,27 @@ export default function BusinessInsightsDashboard({
           </div>
         </div>
 
-        <button
-          type="button"
-          onClick={refreshInsights}
-          className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer self-start sm:self-auto"
-          title="Refresh Insights"
-        >
-          <RefreshCw className="w-4 h-4" />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => {
+              setEntryModalTab("receivable");
+              setShowEntryModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-purple-700 hover:bg-purple-800 text-white text-xs font-black shadow-md shadow-purple-200 transition-all active:scale-95 cursor-pointer"
+          >
+            <PlusCircle className="w-4 h-4" />
+            <span>Record Real Business Data</span>
+          </button>
+          <button
+            type="button"
+            onClick={refreshInsights}
+            className="p-2.5 rounded-2xl border border-slate-200 text-slate-600 hover:bg-slate-50 transition-colors cursor-pointer"
+            title="Refresh Insights"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {/* =========================================================================
@@ -142,14 +159,25 @@ export default function BusinessInsightsDashboard({
             <span className="text-xs font-black uppercase tracking-wider text-slate-400 block mb-1">
               Liquidity & Runway Forecast
             </span>
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-black text-slate-900 font-mono">
-                {insights.runwayMonths} Months
-              </span>
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                Healthy Cash Buffer
-              </span>
-            </div>
+            {insights.monthlyBurn > 0 ? (
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-slate-900 font-mono">
+                  {insights.runwayMonths} Months
+                </span>
+                <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full border border-emerald-200">
+                  Healthy Cash Buffer
+                </span>
+              </div>
+            ) : (
+              <div className="flex items-baseline gap-2">
+                <span className="text-3xl font-black text-slate-900 font-mono">
+                  0.0 Months
+                </span>
+                <span className="text-xs font-bold text-slate-600 bg-slate-100 px-2.5 py-0.5 rounded-full border border-slate-200">
+                  Zero Outflows in 30 Days
+                </span>
+              </div>
+            )}
             <p className="text-xs text-slate-500 mt-1">
               Estimated based on liquid reserves of ₹{insights.currentLiquidReserves?.toLocaleString("en-IN")} and average monthly burn of ₹{insights.monthlyBurn?.toLocaleString("en-IN")}.
             </p>
@@ -236,7 +264,7 @@ export default function BusinessInsightsDashboard({
               Receivables & Payables Aging Buckets
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Track outstanding dues and collect payments faster via instant WhatsApp reminders
+              Track real outstanding dues and collect payments faster via instant WhatsApp reminders
             </p>
           </div>
 
@@ -279,8 +307,9 @@ export default function BusinessInsightsDashboard({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
-              {activeAgingTab === "receivables"
-                ? insights.agingReceivables?.map((r, i) => (
+              {activeAgingTab === "receivables" ? (
+                insights.agingReceivables?.length > 0 ? (
+                  insights.agingReceivables.map((r, i) => (
                     <tr key={i} className="hover:bg-slate-50/70">
                       <td className="py-3 px-4">
                         <span className="font-black text-slate-900 block">{r.partyName}</span>
@@ -315,26 +344,75 @@ export default function BusinessInsightsDashboard({
                       </td>
                     </tr>
                   ))
-                : insights.agingPayables?.map((p, i) => (
-                    <tr key={i} className="hover:bg-slate-50/70">
-                      <td className="py-3 px-4">
-                        <span className="font-black text-slate-900 block">{p.partyName}</span>
-                        <span className="text-[11px] text-slate-400 font-mono">{p.phone}</span>
-                      </td>
-                      <td className="py-3 px-4 font-mono font-bold text-slate-700">{p.billRef}</td>
-                      <td className="py-3 px-4 text-center">
-                        <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">
-                          Due in {p.daysRemaining} days
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-right font-mono font-black text-purple-700 text-sm">
-                        ₹{Number(p.amount).toLocaleString("en-IN")}
-                      </td>
-                      <td className="py-3 px-4 text-center text-slate-400 text-[11px]">
-                        Scheduled for Payout
-                      </td>
-                    </tr>
-                  ))}
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-12 text-center text-slate-400">
+                      <Clock className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                      <p className="font-bold text-slate-700 text-xs">
+                        No Outstanding Receivables (Trade Debtors)
+                      </p>
+                      <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                        Post real sales invoices or customer debit entries to test aging dues and automated WhatsApp payment reminders.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEntryModalTab("receivable");
+                          setShowEntryModal(true);
+                        }}
+                        className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs cursor-pointer shadow-xs transition-transform active:scale-95"
+                      >
+                        <PlusCircle className="w-3.5 h-3.5" />
+                        <span>+ Record Customer Invoice</span>
+                      </button>
+                    </td>
+                  </tr>
+                )
+              ) : insights.agingPayables?.length > 0 ? (
+                insights.agingPayables.map((p, i) => (
+                  <tr key={i} className="hover:bg-slate-50/70">
+                    <td className="py-3 px-4">
+                      <span className="font-black text-slate-900 block">{p.partyName}</span>
+                      <span className="text-[11px] text-slate-400 font-mono">{p.phone}</span>
+                    </td>
+                    <td className="py-3 px-4 font-mono font-bold text-slate-700">{p.billRef}</td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="text-[10px] font-black uppercase px-2.5 py-1 rounded-full bg-purple-100 text-purple-800">
+                        Due in {p.daysRemaining} days
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-black text-purple-700 text-sm">
+                      ₹{Number(p.amount).toLocaleString("en-IN")}
+                    </td>
+                    <td className="py-3 px-4 text-center text-slate-400 text-[11px]">
+                      Scheduled for Payout
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={5} className="py-12 text-center text-slate-400">
+                    <CheckCircle2 className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                    <p className="font-bold text-slate-700 text-xs">
+                      No Pending Payables (Trade Creditors)
+                    </p>
+                    <p className="text-[11px] text-slate-400 mt-1 max-w-sm mx-auto">
+                      Record vendor bills, inward challans, or purchase vouchers to track supplier payment schedules.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEntryModalTab("payable");
+                        setShowEntryModal(true);
+                      }}
+                      className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs cursor-pointer shadow-xs transition-transform active:scale-95"
+                    >
+                      <PlusCircle className="w-3.5 h-3.5" />
+                      <span>+ Record Vendor Bill</span>
+                    </button>
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
@@ -348,7 +426,7 @@ export default function BusinessInsightsDashboard({
         <div className="bg-white rounded-3xl p-6 border border-slate-100 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <h4 className="text-xs font-black uppercase tracking-wider text-slate-800">
-              Top 5 High-Margin Products
+              Top High-Margin Products
             </h4>
             <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
               Profit Drivers
@@ -356,22 +434,43 @@ export default function BusinessInsightsDashboard({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {insights.topProducts?.map((item, i) => (
-              <div key={i} className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-black text-slate-900 text-xs block">{item.name}</span>
-                  <span className="text-[11px] text-slate-400">
-                    Selling: ₹{item.sellingPrice} • Cost: ₹{item.costPrice} • Sold: {item.unitsSold} units
-                  </span>
+            {insights.topProducts?.length > 0 ? (
+              insights.topProducts.map((item, i) => (
+                <div key={i} className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 text-xs block">{item.name}</span>
+                    <span className="text-[11px] text-slate-400">
+                      Selling: ₹{item.sellingPrice} • Cost: ₹{item.costPrice} • Sold/Stock: {item.unitsSold} units
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-black text-sm text-emerald-700 block">
+                      {item.marginPercent}%
+                    </span>
+                    <span className="text-[10px] text-slate-400 uppercase font-bold">Gross Margin</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono font-black text-sm text-emerald-700 block">
-                    {item.marginPercent}%
-                  </span>
-                  <span className="text-[10px] text-slate-400 uppercase font-bold">Gross Margin</span>
-                </div>
+              ))
+            ) : (
+              <div className="py-10 text-center text-slate-400">
+                <Package className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                <p className="font-bold text-slate-700 text-xs">No Product Margin Data Yet</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                  Add stock products with selling & cost prices to view real-time profitability drivers.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryModalTab("product");
+                    setShowEntryModal(true);
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer shadow-xs transition-transform active:scale-95"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Add Stock Product</span>
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </div>
 
@@ -382,30 +481,60 @@ export default function BusinessInsightsDashboard({
               Top Active Clients by Volume
             </h4>
             <span className="text-[10px] font-bold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-200">
-              Loyal Accounts
+              Commercial Accounts
             </span>
           </div>
 
           <div className="divide-y divide-slate-100">
-            {insights.topClients?.map((client, i) => (
-              <div key={i} className="py-3 flex items-center justify-between">
-                <div>
-                  <span className="font-black text-slate-900 text-xs block">{client.name}</span>
-                  <span className="text-[11px] text-slate-400">
-                    {client.ordersCount} Completed Orders • Rating: {client.paymentRating}
-                  </span>
+            {insights.topClients?.length > 0 ? (
+              insights.topClients.map((client, i) => (
+                <div key={i} className="py-3 flex items-center justify-between">
+                  <div>
+                    <span className="font-black text-slate-900 text-xs block">{client.name}</span>
+                    <span className="text-[11px] text-slate-400">
+                      {client.ordersCount} Completed Orders • Rating: {client.paymentRating}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <span className="font-mono font-black text-sm text-slate-900 block">
+                      ₹{Number(client.totalTurnover).toLocaleString("en-IN")}
+                    </span>
+                    <span className="text-[10px] text-purple-700 font-bold uppercase">Turnover</span>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <span className="font-mono font-black text-sm text-slate-900 block">
-                    ₹{Number(client.totalTurnover).toLocaleString("en-IN")}
-                  </span>
-                  <span className="text-[10px] text-purple-700 font-bold uppercase">Turnover</span>
-                </div>
+              ))
+            ) : (
+              <div className="py-10 text-center text-slate-400">
+                <Users className="w-8 h-8 mx-auto mb-2 text-slate-300 stroke-1" />
+                <p className="font-bold text-slate-700 text-xs">No Customer Accounts Yet</p>
+                <p className="text-[11px] text-slate-400 mt-1 max-w-xs mx-auto">
+                  Record customer sales invoices or CRM accounts to rank high-volume commercial buyers.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEntryModalTab("receivable");
+                    setShowEntryModal(true);
+                  }}
+                  className="mt-3 inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-purple-700 hover:bg-purple-800 text-white font-bold text-xs cursor-pointer shadow-xs transition-transform active:scale-95"
+                >
+                  <PlusCircle className="w-3.5 h-3.5" />
+                  <span>+ Add Customer Invoice</span>
+                </button>
               </div>
-            ))}
+            )}
           </div>
         </div>
       </div>
+
+      {/* Quick Data Entry Modal */}
+      <QuickDataEntryModal
+        isOpen={showEntryModal}
+        onClose={() => setShowEntryModal(false)}
+        organization={organization}
+        initialTab={entryModalTab}
+        onSuccess={refreshInsights}
+      />
     </div>
   );
 }

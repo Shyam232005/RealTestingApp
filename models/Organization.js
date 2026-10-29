@@ -10,6 +10,7 @@ const StockItemSchema = new mongoose.Schema(
     quantity: { type: Number, default: 0, min: 0 },
     unit: { type: String, default: "Pcs", trim: true },
     unitPrice: { type: Number, default: 0, min: 0 },
+    costPrice: { type: Number, default: 0, min: 0 },
     stockStatus: {
       type: String,
       enum: ["in_stock", "low_stock", "out_of_stock"],

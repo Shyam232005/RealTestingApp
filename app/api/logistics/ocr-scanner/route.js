@@ -269,39 +269,22 @@ function buildDynamicExtractionFromUploadedFile(fileName, fileType) {
     docType = "Bill of Lading";
   }
 
-  let supplier = "Apex Logistics & Manufacturing Corp";
-  let origin = "Bhiwandi Logistics Hub, Sector 12, Thane, Maharashtra - 421302";
-  let gstin = "27AABCA9912Q1ZX";
-  let itemDesc = "Industrial Polymer Resin Granules Grade A";
-  let uom = "KG";
-  let qty = 1000;
-  let rate = 88;
+  const baseClean = cleanName.replace(/\.[^/.]+$/, "").replace(/[-_]/g, " ").trim();
+  const titleCased =
+    baseClean.length > 2
+      ? baseClean
+          .split(" ")
+          .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+          .join(" ")
+      : "Vendor Supplier";
 
-  if (cleanName.includes("fmcg") || cleanName.includes("sweet") || cleanName.includes("food")) {
-    supplier = "Haldiram Foods & Sweets International Ltd";
-    origin = "Plot 20, Bhandara Road, Nagpur, Maharashtra - 441104";
-    gstin = "27AABCH1298Q1Z1";
-    itemDesc = "Assorted Sweets & Ready Namkeen Packets";
-    uom = "Boxes";
-    qty = 250;
-    rate = 260;
-  } else if (cleanName.includes("steel") || cleanName.includes("metal")) {
-    supplier = "Tata Steel & Heavy Metal Works Ltd";
-    origin = "Plot 14, Jamshedpur Industrial Belt, Jharkhand - 831001";
-    gstin = "27AAACT2727Q1ZB";
-    itemDesc = "Cold-Rolled Carbon Stainless Steel Coils Grade 304";
-    uom = "KG";
-    qty = 1200;
-    rate = 125;
-  } else if (cleanName.includes("elec") || cleanName.includes("wire") || cleanName.includes("mcb")) {
-    supplier = "Havells India Industrial Systems Ltd";
-    origin = "Industrial Plot 9, Sector 59, Noida, Uttar Pradesh - 201301";
-    gstin = "07AAACH2702H1Z6";
-    itemDesc = "63A 4-Pole C-Curve Industrial MCB Breakers";
-    uom = "Pcs";
-    qty = 100;
-    rate = 1450;
-  }
+  let supplier = `${titleCased} Supplies`;
+  let origin = "Vendor Dispatch Yard & Registered Warehouse";
+  let gstin = `27AABC${Math.floor(1000 + Math.random() * 9000)}Q1ZX`;
+  let itemDesc = `${titleCased} Materials / Stock`;
+  let uom = "Units";
+  let qty = 100;
+  let rate = 500;
 
   const subtotal = qty * rate;
   const discount = Math.round(subtotal * 0.02);

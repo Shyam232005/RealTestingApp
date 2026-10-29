@@ -52,6 +52,13 @@ const UniversalDocumentRecordSchema = new mongoose.Schema(
       index: true,
     },
 
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Organization",
+      required: false,
+      index: true,
+    },
+
     employeeId: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "Employee",
