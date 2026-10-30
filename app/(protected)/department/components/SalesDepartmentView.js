@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { DEPARTMENT_CONFIGS } from "./departmentConfig";
 import WithZeroErrorOcr from "@/components/ocr/WithZeroErrorOcr";
+import { LeadPoolZeroState, DealsZeroState, CounterDeskZeroState } from "@/components/sales";
 
 export default function SalesDepartmentView({
   tabId = "sales_dashboard",
@@ -337,7 +338,7 @@ export default function SalesDepartmentView({
       {tabId === "lead_telecalling" && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-900 uppercase">Inbound & Cold Telecalling Pool</h3>
+            <h3 className="text-sm font-black text-slate-900 uppercase">Inbound &amp; Cold Telecalling Pool</h3>
             <button
               onClick={() => setShowLeadModal(true)}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
@@ -347,46 +348,65 @@ export default function SalesDepartmentView({
             </button>
           </div>
 
-          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+          <div>
             {leads.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <PhoneCall className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-semibold">Zero pending leads in telecalling queue.</p>
-                <p className="text-[11px] text-slate-400">Add an inquiry or import contacts to begin outreach calls.</p>
-              </div>
+              <LeadPoolZeroState
+                ownerName={company?.name || "Main HQ"}
+                dailyTarget={50}
+                callsCompleted={0}
+                onLogLead={(data) => {
+                  const newLead = {
+                    id: `LEAD-${Date.now().toString().slice(-5)}`,
+                    contactName: data.name,
+                    companyName: data.inquiryType?.replace(/_/g, " "),
+                    phone: data.phone,
+                    productInterest: data.notes || data.inquiryType,
+                    source: "MANUAL_WALKIN",
+                    status: "NEW",
+                    createdAt: new Date().toLocaleDateString(),
+                  };
+                  setLeads([newLead, ...leads]);
+                  onNotify(`Inquiry logged for ${data.name}!`);
+                }}
+                onPingManager={() => {
+                  onNotify("⚡ Lead allocation request sent to Branch Manager & HQ!");
+                }}
+              />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs">
-                  <thead>
-                    <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-black">
-                      <th className="pb-3 pl-2">Lead ID</th>
-                      <th className="pb-3">Contact</th>
-                      <th className="pb-3">Company</th>
-                      <th className="pb-3">Phone</th>
-                      <th className="pb-3">Interest</th>
-                      <th className="pb-3 pr-2 text-right">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-slate-100">
-                    {leads.map((l) => (
-                      <tr key={l.id} className="hover:bg-slate-50/60">
-                        <td className="py-3 pl-2 font-bold text-slate-900">{l.id}</td>
-                        <td className="py-3 font-semibold text-slate-800">{l.contactName}</td>
-                        <td className="py-3 text-slate-600">{l.companyName}</td>
-                        <td className="py-3 font-mono text-slate-700">{l.phone}</td>
-                        <td className="py-3 text-slate-600">{l.productInterest}</td>
-                        <td className="py-3 pr-2 text-right">
-                          <button
-                            onClick={() => onNotify(`Initiating dialer for ${l.phone}...`)}
-                            className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 cursor-pointer"
-                          >
-                            Call Now
-                          </button>
-                        </td>
+              <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 uppercase text-[10px] font-black">
+                        <th className="pb-3 pl-2">Lead ID</th>
+                        <th className="pb-3">Contact</th>
+                        <th className="pb-3">Company</th>
+                        <th className="pb-3">Phone</th>
+                        <th className="pb-3">Interest</th>
+                        <th className="pb-3 pr-2 text-right">Action</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {leads.map((l) => (
+                        <tr key={l.id} className="hover:bg-slate-50/60">
+                          <td className="py-3 pl-2 font-bold text-slate-900">{l.id}</td>
+                          <td className="py-3 font-semibold text-slate-800">{l.contactName}</td>
+                          <td className="py-3 text-slate-600">{l.companyName}</td>
+                          <td className="py-3 font-mono text-slate-700">{l.phone}</td>
+                          <td className="py-3 text-slate-600">{l.productInterest}</td>
+                          <td className="py-3 pr-2 text-right">
+                            <button
+                              onClick={() => onNotify(`Initiating dialer for ${l.phone}...`)}
+                              className="px-2.5 py-1 rounded-lg bg-blue-50 text-blue-700 font-bold hover:bg-blue-100 cursor-pointer"
+                            >
+                              Call Now
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             )}
           </div>
@@ -399,7 +419,7 @@ export default function SalesDepartmentView({
       {tabId === "deals_quotes" && (
         <div className="space-y-6">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-black text-slate-900 uppercase">Active Deal Pipeline & Quotes</h3>
+            <h3 className="text-sm font-black text-slate-900 uppercase">Active Deal Pipeline &amp; Quotes</h3>
             <button
               onClick={() => setShowDealModal(true)}
               className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-xs flex items-center gap-1.5 cursor-pointer"
@@ -409,27 +429,45 @@ export default function SalesDepartmentView({
             </button>
           </div>
 
-          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+          <div>
             {deals.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <Handshake className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-semibold">No active deals in pipeline.</p>
-                <p className="text-[11px] text-slate-400">Create a deal to generate price estimates and track negotiations.</p>
-              </div>
+              <DealsZeroState
+                ownerName={company?.name || "Main HQ"}
+                currentMonthTarget={500000}
+                currentBooked={salesOrders.reduce(
+                  (sum, so) => sum + (parseFloat(so.totalAmount) || 0),
+                  0
+                )}
+                onDraftEstimate={(data) => {
+                  const newDeal = {
+                    id: `DEAL-${Date.now().toString().slice(-5)}`,
+                    clientName: data.clientName,
+                    dealValue: data.dealValue,
+                    stage: "PROPOSAL_ESTIMATE",
+                    expectedCloseDate: data.expectedCloseDate || new Date().toLocaleDateString(),
+                    assignedAE: employee?.name || "Account Exec",
+                    createdAt: new Date().toLocaleDateString(),
+                  };
+                  setDeals([newDeal, ...deals]);
+                  onNotify(`Estimate drafted for ${data.clientName} (₹${data.dealValue})!`);
+                }}
+              />
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                {deals.map((d) => (
-                  <div key={d.id} className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-xs text-slate-900">{d.clientName}</span>
-                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
-                        {d.stage}
-                      </span>
+              <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {deals.map((d) => (
+                    <div key={d.id} className="p-4 rounded-2xl border border-slate-200 bg-white space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-xs text-slate-900">{d.clientName}</span>
+                        <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-md bg-blue-100 text-blue-800">
+                          {d.stage}
+                        </span>
+                      </div>
+                      <p className="text-base font-black text-slate-900 font-mono">₹ {d.dealValue}</p>
+                      <p className="text-[11px] text-slate-500">AE: {d.assignedAE} • Close: {d.expectedCloseDate || "This Month"}</p>
                     </div>
-                    <p className="text-base font-black text-slate-900 font-mono">₹ {d.dealValue}</p>
-                    <p className="text-[11px] text-slate-500">AE: {d.assignedAE} • Close: {d.expectedCloseDate || "This Month"}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
@@ -452,30 +490,31 @@ export default function SalesDepartmentView({
             </button>
           </div>
 
-          <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+          <div>
             {salesOrders.length === 0 ? (
-              <div className="py-12 text-center text-slate-400">
-                <ShoppingCart className="w-10 h-10 mx-auto mb-2 text-slate-300" />
-                <p className="text-xs font-semibold">No sales orders booked yet.</p>
-                <p className="text-[11px] text-slate-400">Book customer counter orders or field sales contracts here.</p>
-              </div>
+              <CounterDeskZeroState
+                hqWarehouseName={`${company?.name || "Main"} (HQ) Warehouse`}
+                onStartOrder={() => setShowSoModal(true)}
+              />
             ) : (
-              <div className="space-y-3">
-                {salesOrders.map((so) => (
-                  <div key={so.id} className="p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-xs text-slate-900">{so.id} • {so.clientName}</span>
-                        <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
-                          {so.status}
-                        </span>
+              <div className="rounded-3xl bg-white border border-slate-200/80 p-6 shadow-xs space-y-4">
+                <div className="space-y-3">
+                  {salesOrders.map((so) => (
+                    <div key={so.id} className="p-4 rounded-2xl border border-slate-200 bg-white flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-xs text-slate-900">{so.id} • {so.clientName}</span>
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                            {so.status}
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-700 mt-1">{so.itemsSummary}</p>
+                        <p className="text-[11px] text-slate-400">Terms: {so.paymentTerms} • Branch: {so.deliveryBranch}</p>
                       </div>
-                      <p className="text-xs text-slate-700 mt-1">{so.itemsSummary}</p>
-                      <p className="text-[11px] text-slate-400">Terms: {so.paymentTerms} • Branch: {so.deliveryBranch}</p>
+                      <p className="text-base font-black text-slate-900 font-mono">₹ {so.totalAmount}</p>
                     </div>
-                    <p className="text-base font-black text-slate-900 font-mono">₹ {so.totalAmount}</p>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             )}
           </div>
