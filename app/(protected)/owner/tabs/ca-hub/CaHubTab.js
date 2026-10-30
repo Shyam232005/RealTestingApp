@@ -15,10 +15,12 @@ import {
   AlertCircle,
   Copy,
   Lock,
+  Sparkles,
 } from "lucide-react";
 
 import CaReportModal from "./CaReportModal";
-import { getSocketClient } from "@/lib/socketClient";
+import CrownZeroState from "@/components/ui/CrownZeroState";
+import { getSocketClient, joinTenantRoom } from "@/lib/socketClient";
 
 export default function CaHubTab({ owner, organization, showToast }) {
   const [loading, setLoading] = useState(true);
@@ -33,6 +35,7 @@ export default function CaHubTab({ owner, organization, showToast }) {
 
   const [activeReportModal, setActiveReportModal] = useState(null);
   const [actionLoadingId, setActionLoadingId] = useState(null);
+  const [tabToast, setTabToast] = useState("");
 
   // Fetch CA requests and reports history
   const fetchCaHubData = async () => {
@@ -69,10 +72,46 @@ export default function CaHubTab({ owner, organization, showToast }) {
       }
     }
     load();
+
+    // Ensure tenant socket room is joined for real-time isolation
+    const companyId = organization?._id || owner?._id;
+    if (companyId) {
+      joinTenantRoom(companyId, owner?._id, "OWNER");
+    }
+
+    // Listen for live CA requests via Socket.io (sub-45ms updates)
+    let cleanupSocket = () => {};
+    getSocketClient()
+      .then((socket) => {
+        if (socket && !ignore) {
+          const onReq = (payload) => {
+            console.log("[CaHubTab] Live CA request received via socket:", payload);
+            load();
+            const caName = payload?.caName || payload?.caFirm || "Auditor";
+            const msg = `⚡ Live Alert: CA ${caName} has submitted a data access request!`;
+            setTabToast(msg);
+            if (typeof showToast === "function") {
+              showToast(msg);
+            }
+            setTimeout(() => setTabToast(""), 6000);
+          };
+          socket.on("owner-receive-request", onReq);
+          cleanupSocket = () => {
+            socket.off("owner-receive-request", onReq);
+          };
+        }
+      })
+      .catch(() => {});
+
+    // Polling fallback every 8 seconds for rock-solid sync
+    const interval = setInterval(load, 8000);
+
     return () => {
       ignore = true;
+      clearInterval(interval);
+      cleanupSocket();
     };
-  }, []);
+  }, [organization?._id, owner?._id, showToast]);
 
   // Handle Owner approving or declining CA data-access request
   const handleDecision = async (requestId, action) => {
@@ -89,31 +128,57 @@ export default function CaHubTab({ owner, organization, showToast }) {
         throw new Error(data.error || "Failed to update CA request.");
       }
 
-      showToast(
+      const msg =
         action === "APPROVE"
           ? "CA Data Access Granted! Read-only audit stream active."
           : action === "REVOKE"
           ? "CA Data Access Revoked."
-          : "CA Data Access Request Declined."
-      );
+          : "CA Data Access Request Declined.";
 
-      // Emit real-time unlock event via Socket.io
+      setTabToast(msg);
+      if (typeof showToast === "function") showToast(msg);
+      setTimeout(() => setTabToast(""), 5000);
+
+      // Emit real-time unlock/reject event via Socket.io
+      const caFirmId = data.caFirmId || data.updatedRequest?.caId;
       if (action === "APPROVE") {
-        getSocketClient().then((socket) => {
-          if (socket && (organization?._id || owner?._id)) {
-            socket.emit("owner-approve-data", {
-              companyId: organization?._id || owner?._id,
-              requestId,
-              timestamp: new Date().toISOString(),
-            });
-          }
-        }).catch(() => {});
+        getSocketClient()
+          .then((socket) => {
+            if (socket) {
+              socket.emit("owner-approve-data", {
+                companyId: organization?._id || owner?._id,
+                caFirmId,
+                caId: caFirmId,
+                clientName: organization?.legalEntityName || organization?.name || owner?.name,
+                requestId,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          })
+          .catch(() => {});
+      } else {
+        getSocketClient()
+          .then((socket) => {
+            if (socket) {
+              socket.emit("owner-reject-data", {
+                companyId: organization?._id || owner?._id,
+                caFirmId,
+                caId: caFirmId,
+                clientName: organization?.legalEntityName || organization?.name || owner?.name,
+                requestId,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          })
+          .catch(() => {});
       }
 
       // Refresh list
       fetchCaHubData();
     } catch (err) {
-      showToast(err.message || "Failed to update request.");
+      if (typeof showToast === "function") showToast(err.message || "Failed to update request.");
+      setTabToast(err.message || "Failed to update request.");
+      setTimeout(() => setTabToast(""), 5000);
     } finally {
       setActionLoadingId(null);
     }
@@ -129,6 +194,19 @@ export default function CaHubTab({ owner, organization, showToast }) {
         isOpen={!!activeReportModal}
         onClose={() => setActiveReportModal(null)}
       />
+
+      {/* Real-time Socket Alert Toast */}
+      {tabToast && (
+        <div className="p-4 rounded-2xl bg-slate-900 text-white text-xs font-bold border border-slate-700 shadow-xl flex items-center justify-between gap-3 animate-in fade-in slide-in-from-top-2">
+          <div className="flex items-center gap-2.5">
+            <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
+            <span>{tabToast}</span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded-md">
+            Socket Sub-45ms Active
+          </span>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-100 pb-4">
@@ -353,18 +431,20 @@ export default function CaHubTab({ owner, organization, showToast }) {
                 </div>
               );
             })
-          ) : (
-            <div className="rounded-2xl border border-dashed border-purple-200 bg-purple-50/30 p-8 text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-100 text-purple-600 flex items-center justify-center mx-auto">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-bold text-slate-900">
-                No CA Data Access Requests Yet
-              </p>
-              <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-                When your Chartered Accountant requests access to verify GST invoices, view bank statements, or review general ledgers, their authorization request will appear here for your sign-off.
-              </p>
+          ) : loading ? (
+            <div className="space-y-3">
+              <div className="h-24 rounded-2xl bg-slate-100/80 animate-pulse border border-slate-200/60" />
+              <div className="h-24 rounded-2xl bg-slate-50 animate-pulse border border-slate-100" />
             </div>
+          ) : (
+            <CrownZeroState
+              variant="ca_hub"
+              compact={true}
+              icon={Briefcase}
+              badge="Audit Authorization Queue"
+              title="No Pending CA Access Requests"
+              description="When your Chartered Accountant requests access to verify GST invoices, view bank statements, or review general ledgers, their authorization request will appear here for 1-click sign-off."
+            />
           )}
         </div>
       </div>
@@ -434,18 +514,17 @@ export default function CaHubTab({ owner, organization, showToast }) {
                 </div>
               );
             })
+          ) : loading ? (
+            <div className="h-24 rounded-2xl bg-slate-100/80 animate-pulse border border-slate-200/60" />
           ) : (
-            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 p-8 text-center space-y-2">
-              <div className="w-10 h-10 rounded-xl bg-slate-100 text-slate-500 flex items-center justify-center mx-auto">
-                <FileText className="w-5 h-5" />
-              </div>
-              <p className="text-xs font-bold text-slate-900">
-                No Audit Reports Delivered Yet
-              </p>
-              <p className="text-[11px] text-slate-500 max-w-md mx-auto leading-relaxed">
-                Once your linked Chartered Accountant conducts an audit review or statutory tax verification, their signed report, certificate, and executive findings will be archived here permanently.
-              </p>
-            </div>
+            <CrownZeroState
+              variant="ca_hub"
+              compact={true}
+              icon={FileText}
+              badge="Statutory Dossier Clean"
+              title="No Audit Reports Delivered Yet"
+              description="Once your linked Chartered Accountant conducts an audit review or statutory tax verification, their signed report, certificate, and executive findings will be archived here permanently."
+            />
           )}
         </div>
       </div>

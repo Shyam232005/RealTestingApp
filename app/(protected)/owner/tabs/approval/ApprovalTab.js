@@ -18,6 +18,11 @@ import {
 } from "lucide-react";
 import CrownZeroState from "@/components/ui/CrownZeroState";
 import { TableSkeleton } from "@/components/ui/CrownSkeletonLoader";
+import {
+  emitOwnerApproveData,
+  emitOwnerRejectData,
+  subscribeToEvent,
+} from "@/lib/socketClient";
 
 export default function ApprovalTab({
   organization,
@@ -80,8 +85,20 @@ export default function ApprovalTab({
       }
     }
     load();
+
+    // Listen for live CA Data Access Requests via Socket.io
+    let cleanupSocket = () => {};
+    (async () => {
+      cleanupSocket = await subscribeToEvent("owner-receive-request", (payload) => {
+        setToastMessage(`⚡ New Request: CA ${payload?.caName || "Firm"} requested financial data access!`);
+        fetchApprovals();
+        setTimeout(() => setToastMessage(""), 5000);
+      });
+    })();
+
     return () => {
       ignore = true;
+      cleanupSocket();
     };
   }, []);
 
@@ -104,6 +121,25 @@ export default function ApprovalTab({
           (action === "APPROVE" ? "Request Approved successfully!" : "Request Declined.")
       );
       setTimeout(() => setToastMessage(""), 3500);
+
+      // Emit socket event to instantly notify CA
+      if (data.updatedRequest?.type === "CA_DATA_ACCESS" || type === "CA_DATA_ACCESS") {
+        if (action === "APPROVE") {
+          emitOwnerApproveData({
+            requestId,
+            caId: data.updatedRequest?.caId,
+            caFirmId: data.updatedRequest?.caId,
+            clientName: organization?.legalEntityName || organization?.name,
+            companyId: organization?.ownerId,
+          });
+        } else if (action === "REJECT" || action === "REVOKE") {
+          emitOwnerRejectData({
+            requestId,
+            caId: data.updatedRequest?.caId,
+            caFirmId: data.updatedRequest?.caId,
+          });
+        }
+      }
 
       // Refresh list
       fetchApprovals();

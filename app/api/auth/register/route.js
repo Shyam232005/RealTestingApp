@@ -347,7 +347,16 @@ export async function POST(request) {
         newUser.assignedClients ||
         []
       ).map((id) => id.toString()),
-      isSetupComplete: normalizedRole === "OWNER" ? false : true,
+      isSetupComplete:
+        normalizedRole === "OWNER" || normalizedRole === "CA" ? false : true,
+      subscriptionStatus:
+        normalizedRole === "OWNER"
+          ? newUser.subscription?.status || "trialing"
+          : "active",
+      planName:
+        normalizedRole === "OWNER"
+          ? newUser.subscription?.planName || "Free Trial"
+          : "Enterprise",
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -364,16 +373,22 @@ export async function POST(request) {
       path: "/",
     });
 
+    let redirectUrl = "/login";
+    if (normalizedRole === "OWNER") {
+      redirectUrl = "/owner/setup";
+    } else if (normalizedRole === "CA") {
+      redirectUrl = "/ca/setup";
+    } else if (normalizedRole === "CA_STAFF") {
+      redirectUrl = "/staff";
+    } else if (normalizedRole === "EMPLOYEE") {
+      redirectUrl = "/department/onboarding";
+    }
+
     return NextResponse.json(
       {
         success: true,
         message: successMessage || "Account created.",
-        redirectUrl:
-          normalizedRole === "OWNER"
-            ? "/owner/setup"
-            : normalizedRole === "EMPLOYEE"
-            ? "/department/onboarding"
-            : "/billing",
+        redirectUrl,
       },
       { status: 201 }
     );

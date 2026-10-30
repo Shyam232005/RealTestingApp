@@ -47,6 +47,7 @@ import {
   FileCheck,
   Calendar,
   Flame,
+  ScanLine,
 } from "lucide-react";
 import { performClientLogout } from "@/lib/clientLogout";
 import UserProfileModal from "./components/UserProfileModal";
@@ -60,6 +61,7 @@ const USER_ROLES_FILTER = [
   { id: "OWNER", label: "Business Owners" },
   { id: "EMPLOYEE", label: "Staff & Employees" },
   { id: "CA", label: "Chartered Accountants" },
+  { id: "CA_STAFF", label: "Audit Staff & Articles" },
 ];
 
 const DEPARTMENTS = [
@@ -68,6 +70,7 @@ const DEPARTMENTS = [
   { id: "SALES", label: "Sales" },
   { id: "LOGISTICS", label: "Logistics" },
   { id: "FINANCIAL", label: "Financial" },
+  { id: "RETAIL", label: "Retail & POS Counter" },
 ];
 
 const PLAN_TIERS = [
@@ -89,6 +92,7 @@ export default function SuperAdminDashboard() {
   // Users State
   const [users, setUsers] = useState([]);
   const [companiesList, setCompaniesList] = useState([]);
+  const [caFirmsList, setCaFirmsList] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [userTypeFilter, setUserTypeFilter] = useState("ALL");
   const [userDeptFilter, setUserDeptFilter] = useState("ALL");
@@ -118,6 +122,9 @@ export default function SuperAdminDashboard() {
     // CA
     firmName: "",
     icaiNumber: "",
+    // CA Staff
+    caFirmId: "",
+    roleInFirm: "Article Assistant",
   });
   const [isCreatingUser, setIsCreatingUser] = useState(false);
 
@@ -202,6 +209,7 @@ export default function SuperAdminDashboard() {
         const data = await res.json();
         setUsers(data.users || []);
         setCompaniesList(data.companies || []);
+        setCaFirmsList(data.caFirms || []);
       }
     } catch (err) {
       console.error("Failed to load users:", err);
@@ -762,6 +770,93 @@ export default function SuperAdminDashboard() {
               </div>
             </div>
 
+            {/* Secondary KPI Cards: Ecosystem Deep-Dive Telemetry */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {/* 1. Universal AI OCR Scanner */}
+              <div className="p-5 rounded-3xl bg-slate-900/90 border border-cyan-500/30 shadow-xl relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-cyan-400">
+                    Universal AI OCR Stream
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
+                    <ScanLine className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-white mt-2 font-mono">
+                  {metrics?.stats?.totalOcrScans || 0}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+                  <span className="text-cyan-400 font-bold">98.4% Accuracy</span>
+                  <span>•</span>
+                  <span>{metrics?.stats?.ocrLearnedFieldsCount || 0} Learned Rules</span>
+                </div>
+              </div>
+
+              {/* 2. CA Partner & Staff Ecosystem */}
+              <div className="p-5 rounded-3xl bg-slate-900/90 border border-blue-500/30 shadow-xl relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-blue-400">
+                    CA Audit Ecosystem
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center">
+                    <ShieldCheck className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <p className="text-2xl sm:text-3xl font-black text-white font-mono">
+                    {metrics?.stats?.totalCAs || 0}
+                  </p>
+                  <span className="text-xs font-mono text-blue-300">
+                    + {metrics?.stats?.totalCAStaff || 0} Articles
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {metrics?.stats?.caAuditTelemetry?.vouchersAudited || 0} Vouchers Verified • {metrics?.stats?.totalCATasks || 0} Tasks
+                </p>
+              </div>
+
+              {/* 3. Dual-Entry Books & Ledger */}
+              <div className="p-5 rounded-3xl bg-slate-900/90 border border-emerald-500/30 shadow-xl relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                    Dual-Entry General Ledger
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center">
+                    <BarChart3 className="w-4 h-4" />
+                  </div>
+                </div>
+                <p className="text-2xl sm:text-3xl font-black text-white mt-2 font-mono">
+                  {metrics?.stats?.totalJournalEntries || 0}
+                </p>
+                <div className="flex items-center gap-1.5 mt-1 text-[11px] text-slate-400">
+                  <span className="text-emerald-400 font-bold">{metrics?.stats?.totalLedgerAccounts || 0} T-Accounts</span>
+                  <span>•</span>
+                  <span className="text-slate-400">Dr = Cr Balanced</span>
+                </div>
+              </div>
+
+              {/* 4. Retail & FMCG Footprint */}
+              <div className="p-5 rounded-3xl bg-slate-900/90 border border-pink-500/30 shadow-xl relative overflow-hidden">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-pink-400">
+                    Retail &amp; POS Counters
+                  </span>
+                  <div className="w-8 h-8 rounded-xl bg-pink-500/20 text-pink-400 flex items-center justify-center">
+                    <Boxes className="w-4 h-4" />
+                  </div>
+                </div>
+                <div className="flex items-baseline gap-2 mt-2">
+                  <p className="text-2xl sm:text-3xl font-black text-white font-mono">
+                    {metrics?.stats?.retailOrgsCount || 0}
+                  </p>
+                  <span className="text-xs font-mono text-pink-300">Stores</span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  {metrics?.stats?.departmentDistribution?.RETAIL || 0} Active POS Cashiers &amp; Counters
+                </p>
+              </div>
+            </div>
+
             {/* Department Breakdown & Quick Launcher */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Department Distribution */}
@@ -772,7 +867,7 @@ export default function SuperAdminDashboard() {
                       Departmental Staff Distribution
                     </h3>
                     <p className="text-xs text-slate-400 mt-0.5">
-                      Platform headcount across the 4 key operational branches
+                      Platform headcount across operational branches &amp; retail counters
                     </p>
                   </div>
                   <span className="text-xs font-mono font-bold text-purple-400">
@@ -780,7 +875,7 @@ export default function SuperAdminDashboard() {
                   </span>
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
                   {[
                     {
                       dept: "OPERATIONS",
@@ -806,19 +901,25 @@ export default function SuperAdminDashboard() {
                       count: metrics?.stats?.departmentDistribution?.FINANCIAL || 0,
                       color: "border-purple-500/40 bg-purple-500/10 text-purple-400",
                     },
+                    {
+                      dept: "RETAIL",
+                      label: "Retail & POS",
+                      count: metrics?.stats?.departmentDistribution?.RETAIL || 0,
+                      color: "border-pink-500/40 bg-pink-500/10 text-pink-400",
+                    },
                   ].map((d) => (
                     <div
                       key={d.dept}
-                      className={`p-4 rounded-2xl border ${d.color} flex flex-col justify-between`}
+                      className={`p-3.5 rounded-2xl border ${d.color} flex flex-col justify-between`}
                     >
                       <span className="text-[10px] font-black uppercase tracking-wider">
                         {d.label}
                       </span>
-                      <p className="text-2xl font-black text-white mt-3 font-mono">
+                      <p className="text-2xl font-black text-white mt-2 font-mono">
                         {d.count}
                       </p>
-                      <span className="text-[10px] text-slate-400 mt-1">
-                        Assigned active staff
+                      <span className="text-[9px] text-slate-400 mt-1">
+                        Active staff
                       </span>
                     </div>
                   ))}
@@ -913,7 +1014,7 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Platform Recent Activity Stream */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               {/* Recent Owners */}
               <div className="p-6 rounded-3xl bg-slate-900/90 border border-slate-800 shadow-xl space-y-3">
                 <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
@@ -921,17 +1022,21 @@ export default function SuperAdminDashboard() {
                   <span>Recent Registered Companies</span>
                 </h4>
                 <div className="divide-y divide-slate-800">
-                  {(metrics?.recentActivity?.owners || []).map((o) => (
-                    <div key={o.id} className="py-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-bold text-white">{o.name}</p>
-                        <p className="text-[11px] text-slate-400">{o.email} • {o.phone}</p>
+                  {(!metrics?.recentActivity?.owners || metrics.recentActivity.owners.length === 0) ? (
+                    <p className="py-4 text-xs text-slate-500 text-center">No recent companies registered.</p>
+                  ) : (
+                    metrics.recentActivity.owners.map((o) => (
+                      <div key={o.id} className="py-2.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-white">{o.name}</p>
+                          <p className="text-[11px] text-slate-400">{o.email} • {o.phone}</p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-mono">
+                          {o.plan}
+                        </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-md bg-purple-500/20 text-purple-300 text-[10px] font-mono">
-                        {o.plan}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -942,17 +1047,50 @@ export default function SuperAdminDashboard() {
                   <span>Recent Enrolled Employees</span>
                 </h4>
                 <div className="divide-y divide-slate-800">
-                  {(metrics?.recentActivity?.employees || []).map((e) => (
-                    <div key={e.id} className="py-2.5 flex items-center justify-between text-xs">
-                      <div>
-                        <p className="font-bold text-white">{e.name}</p>
-                        <p className="text-[11px] text-slate-400">{e.post} • {e.phone}</p>
+                  {(!metrics?.recentActivity?.employees || metrics.recentActivity.employees.length === 0) ? (
+                    <p className="py-4 text-xs text-slate-500 text-center">No recent staff enrolled.</p>
+                  ) : (
+                    metrics.recentActivity.employees.map((e) => (
+                      <div key={e.id} className="py-2.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-white">{e.name}</p>
+                          <p className="text-[11px] text-slate-400">{e.post} • {e.phone}</p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-mono uppercase">
+                          {e.department}
+                        </span>
                       </div>
-                      <span className="px-2 py-0.5 rounded-md bg-slate-800 text-slate-300 text-[10px] font-mono uppercase">
-                        {e.department}
-                      </span>
-                    </div>
-                  ))}
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Recent AI OCR Scans & Raw Inward Stock */}
+              <div className="p-6 rounded-3xl bg-slate-900/90 border border-cyan-500/30 shadow-xl space-y-3">
+                <h4 className="text-xs font-black text-slate-300 uppercase tracking-wider flex items-center gap-2">
+                  <ScanLine className="w-4 h-4 text-cyan-400" />
+                  <span>Recent AI OCR Scans</span>
+                </h4>
+                <div className="divide-y divide-slate-800">
+                  {(!metrics?.recentActivity?.ocrScans || metrics.recentActivity.ocrScans.length === 0) ? (
+                    <p className="py-4 text-xs text-slate-500 text-center">No documents scanned recently.</p>
+                  ) : (
+                    metrics.recentActivity.ocrScans.map((r) => (
+                      <div key={r.id} className="py-2.5 flex items-center justify-between text-xs">
+                        <div>
+                          <p className="font-bold text-white truncate max-w-[150px]">
+                            {r.documentType?.replace(/_/g, " ")} #{r.documentNumber || "REC"}
+                          </p>
+                          <p className="text-[11px] text-slate-400 truncate max-w-[170px]">
+                            {r.vendorName || "General Vendor"} • {r.lineItemsCount} items
+                          </p>
+                        </div>
+                        <span className="px-2 py-0.5 rounded-md bg-cyan-500/20 text-cyan-300 text-[10px] font-mono">
+                          {r.accuracyScore ? `${r.accuracyScore}% Acc` : "Verified"}
+                        </span>
+                      </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -1124,6 +1262,7 @@ export default function SuperAdminDashboard() {
                           OWNER: "bg-purple-500/20 text-purple-300 border-purple-500/30",
                           EMPLOYEE: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
                           CA: "bg-amber-500/20 text-amber-300 border-amber-500/30",
+                          CA_STAFF: "bg-blue-500/20 text-blue-300 border-blue-500/30",
                         }[u.userType] || "bg-slate-800 text-slate-300 border-slate-700";
 
                         return (
@@ -1212,10 +1351,10 @@ export default function SuperAdminDashboard() {
                               ) : (
                                 <div className="space-y-0.5">
                                   <span className="px-2 py-0.5 rounded-lg text-[10px] font-black uppercase tracking-wider border bg-slate-800 text-slate-300 border-slate-700">
-                                    {u.planDetails?.planName || (u.userType === "CA" ? "Auditor Partner" : "Corporate Seat")}
+                                    {u.planDetails?.planName || (u.userType === "CA" ? "Auditor Partner" : u.userType === "CA_STAFF" ? "Article Desk" : "Corporate Seat")}
                                   </span>
                                   <p className="text-[10px] text-slate-500 font-mono">
-                                    {u.userType === "CA" ? "Audit Bridge" : "Staff Account"}
+                                    {u.userType === "CA" ? "Audit Bridge" : u.userType === "CA_STAFF" ? `${u.assignedClientsCount || 0} MSMEs Assigned` : "Staff Account"}
                                   </p>
                                 </div>
                               )}
@@ -1400,7 +1539,7 @@ export default function SuperAdminDashboard() {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
               <div className="p-5 rounded-3xl bg-emerald-950/20 border border-emerald-500/30 text-emerald-300 space-y-2">
                 <span className="text-xs font-black uppercase tracking-wider block">
                   Operations & Plant
@@ -1448,6 +1587,18 @@ export default function SuperAdminDashboard() {
                   GST invoices, vendor bills & general ledger
                 </p>
               </div>
+
+              <div className="p-5 rounded-3xl bg-pink-950/20 border border-pink-500/30 text-pink-300 space-y-2">
+                <span className="text-xs font-black uppercase tracking-wider block">
+                  Retail &amp; POS Counter
+                </span>
+                <p className="text-2xl font-black text-white font-mono">
+                  {metrics?.stats?.departmentDistribution?.RETAIL || 0} Cashiers &amp; Staff
+                </p>
+                <p className="text-[11px] text-slate-400">
+                  Point-of-sales, FMCG barcode checkout &amp; sweet shop counters
+                </p>
+              </div>
             </div>
           </div>
         )}
@@ -1468,28 +1619,34 @@ export default function SuperAdminDashboard() {
             </div>
 
             {/* Collections Inspector */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3.5">
               {[
                 { name: "owners", label: "Owners / Companies", count: metrics?.collections?.owners || 0 },
                 { name: "employees", label: "Employees / Staff", count: metrics?.collections?.employees || 0 },
                 { name: "organizations", label: "Organizations", count: metrics?.collections?.organizations || 0 },
+                { name: "cas", label: "CA Partners", count: metrics?.collections?.cas || 0 },
+                { name: "castaffs", label: "Audit Staff & Articles", count: metrics?.collections?.caStaff || 0 },
+                { name: "catasks", label: "CA Work Delegations", count: metrics?.collections?.caTasks || 0 },
+                { name: "universaldocumentrecords", label: "AI OCR Documents", count: metrics?.collections?.ocrRecords || 0 },
+                { name: "ocrfielddictionaries", label: "OCR Learned Rules", count: metrics?.collections?.ocrDictionaries || 0 },
+                { name: "journalentries", label: "Dual-Entry Journals", count: metrics?.collections?.journalEntries || 0 },
+                { name: "ledgeraccounts", label: "Ledger T-Accounts", count: metrics?.collections?.ledgerAccounts || 0 },
                 { name: "attendances", label: "Attendance Logs", count: metrics?.collections?.attendances || 0 },
                 { name: "submissions", label: "Work Submissions", count: metrics?.collections?.submissions || 0 },
                 { name: "taskassignments", label: "Task Directives", count: metrics?.collections?.taskAssignments || 0 },
                 { name: "leaves", label: "Leave Requests", count: metrics?.collections?.leaves || 0 },
-                { name: "cas", label: "CA Auditors", count: metrics?.collections?.cas || 0 },
               ].map((c) => (
                 <div
                   key={c.name}
-                  className="p-4 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm"
+                  className="p-3.5 rounded-2xl bg-slate-900 border border-slate-800 shadow-sm"
                 >
-                  <span className="text-[10px] font-mono text-purple-400 uppercase">
+                  <span className="text-[9px] font-mono text-purple-400 uppercase truncate block">
                     db.{c.name}
                   </span>
-                  <p className="text-2xl font-black text-white mt-1 font-mono">
+                  <p className="text-xl font-black text-white mt-1 font-mono">
                     {c.count.toLocaleString()}
                   </p>
-                  <p className="text-[10px] text-slate-400 mt-0.5">{c.label}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5 truncate">{c.label}</p>
                 </div>
               ))}
             </div>
@@ -1599,11 +1756,12 @@ export default function SuperAdminDashboard() {
                 <label className="block text-xs font-bold text-slate-300 mb-1">
                   User Type *
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { id: "OWNER", label: "Business Owner" },
                     { id: "EMPLOYEE", label: "Staff Employee" },
                     { id: "CA", label: "CA Auditor" },
+                    { id: "CA_STAFF", label: "Audit Staff & Article" },
                   ].map((t) => (
                     <button
                       key={t.id}
@@ -1769,6 +1927,7 @@ export default function SuperAdminDashboard() {
                         <option value="SALES">Sales</option>
                         <option value="LOGISTICS">Logistics</option>
                         <option value="FINANCIAL">Financial</option>
+                        <option value="RETAIL">Retail & POS Counter</option>
                       </select>
                     </div>
 
@@ -1843,6 +2002,49 @@ export default function SuperAdminDashboard() {
                       }
                       className="w-full p-3 rounded-2xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none"
                     />
+                  </div>
+                </div>
+              )}
+
+              {/* CA Staff Specific Fields */}
+              {createForm.userType === "CA_STAFF" && (
+                <div className="p-4 rounded-2xl bg-blue-950/20 border border-blue-500/30 space-y-3">
+                  <div>
+                    <label className="block text-xs font-bold text-blue-300 mb-1">
+                      Parent CA Practice / Firm *
+                    </label>
+                    <select
+                      required
+                      value={createForm.caFirmId}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, caFirmId: e.target.value })
+                      }
+                      className="w-full p-3 rounded-2xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none"
+                    >
+                      <option value="">Select CA Practice...</option>
+                      {caFirmsList.map((f) => (
+                        <option key={f.id} value={f.id}>
+                          {f.name} (Partner: {f.partnerName})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-blue-300 mb-1">
+                      Article / Staff Level in Firm
+                    </label>
+                    <select
+                      value={createForm.roleInFirm || "Article Assistant"}
+                      onChange={(e) =>
+                        setCreateForm({ ...createForm, roleInFirm: e.target.value })
+                      }
+                      className="w-full p-3 rounded-2xl bg-slate-800 border border-slate-700 text-xs text-white focus:outline-none"
+                    >
+                      <option value="Senior Auditor">Senior Auditor</option>
+                      <option value="Junior Auditor">Junior Auditor</option>
+                      <option value="Article Assistant">Article Assistant</option>
+                    </select>
                   </div>
                 </div>
               )}

@@ -6,9 +6,10 @@ import Owner from "@/models/Owner";
 import Employee, { DEPARTMENT_LIST, POST_HIERARCHY_LEVELS } from "@/models/Employee";
 import Organization from "@/models/Organization";
 import CA from "@/models/CA";
+import CAStaff from "@/models/CAStaff";
 import { resolveOrganizationForOwner, buildFullPlanDetails } from "@/lib/subscriptionHelper";
 
-// GET /api/admin/users - Universal registry of all users across Owner, Employee, CA
+// GET /api/admin/users - Universal registry of all users across Owner, Employee, CA, and CA Staff
 export async function GET(request) {
   try {
     const auth = await getAuthenticatedSuperAdmin();
@@ -18,15 +19,16 @@ export async function GET(request) {
 
     await connectDB();
     const { searchParams } = new URL(request.url);
-    const typeFilter = searchParams.get("type") || "ALL"; // ALL | OWNER | EMPLOYEE | CA
+    const typeFilter = searchParams.get("type") || "ALL"; // ALL | OWNER | EMPLOYEE | CA | CA_STAFF
     const deptFilter = searchParams.get("department");
     const search = searchParams.get("search")?.toLowerCase().trim();
 
     let ownerList = [];
     let employeeList = [];
     let caList = [];
+    let caStaffList = [];
 
-    // Fetch Owners
+    // 1. Fetch Owners
     if (typeFilter === "ALL" || typeFilter === "OWNER") {
       let query = {};
       if (search) {
@@ -39,11 +41,15 @@ export async function GET(request) {
       ownerList = await Owner.find(query).sort({ createdAt: -1 }).lean();
     }
 
-    // Fetch Employees
+    // 2. Fetch Employees
     if (typeFilter === "ALL" || typeFilter === "EMPLOYEE") {
       let query = {};
       if (deptFilter && deptFilter !== "ALL") {
-        query.department = deptFilter.toUpperCase();
+        if (deptFilter.toUpperCase() === "RETAIL") {
+          query.department = { $in: ["RETAIL", "COUNTER_BILLING", "POS"] };
+        } else {
+          query.department = deptFilter.toUpperCase();
+        }
       }
       if (search) {
         query.$or = [
@@ -56,7 +62,7 @@ export async function GET(request) {
       employeeList = await Employee.find(query).sort({ createdAt: -1 }).lean();
     }
 
-    // Fetch CAs
+    // 3. Fetch CA Partners
     if (typeFilter === "ALL" || typeFilter === "CA") {
       let query = {};
       if (search) {
@@ -69,6 +75,22 @@ export async function GET(request) {
         ];
       }
       caList = await CA.find(query).sort({ createdAt: -1 }).lean();
+    }
+
+    // 4. Fetch CA Staff & Article Assistants
+    if (typeFilter === "ALL" || typeFilter === "CA_STAFF" || typeFilter === "STAFF") {
+      let query = {};
+      if (search) {
+        query.$or = [
+          { name: { $regex: search, $options: "i" } },
+          { email: { $regex: search, $options: "i" } },
+          { phoneNumber: { $regex: search, $options: "i" } },
+        ];
+      }
+      caStaffList = await CAStaff.find(query)
+        .populate("caFirmId", "name firmName icaiNumber")
+        .sort({ createdAt: -1 })
+        .lean();
     }
 
     // Pre-fetch all Organizations and Employee counts for accurate linking
@@ -113,7 +135,7 @@ export async function GET(request) {
         postLevel: "OWNER",
         postTitle: "Business Owner / Managing Director",
         branchName: org?.branchList?.[0]?.name || "Headquarters",
-        status: o.isProfileComplete ? "ACTIVE" : "PENDING_SETUP",
+        status: o.isSetupComplete ? "ACTIVE" : "PENDING_SETUP",
         planName: planDetails.planName,
         planDetails: planDetails,
         createdAt: o.createdAt,
@@ -147,13 +169,39 @@ export async function GET(request) {
         name: c.name,
         email: c.email,
         phoneNumber: c.phoneNumber,
-        companyName: c.firmName || "CA Consultancy",
+        companyName: c.firmName || `${c.name} & Associates`,
         department: "AUDIT",
         postLevel: "CHARTERED_ACCOUNTANT",
         postTitle: `Practicing CA (${c.icaiNumber || "ICAI Member"})`,
-        branchName: "External Firm",
+        branchName: "CA Firm",
         status: "ACTIVE",
+        staffCount: c.staff?.length || 0,
+        clientsCount: (c.clients || c.clientCompanies || []).length,
         createdAt: c.createdAt,
+      });
+    });
+
+    caStaffList.forEach((s) => {
+      const firmObj = s.caFirmId;
+      const firmTitle = firmObj?.firmName || firmObj?.name || "Crown Audit Associates";
+      const assignedCount = (s.assignedCompanies || s.assignedClients || []).length;
+
+      normalizedUsers.push({
+        _id: s._id,
+        userType: "CA_STAFF",
+        role: "CA_STAFF",
+        name: s.name,
+        email: s.email,
+        phoneNumber: s.phoneNumber,
+        companyName: firmTitle,
+        department: "AUDIT",
+        postLevel: s.roleInFirm || "Article Assistant",
+        postTitle: `${s.roleInFirm || "Article Assistant"} • ${firmTitle}`,
+        branchName: "Staff Desk",
+        status: "ACTIVE",
+        caFirmId: firmObj?._id,
+        assignedClientsCount: assignedCount,
+        createdAt: s.createdAt,
       });
     });
 
@@ -162,8 +210,11 @@ export async function GET(request) {
       (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
 
-    // List of companies for dropdowns
-    const companies = await Owner.find({}, "_id name email phoneNumber").lean();
+    // List of companies & CA firms for dropdowns
+    const [companies, caFirms] = await Promise.all([
+      Owner.find({}, "_id name email phoneNumber").lean(),
+      CA.find({}, "_id name firmName icaiNumber").lean(),
+    ]);
 
     return NextResponse.json({
       success: true,
@@ -174,6 +225,12 @@ export async function GET(request) {
         name: c.name,
         email: c.email,
         phone: c.phoneNumber,
+      })),
+      caFirms: caFirms.map((f) => ({
+        id: f._id,
+        name: f.firmName || f.name,
+        partnerName: f.name,
+        icaiNumber: f.icaiNumber,
       })),
     });
   } catch (error) {
@@ -196,7 +253,7 @@ export async function POST(request) {
     await connectDB();
     const body = await request.json().catch(() => ({}));
     const {
-      userType, // OWNER | EMPLOYEE | CA
+      userType, // OWNER | EMPLOYEE | CA | CA_STAFF
       name,
       email,
       phoneNumber,
@@ -214,6 +271,9 @@ export async function POST(request) {
       // CA specific
       firmName,
       icaiNumber,
+      // CA Staff specific
+      caFirmId,
+      roleInFirm,
     } = body;
 
     if (!userType || !name || !email || !phoneNumber || !password) {
@@ -227,13 +287,14 @@ export async function POST(request) {
     const cleanPhone = phoneNumber.trim();
 
     // Check duplicate in all collections
-    const [existingOwner, existingEmployee, existingCA] = await Promise.all([
+    const [existingOwner, existingEmployee, existingCA, existingStaff] = await Promise.all([
       Owner.findOne({ $or: [{ email: cleanEmail }, { phoneNumber: cleanPhone }] }),
       Employee.findOne({ $or: [{ email: cleanEmail }, { phoneNumber: cleanPhone }] }),
       CA.findOne({ $or: [{ email: cleanEmail }, { phoneNumber: cleanPhone }] }),
+      CAStaff.findOne({ $or: [{ email: cleanEmail }, { phoneNumber: cleanPhone }] }),
     ]);
 
-    if (existingOwner || existingEmployee || existingCA) {
+    if (existingOwner || existingEmployee || existingCA || existingStaff) {
       return NextResponse.json(
         { error: "A user with this email or phone number already exists in the system." },
         { status: 400 }
@@ -254,6 +315,7 @@ export async function POST(request) {
         planName: chosenPlan,
         paymentStatus: "paid",
         isProfileComplete: true,
+        isSetupComplete: true,
       });
 
       await newOwner.save();
@@ -342,7 +404,7 @@ export async function POST(request) {
       });
     }
 
-    // 3. Create CA
+    // 3. Create CA Partner
     if (userType === "CA") {
       const newCA = new CA({
         name: name.trim(),
@@ -351,6 +413,7 @@ export async function POST(request) {
         password: hashedPassword,
         icaiNumber: icaiNumber?.trim() || `ICAI-${Date.now().toString().slice(-6)}`,
         firmName: firmName?.trim() || `${name.trim()} & Associates`,
+        isSetupComplete: true,
       });
 
       await newCA.save();
@@ -365,6 +428,52 @@ export async function POST(request) {
           email: newCA.email,
           phoneNumber: newCA.phoneNumber,
           icaiNumber: newCA.icaiNumber,
+        },
+      });
+    }
+
+    // 4. Create CA Staff & Article Assistant
+    if (userType === "CA_STAFF") {
+      if (!caFirmId) {
+        return NextResponse.json(
+          { error: "Parent CA Firm must be selected for CA Staff." },
+          { status: 400 }
+        );
+      }
+
+      const parentCA = await CA.findById(caFirmId);
+      if (!parentCA) {
+        return NextResponse.json({ error: "Selected CA Practice does not exist." }, { status: 404 });
+      }
+
+      const newStaff = new CAStaff({
+        name: name.trim(),
+        email: cleanEmail,
+        phoneNumber: cleanPhone,
+        password: hashedPassword,
+        caFirmId: parentCA._id,
+        roleInFirm: roleInFirm || "Article Assistant",
+        isActive: true,
+      });
+
+      await newStaff.save();
+
+      // Link to parent CA
+      await CA.findByIdAndUpdate(parentCA._id, {
+        $addToSet: { staff: newStaff._id },
+      });
+
+      return NextResponse.json({
+        success: true,
+        message: `Audit Staff member ${name} created and linked to ${parentCA.firmName || parentCA.name}!`,
+        user: {
+          _id: newStaff._id,
+          userType: "CA_STAFF",
+          name: newStaff.name,
+          email: newStaff.email,
+          phoneNumber: newStaff.phoneNumber,
+          roleInFirm: newStaff.roleInFirm,
+          caFirm: parentCA.firmName || parentCA.name,
         },
       });
     }

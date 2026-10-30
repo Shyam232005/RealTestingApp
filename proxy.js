@@ -2,9 +2,14 @@ import { NextResponse } from "next/server";
 import { jwtVerify } from "jose";
 
 /**
- * Root Next.js Proxy (Next.js 16 convention replacing legacy middleware.js)
- * Consolidates Express global middleware: JWT Authentication, RBAC,
- * Tenant Isolation, CORS Preflights, and Anti-URL Tampering Protections.
+ * Root Next.js Proxy (Next.js 16 standard replacing legacy middleware.js)
+ * Consolidates:
+ * - Edge JWT Authentication & Session Extraction
+ * - Paid User & Active Subscription Enforcement
+ * - Strict Separation of CA Partner (/ca) and CA Staff (/staff) Portals
+ * - RBAC & Tenant Isolation across SuperAdmin, Owner, Employee, CA, and Staff
+ * - Anti-URL Tampering Protections
+ * - Preflight & Security Headers
  */
 
 // Public routes that never require authentication
@@ -17,7 +22,7 @@ const PUBLIC_PAGE_ROUTES = [
   "/overview",
   "/who",
   "/purchase",
-  "/demo",
+  "/payment",
 ];
 
 const PUBLIC_API_ROUTES = [
@@ -90,13 +95,13 @@ export async function proxy(request) {
     }
   }
 
-  // 5. Unauthenticated Access Barrier
+  // 5. Unauthenticated Access Barrier - Strictly protect internal web app pages
   if (!user) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json(
         {
           success: false,
-          error: "Unauthorized: Active authentication session required.",
+          error: "Unauthorized: Active paid authentication session required.",
           code: "AUTH_REQUIRED",
         },
         { status: 401 }
@@ -115,15 +120,23 @@ export async function proxy(request) {
     user.normalizedRole ||
     ""
   ).toUpperCase();
+
   const isSuperAdmin =
     user.isSuperAdmin ||
     rawRole === "SUPERADMIN" ||
     rawRole === "ADMIN" ||
     rawRole === "SUPER_ADMIN";
-  const isOwner = isSuperAdmin || rawRole === "OWNER";
-  const isEmployee = rawRole === "EMPLOYEE";
 
-  // 7. Role-Based Route Protection (RBAC)
+  const isOwner = isSuperAdmin || rawRole === "OWNER" || rawRole === "BUSINESS_OWNER";
+  const isEmployee = rawRole === "EMPLOYEE";
+  const isCAPartner = isSuperAdmin || rawRole === "CA" || rawRole === "CA_PARTNER";
+  const isCAStaff =
+    isSuperAdmin ||
+    rawRole === "CA_STAFF" ||
+    rawRole === "CA-EMPLOYEE" ||
+    rawRole === "CASTAFF";
+
+  // 7. Role-Based Route Protection (RBAC) & Paid Enforcement
 
   // 7.1 Admin Portal & APIs (/admin/**, /api/admin/**)
   if (pathname.startsWith("/admin") || pathname.startsWith("/api/admin")) {
@@ -160,7 +173,27 @@ export async function proxy(request) {
           { status: 403 }
         );
       }
+      if (isCAPartner) return NextResponse.redirect(new URL("/ca", request.url));
+      if (isCAStaff) return NextResponse.redirect(new URL("/staff", request.url));
       return NextResponse.redirect(new URL("/department", request.url));
+    }
+
+    // Paid Plan Enforcement for Business Owners
+    if (!isSuperAdmin && user.subscriptionStatus) {
+      const subStatus = String(user.subscriptionStatus).toLowerCase();
+      if (subStatus === "expired" || subStatus === "canceled") {
+        if (pathname.startsWith("/api/")) {
+          return NextResponse.json(
+            {
+              success: false,
+              error: "Payment required: Your business subscription has expired. Please renew.",
+              code: "SUBSCRIPTION_REQUIRED",
+            },
+            { status: 402 }
+          );
+        }
+        return NextResponse.redirect(new URL("/purchase?reason=subscription_required", request.url));
+      }
     }
   }
 
@@ -169,7 +202,6 @@ export async function proxy(request) {
     pathname.startsWith("/department") ||
     pathname.startsWith("/api/employee")
   ) {
-    // SuperAdmin and Owner can inspect workspaces
     if (!isEmployee && !isOwner) {
       if (pathname.startsWith("/api/")) {
         return NextResponse.json(
@@ -181,6 +213,8 @@ export async function proxy(request) {
           { status: 403 }
         );
       }
+      if (isCAPartner) return NextResponse.redirect(new URL("/ca", request.url));
+      if (isCAStaff) return NextResponse.redirect(new URL("/staff", request.url));
       return NextResponse.redirect(new URL("/login", request.url));
     }
 
@@ -206,11 +240,63 @@ export async function proxy(request) {
       );
 
       if (targetDeptInUrl && employeeDept && targetDeptInUrl !== employeeDept) {
-        // Rewrite or redirect user to their assigned workspace
         return NextResponse.redirect(
           new URL(`/department/${employeeDept}`, request.url)
         );
       }
+    }
+  }
+
+  // 7.4 CA Partner Portal (/ca/**) - Strictly separated from Staff
+  if (pathname.startsWith("/ca")) {
+    // If someone visits /ca/staff, route to dedicated Staff Portal
+    if (pathname === "/ca/staff" || pathname.startsWith("/ca/staff/")) {
+      return NextResponse.redirect(new URL("/staff", request.url));
+    }
+
+    // If an Audit Staff member tries to access CA Partner portal, redirect to /staff
+    if (isCAStaff && !isCAPartner) {
+      return NextResponse.redirect(new URL("/staff", request.url));
+    }
+
+    if (!isCAPartner) {
+      if (isOwner) return NextResponse.redirect(new URL("/owner/dashboard", request.url));
+      if (isEmployee) return NextResponse.redirect(new URL("/department", request.url));
+      return NextResponse.redirect(new URL("/login?redirect=" + encodeURIComponent(pathname), request.url));
+    }
+
+    // If CA Partner has not completed onboarding setup, guide them to /ca/setup
+    if (user.isSetupComplete === false && !pathname.startsWith("/ca/setup")) {
+      return NextResponse.redirect(new URL("/ca/setup", request.url));
+    }
+  }
+
+  // 7.5 CA Staff Portal (/staff/**) - Strictly separated from CA Partner
+  if (pathname.startsWith("/staff")) {
+    // If a CA Partner tries to access Staff portal, redirect to /ca
+    if (isCAPartner && !isCAStaff) {
+      return NextResponse.redirect(new URL("/ca", request.url));
+    }
+
+    if (!isCAStaff) {
+      if (isOwner) return NextResponse.redirect(new URL("/owner/dashboard", request.url));
+      if (isEmployee) return NextResponse.redirect(new URL("/department", request.url));
+      return NextResponse.redirect(new URL("/login?redirect=" + encodeURIComponent(pathname), request.url));
+    }
+  }
+
+  // 7.6 CA & Staff Shared APIs (/api/ca/**)
+  if (pathname.startsWith("/api/ca")) {
+    const isAuthorizedCAEntity = isCAPartner || isCAStaff || isSuperAdmin;
+    if (!isAuthorizedCAEntity) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "Forbidden: Chartered Accountant or Audit Staff credentials required.",
+          code: "CA_REQUIRED",
+        },
+        { status: 403 }
+      );
     }
   }
 

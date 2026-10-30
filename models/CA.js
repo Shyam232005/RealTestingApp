@@ -1,26 +1,37 @@
 import mongoose from "mongoose";
 import crypto from "crypto";
 
-const CASchema = new mongoose.Schema({
-  name: { type: String, required: true, trim: true },
-  phoneNumber: { type: String, required: true, unique: true, index: true },
-  email: { type: String, required: true, unique: true, lowercase: true, index: true },
-  password: { type: String, required: true },
+const CASchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true },
+    phoneNumber: { type: String, required: true, unique: true, index: true },
+    email: { type: String, required: true, unique: true, lowercase: true, index: true },
+    password: { type: String, required: true },
 
-  icaiNumber: { type: String, required: true, unique: true, uppercase: true },
-  
-  // CA platform onboarding & invite codes
-  joinedViaCode: { type: String, default: "" },
-  caInviteCode: { type: String, unique: true, index: true }, // Format: CA-XXXXXX
-  staffInviteCode: { type: String, unique: true, index: true }, // Format: STF-XXXXXX
-  inviteCode: { type: String, unique: true, index: true }, // legacy alias to staffInviteCode / caInviteCode
+    icaiNumber: { type: String, required: true, unique: true, uppercase: true },
 
-  isVerifiedICAI: { type: Boolean, default: false },
-  clients: [{ type: mongoose.Schema.Types.ObjectId, ref: "Owner" }],
-  clientCompanies: [{ type: mongoose.Schema.Types.ObjectId, ref: "Owner" }],
-  staff: [{ type: mongoose.Schema.Types.ObjectId, ref: "CAStaff" }],
-  isActive: { type: Boolean, default: true }
-}, { timestamps: true });
+    // CA Onboarding & Digital Audit Stamp
+    firmName: { type: String, default: "", trim: true },
+    partnerName: { type: String, default: "", trim: true },
+    officeAddress: { type: String, default: "", trim: true },
+    digitalStampUrl: { type: String, default: "" }, // Base64 PNG/SVG or asset URL
+    role: { type: String, default: "CA_PARTNER" }, // CA_PARTNER
+    isSetupComplete: { type: Boolean, default: false },
+
+    // CA platform onboarding & invite codes
+    joinedViaCode: { type: String, default: "" },
+    caInviteCode: { type: String, unique: true, index: true }, // Format: CA-XXXXXX
+    staffInviteCode: { type: String, unique: true, index: true }, // Format: STF-XXXXXX
+    inviteCode: { type: String, unique: true, index: true }, // legacy alias to staffInviteCode / caInviteCode
+
+    isVerifiedICAI: { type: Boolean, default: false },
+    clients: [{ type: mongoose.Schema.Types.ObjectId, ref: "Owner" }],
+    clientCompanies: [{ type: mongoose.Schema.Types.ObjectId, ref: "Owner" }],
+    staff: [{ type: mongoose.Schema.Types.ObjectId, ref: "CAStaff" }],
+    isActive: { type: Boolean, default: true },
+  },
+  { timestamps: true }
+);
 
 CASchema.pre("validate", function () {
   if (!this.caInviteCode) {

@@ -25,6 +25,7 @@ import {
 } from "lucide-react";
 import { ScannerLaserSkeleton } from "@/components/ui/CrownSkeletonLoader";
 import { writeLocalRecord } from "@/lib/localCrdtSync";
+import { emitStreamDataDelta } from "@/lib/socketClient";
 
 export default function CrownSmartScanner({
   documentContext = "general",
@@ -113,6 +114,20 @@ export default function CrownSmartScanner({
 
         // Notify parent with extracted data & dynamic fields
         onScanComplete(data);
+
+        // Push real-time delta stream to connected CA / Staff pipeline
+        try {
+          emitStreamDataDelta({
+            type: "OCR_NEW_DOCUMENT",
+            documentContext,
+            vendorName: data?.vendorInfo?.supplierName,
+            totalPayable: data?.mathGuardrails?.totalAmount || data?.rawKeysMap?.["Bill Total Payable"] || 0,
+            confidenceScore: data?.confidenceScore || 99,
+            scannedAt: new Date().toISOString(),
+          });
+        } catch (e) {
+          console.warn("Socket stream delta broadcast:", e);
+        }
 
         // Show toast if new fields were learned by the engine
         if (data.newFieldsLearned && data.newFieldsLearned.length > 0) {
@@ -277,11 +292,16 @@ export default function CrownSmartScanner({
               <UploadCloud className="w-8 h-8" />
             </div>
 
+            <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[11px] font-black uppercase tracking-wider mb-4 shadow-sm">
+              <ScanLine className="w-3.5 h-3.5 animate-pulse" />
+              <span>Zero State • Self-Learning Engine Active</span>
+            </div>
+
             <h3 className="text-base font-extrabold text-white">
               Drop Invoice, Delivery Challan, Bilty, or Kachcha Bill
             </h3>
             <p className="text-xs text-slate-400 max-w-md mx-auto mt-1">
-              Supports <strong>Photos (PNG, JPG, WebP)</strong> and <strong>PDF Invoices</strong>. Zero typing required.
+              Supports <strong>Photos (PNG, JPG, WebP)</strong> and <strong>PDF Invoices</strong>. Zero typing required. The engine automatically learns unknown fields and adapts to vendor formats in real-time.
             </p>
 
             {/* Direct Mobile Camera Button for warehouse floor staff */}

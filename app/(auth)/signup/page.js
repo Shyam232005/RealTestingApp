@@ -151,9 +151,21 @@ function SignupFormContent() {
             }
 
             if (res.ok) {
-                toast.success(result.message || "Account created successfully! Welcome to FineOps.");
+                toast.success(result.message || "Account created successfully! Welcome to Crown Ecosystems.");
                 if (result.redirectUrl) {
                     window.location.href = result.redirectUrl;
+                    return;
+                }
+                if (data.role === "CA") {
+                    window.location.href = "/ca/setup";
+                    return;
+                }
+                if (data.role === "CA-Employee" || data.role === "CAStaff" || data.role === "CA_STAFF") {
+                    window.location.href = "/staff";
+                    return;
+                }
+                if (data.role === "Owner") {
+                    window.location.href = "/owner/setup";
                     return;
                 }
                 router.push('/login');

@@ -206,7 +206,9 @@ export async function POST(request) {
       companyId: companyId ? companyId.toString() : null,
       caFirmId: caFirmId ? caFirmId.toString() : null,
       assignedCompanies: assignedCompanies,
-      isSetupComplete: isOwner ? !!user.isSetupComplete : true,
+      isSetupComplete: (isOwner || isCA) ? !!user.isSetupComplete : true,
+      subscriptionStatus: isOwner ? (user.subscription?.status || "trialing") : "active",
+      planName: isOwner ? (user.subscription?.planName || "Free Trial") : "Enterprise",
     };
 
     const token = jwt.sign(payload, process.env.JWT_SECRET, {
@@ -229,6 +231,10 @@ export async function POST(request) {
     let redirectUrl = null;
     if (isOwner) {
       redirectUrl = user.isSetupComplete ? "/owner/dashboard" : "/owner/setup";
+    } else if (isCA) {
+      redirectUrl = user.isSetupComplete ? "/ca" : "/ca/setup";
+    } else if (isCAStaff) {
+      redirectUrl = "/staff";
     } else if (isEmployee) {
       if (user.approvalStatus === "REJECTED") {
         return NextResponse.json(
@@ -254,7 +260,7 @@ export async function POST(request) {
       name: user.name,
       email: user.email,
       role: role,
-      isSetupComplete: isOwner ? !!user.isSetupComplete : true,
+      isSetupComplete: (isOwner || isCA) ? !!user.isSetupComplete : true,
     };
 
     return NextResponse.json(

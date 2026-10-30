@@ -54,6 +54,7 @@ export default function UserProfileModal({
     OWNER: "bg-purple-500/20 text-purple-300 border-purple-500/30",
     EMPLOYEE: "bg-indigo-500/20 text-indigo-300 border-indigo-500/30",
     CA: "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    CA_STAFF: "bg-blue-500/20 text-blue-300 border-blue-500/30",
   };
 
   return (
@@ -137,6 +138,12 @@ export default function UserProfileModal({
                   { id: "attendance", label: "Live Punch & Shifts" },
                   { id: "submissions", label: "Work Submissions & Files" },
                   { id: "tasks_leaves", label: "Tasks & Leaves" },
+                ]
+              : userType === "CA_STAFF"
+              ? [
+                  { id: "staff_firm", label: "CA Firm & Designation" },
+                  { id: "assigned_clients", label: `Allocated Clients (${displayUser.assignedClients?.length || 0})` },
+                  { id: "staff_tasks", label: `Tasks & Vouchers (${displayUser.tasksSummary?.totalTasks || 0})` },
                 ]
               : [
                   { id: "ca_profile", label: "Audit Firm & ICAI" },
@@ -751,6 +758,121 @@ export default function UserProfileModal({
                       </div>
                     ))
                   )}
+                </div>
+              )}
+
+              {/* CA_STAFF TABS: Parent CA Firm & Designation */}
+              {activeSubTab === "staff_firm" && userType === "CA_STAFF" && (
+                <div className="space-y-4">
+                  <div className="p-5 rounded-2xl bg-slate-800/60 border border-slate-700/70 space-y-4">
+                    <h5 className="text-sm font-black text-white flex items-center gap-2">
+                      <Briefcase className="w-4 h-4 text-blue-400" />
+                      <span>Parent Practice &amp; ICAI Designation</span>
+                    </h5>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase">CA Practice Name:</span>
+                        <p className="text-sm font-bold text-white mt-0.5">
+                          {displayUser.firm?.firmName || displayUser.firm?.name || "Crown Audit Associates"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase">Managing Partner:</span>
+                        <p className="text-sm font-bold text-white mt-0.5">
+                          {displayUser.firm?.partnerName || displayUser.firm?.name || "FCA Partner"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase">ICAI Registration:</span>
+                        <p className="text-sm font-mono font-bold text-purple-300 mt-0.5">
+                          {displayUser.firm?.icaiNumber || "ICAI-MEMBER"}
+                        </p>
+                      </div>
+                      <div>
+                        <span className="text-[10px] text-slate-400 block uppercase">Role in Firm:</span>
+                        <span className="inline-block mt-0.5 px-2.5 py-0.5 rounded-md text-xs font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          {displayUser.roleInFirm || "Article Assistant"}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* CA_STAFF TABS: Allocated Clients */}
+              {activeSubTab === "assigned_clients" && userType === "CA_STAFF" && (
+                <div className="space-y-3">
+                  {(!displayUser.assignedClients || displayUser.assignedClients.length === 0) ? (
+                    <div className="py-12 text-center text-slate-500">
+                      <Building2 className="w-10 h-10 mx-auto text-slate-600 mb-2" />
+                      <p className="font-bold text-sm text-slate-400">Zero Client Files Allocated</p>
+                      <p className="text-xs text-slate-500">Managing Partner has not allocated any MSME files to this staff member.</p>
+                    </div>
+                  ) : (
+                    displayUser.assignedClients.map((client) => (
+                      <div key={client._id} className="p-4 rounded-2xl bg-slate-800/60 border border-slate-700/70 flex items-center justify-between text-xs">
+                        <div>
+                          <h6 className="font-bold text-white text-sm">{client.name}</h6>
+                          <p className="text-slate-400">{client.email || "No Email"} • {client.phone || "No Phone"}</p>
+                          <span className="font-mono text-[10px] text-blue-300">Invite Code: {client.inviteCode || "BIZ-LINKED"}</span>
+                        </div>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 uppercase">
+                          Allocated
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* CA_STAFF TABS: Tasks & Vouchers */}
+              {activeSubTab === "staff_tasks" && userType === "CA_STAFF" && (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/70">
+                      <span className="text-[10px] uppercase text-slate-400 font-bold block">Total Tasks</span>
+                      <p className="text-xl font-black text-white font-mono mt-1">
+                        {displayUser.tasksSummary?.totalTasks || 0}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/70">
+                      <span className="text-[10px] uppercase text-emerald-400 font-bold block">Vouchers Verified</span>
+                      <p className="text-xl font-black text-emerald-300 font-mono mt-1">
+                        {displayUser.tasksSummary?.vouchersChecked || 0}
+                      </p>
+                    </div>
+                    <div className="p-3.5 rounded-2xl bg-slate-800/60 border border-slate-700/70">
+                      <span className="text-[10px] uppercase text-amber-400 font-bold block">Discrepancies</span>
+                      <p className="text-xl font-black text-amber-300 font-mono mt-1">
+                        {displayUser.tasksSummary?.discrepanciesCount || 0}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <h6 className="text-xs font-black uppercase text-slate-300">
+                      Work Queue &amp; Delegations
+                    </h6>
+                    <div className="divide-y divide-slate-800 rounded-2xl border border-slate-800 overflow-hidden bg-slate-900/60">
+                      {(!displayUser.tasksSummary?.recentList || displayUser.tasksSummary.recentList.length === 0) ? (
+                        <p className="p-4 text-xs text-slate-500 text-center">No assigned audit tasks recorded.</p>
+                      ) : (
+                        displayUser.tasksSummary.recentList.map((t) => (
+                          <div key={t._id} className="p-3 flex items-center justify-between text-xs">
+                            <div>
+                              <p className="font-bold text-white">{t.title}</p>
+                              <span className="text-[10px] text-slate-400">
+                                Client: <strong className="text-slate-300">{t.clientName}</strong> • {t.vouchersChecked || 0} Vouchers
+                              </span>
+                            </div>
+                            <span className="px-2 py-0.5 rounded-md text-[10px] font-mono bg-blue-500/20 text-blue-300">
+                              {t.status}
+                            </span>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </>

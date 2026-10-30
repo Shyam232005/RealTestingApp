@@ -110,7 +110,12 @@ export default function ProfessionalLogin() {
                         ACCOUNTS: "/accounts"
                     };
                     const targetRole = (result.user?.role || data.role || "").toUpperCase();
-                    const redirectPath = result.redirectUrl || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/department/onboarding");
+                    const redirectPath = result.redirectUrl || (
+                      data.role === "Owner" ? "/owner/dashboard" :
+                      data.role === "CA" ? "/ca" :
+                      (data.role === "CA-Employee" || data.role === "CAStaff") ? "/staff" :
+                      "/department/onboarding"
+                    );
                     
                     window.location.href = redirectPath;
                 } else {
@@ -162,7 +167,12 @@ export default function ProfessionalLogin() {
                     ACCOUNTS: "/accounts"
                 };
                 const targetRole = (result.user?.role || data.role || "").toUpperCase();
-                const redirectPath = result.redirectUrl || (data.role === "Owner" ? "/owner/dashboard" : data.role === "CA" ? "/ca" : "/department/onboarding");
+                const redirectPath = result.redirectUrl || (
+                  data.role === "Owner" ? "/owner/dashboard" :
+                  data.role === "CA" ? "/ca" :
+                  (data.role === "CA-Employee" || data.role === "CAStaff") ? "/staff" :
+                  "/department/onboarding"
+                );
                 
                 window.location.href = redirectPath;
             } else {
