@@ -156,59 +156,16 @@ export default function SalesDepartmentView({
     onNotify("Confirmed Sales Order (SO) booked!");
   };
 
-  const isDynamicModuleTab =
-    tabId === "lead_telecalling" ||
-    tabId === "deals_quotes" ||
-    tabId === "sales_orders";
-
   return (
     <SalesFlowProvider>
       <div className="space-y-6">
-      {/* Legacy Header Banner - Preserved ONLY for static views (sales_dashboard, campaigns_ops)
-          Deduplicated: Deleted for lead_telecalling, deals_quotes, and sales_orders to keep only the dynamic icon/badge headers */}
-      {!isDynamicModuleTab && (
-        <div className="rounded-3xl bg-white border border-slate-200/80 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-black text-blue-600 uppercase tracking-wider">
-                Sales • {deptConfig.rolesByLevel[employee?.postLevel]?.title || "Sales"}
-              </span>
-              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-blue-50 text-blue-800 border border-blue-100">
-                {employee?.branchName || "Main HQ"}
-              </span>
-            </div>
-            <h2 className="text-2xl font-black text-slate-900 tracking-tight">{currentTab.title}</h2>
-            <p className="text-xs text-slate-500 mt-1 max-w-xl leading-relaxed">
-              {deptConfig.rolesByLevel[employee?.postLevel]?.tasks ||
-                "Drive revenue growth, CRM deal pipelines, and client orders."}
-            </p>
-          </div>
-
-          {/* Sub-view Switcher Pills */}
-          <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-100/80 border border-slate-200/80 overflow-x-auto self-start md:self-auto">
-            {currentTab.subViews.map((sub) => (
-              <button
-                key={sub.id}
-                onClick={() => handleSubViewChange(sub.id)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all ${
-                  activeSubView === sub.id
-                    ? "bg-white text-slate-900 shadow-xs"
-                    : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
-                }`}
-              >
-                {sub.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {/* =========================================================================
           TAB 1: SALES_DASHBOARD (Revenue & Quota Dashboard)
          ========================================================================= */}
       {tabId === "sales_dashboard" && (
         <RevenueQuotaDashboard
           activeSubView={activeSubView}
+          onSubViewChange={handleSubViewChange}
           employee={employee}
           onBookOrder={() => setShowSoModal(true)}
         />
@@ -268,6 +225,7 @@ export default function SalesDepartmentView({
       {tabId === "campaigns_ops" && (
         <CampaignsSalesOps
           activeSubView={activeSubView}
+          onSubViewChange={handleSubViewChange}
           employee={employee}
           onNotify={onNotify}
         />
