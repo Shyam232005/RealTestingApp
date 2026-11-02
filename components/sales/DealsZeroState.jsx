@@ -23,6 +23,7 @@ export default function DealsZeroState({
   currentMonthTarget = 500000,
   currentBooked = 0,
   ownerName = "Main HQ",
+  onSubmit: externalOnSubmit,
   onDraftEstimate,
   className = "",
 }) {
@@ -42,21 +43,27 @@ export default function DealsZeroState({
       ? Math.min(100, (currentBooked / currentMonthTarget) * 100).toFixed(1)
       : "0.0";
 
-  const handleEstimateSubmit = (e) => {
+  const handleEstimateSubmit = async (e) => {
     e.preventDefault();
-    if (typeof onDraftEstimate === "function") {
-      onDraftEstimate(draftForm);
+    try {
+      if (typeof externalOnSubmit === "function") {
+        await externalOnSubmit(draftForm);
+      } else if (typeof onDraftEstimate === "function") {
+        await onDraftEstimate(draftForm);
+      }
+      setToastMessage(`Draft estimate created for ${draftForm.clientName || "Client"}!`);
+      setShowDraftModal(false);
+      setDraftForm({
+        clientName: "",
+        dealValue: "",
+        category: "FINISHED_GOODS",
+        expectedCloseDate: "",
+        marginPercent: "22",
+      });
+      setTimeout(() => setToastMessage(""), 4500);
+    } catch (err) {
+      console.error("Failed to submit estimate:", err);
     }
-    setToastMessage(`Draft estimate created for ${draftForm.clientName || "Client"}!`);
-    setShowDraftModal(false);
-    setDraftForm({
-      clientName: "",
-      dealValue: "",
-      category: "FINISHED_GOODS",
-      expectedCloseDate: "",
-      marginPercent: "22",
-    });
-    setTimeout(() => setToastMessage(""), 4500);
   };
 
   return (

@@ -3,83 +3,87 @@ import React from "react";
 import { useStaff } from "./StaffContext";
 import {
   ShieldCheck,
-  Building2,
-  LogOut,
-  UserCheck2,
-  Sparkles,
+  Shield,
+  Moon,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function StaffTopHeader() {
-  const router = useRouter();
-  const { user } = useStaff();
+  const { user, activeTab, setActiveTab } = useStaff();
 
-  const handleSignOut = () => {
-    document.cookie = "crown_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "fineops_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "fineops_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    router.push("/login");
-  };
-
-  const displayName = user?.name || "Karan Mehta (Article Assistant)";
-  const firmName = user?.firmName || "Singhal & Associates, Chartered Accountants";
-  const roleTitle = user?.roleInFirm || "Article Assistant";
-  const icaiNumber = user?.icaiNumber || "ICAI-FRN-048912";
+  const navLinks = [
+    { id: "my-workspace", label: "My Workspace" },
+    { id: "assigned-clients", label: "Assigned Clients" },
+    { id: "ledger-audit", label: "Ledger Audit" },
+    { id: "discrepancies", label: "Discrepancies" },
+    { id: "reconciliation", label: "Reconciliation" },
+    { id: "draft-reports", label: "Draft Reports" },
+  ];
 
   return (
-    <header className="h-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30">
-      {/* Brand & Practice Context */}
-      <div className="flex items-center gap-4">
-        <div className="w-11 h-11 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-md shadow-slate-900/10">
-          <ShieldCheck className="w-6 h-6 text-indigo-400" />
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30 font-sans">
+      {/* Brand Context matching reference screenshot DNA */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xs">
+          <ShieldCheck className="w-5 h-5 text-indigo-400" />
         </div>
-        <div>
+        <div className="leading-tight">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-black text-slate-900 leading-tight">
-              {firmName}
-            </h2>
-            <span className="text-[10px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200">
-              Audit Staff Console
+            <span className="text-sm font-black text-slate-900 tracking-tight">
+              Crown Ecosystems
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-wider bg-indigo-50 text-indigo-800 px-2 py-0.5 rounded-full border border-indigo-200 hidden sm:inline-block">
+              Audit Staff Desk
             </span>
           </div>
-          <p className="text-[11px] font-bold text-slate-400">
-            FRN: <span className="font-mono text-slate-600">{icaiNumber}</span> • Allocated Audit Desk AY 2026-27
+          <p className="text-[10px] font-bold text-slate-400 tracking-wide">
+            Article Assistant &amp; Staff Console
           </p>
         </div>
       </div>
 
-      {/* Right Controls: Staff Profile + Sign Out */}
-      <div className="flex items-center gap-4">
-        {/* Active Desk Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-bold">
+      {/* Centered Horizontal Navigation Menu matching reference screenshot */}
+      <nav className="hidden xl:flex items-center gap-1.5 text-xs font-bold text-slate-600">
+        {navLinks.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                isActive
+                  ? "text-slate-950 font-black bg-slate-100"
+                  : "hover:text-slate-950 hover:bg-slate-50"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right Controls: Theme Moon Icon + Purple/Indigo Pill Staff Badge matching reference screenshot */}
+      <div className="flex items-center gap-3">
+        {/* Live Socket Feed Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-[10px] font-bold text-indigo-800">
           <span className="w-2 h-2 rounded-full bg-indigo-500 animate-pulse" />
-          <span className="text-slate-800 font-black">Audit Desk Active</span>
+          <span>Desk Active</span>
         </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
-          <div className="w-9 h-9 rounded-xl bg-indigo-50 border border-indigo-200 text-indigo-700 flex items-center justify-center font-bold text-xs font-mono">
-            {displayName.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="text-right hidden md:block">
-            <span className="text-xs font-black text-slate-800 block">
-              {displayName}
-            </span>
-            <span className="text-[10px] font-bold text-indigo-700 block">
-              {roleTitle}
-            </span>
-          </div>
-        </div>
-
-        {/* Sign Out Button */}
+        {/* Moon Icon matching reference screenshot */}
         <button
           type="button"
-          onClick={handleSignOut}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+          title="Toggle Theme"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
+          <Moon className="w-4 h-4" />
         </button>
+
+        {/* Green/Indigo Pill Badge matching reference screenshot */}
+        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-bold shadow-xs transition-colors cursor-pointer">
+          <Shield className="w-3.5 h-3.5 fill-white text-transparent" />
+          <span>CA Staff</span>
+        </div>
       </div>
     </header>
   );

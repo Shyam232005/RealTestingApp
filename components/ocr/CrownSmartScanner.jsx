@@ -304,11 +304,11 @@ export default function CrownSmartScanner({
               Supports <strong>Photos (PNG, JPG, WebP)</strong> and <strong>PDF Invoices</strong>. Zero typing required. The engine automatically learns unknown fields and adapts to vendor formats in real-time.
             </p>
 
-            {/* Direct Mobile Camera Button for warehouse floor staff */}
+            {/* Direct Mobile Camera Button for floor staff */}
             <div className="mt-5 flex items-center justify-center gap-3">
               <label
                 onClick={(e) => e.stopPropagation()}
-                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold text-xs shadow-lg shadow-emerald-600/20 flex items-center gap-2 cursor-pointer transition-all active:scale-95"
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-colors"
               >
                 <Camera className="w-4 h-4" />
                 <span>Snap Bill / Challan (Camera)</span>
@@ -328,70 +328,11 @@ export default function CrownSmartScanner({
                   e.stopPropagation();
                   fileInputRef.current?.click();
                 }}
-                className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 font-bold text-xs flex items-center gap-1.5 transition-colors cursor-pointer"
               >
                 <FileText className="w-4 h-4 text-slate-400" />
                 <span>Select PDF / File</span>
               </button>
-            </div>
-          </div>
-
-          {/* Quick-Scan Pre-loaded Vendor Delivery Documents */}
-          <div className="p-4 rounded-2xl bg-slate-900/60 border border-slate-800 space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                <h4 className="text-xs font-black uppercase tracking-wider text-slate-300">
-                  Quick-Scan Sample Documents (1-Click Floor Test)
-                </h4>
-              </div>
-              <span className="text-[10px] text-slate-500 font-mono">Indian MSME Formats</span>
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
-              {[
-                {
-                  id: "tata-steel-challan",
-                  title: "Tata Steel Inward Challan",
-                  badge: "Industrial",
-                  desc: "Steel Coils, TMT Rods, Gate Pass & Seal",
-                },
-                {
-                  id: "haldirams-coldchain",
-                  title: "Haldiram's & Amul Cold-Chain",
-                  badge: "FMCG / Sweets",
-                  desc: "3.8°C Temp, Sweets, Butter & Driver Note",
-                },
-                {
-                  id: "havells-invoice",
-                  title: "Havells Industrial Tax Invoice",
-                  badge: "Electronics",
-                  desc: "MCBs, Wire, Serial #s & QC Stamp",
-                },
-                {
-                  id: "kachcha-mandi-bilty",
-                  title: "Mandi Bilty (Gujarati/Hindi)",
-                  badge: "Trader / Mandi",
-                  desc: "Jeera, Hamali, APMC Yard Bilty",
-                },
-              ].map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => handleSampleClick(s.id)}
-                  className="p-3 rounded-xl bg-slate-950/70 border border-slate-800 hover:border-emerald-500/50 hover:bg-emerald-950/20 text-left transition-all group cursor-pointer"
-                >
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-xs font-bold text-white group-hover:text-emerald-300 truncate">
-                      {s.title}
-                    </span>
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 shrink-0">
-                      {s.badge}
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-slate-400 line-clamp-1">{s.desc}</p>
-                </button>
-              ))}
             </div>
           </div>
         </div>

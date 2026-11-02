@@ -22,6 +22,7 @@ import {
 
 export default function CounterDeskZeroState({
   hqWarehouseName = "Main (HQ) Warehouse",
+  onSubmit: externalOnSubmit,
   onStartOrder,
   syncLatencyMs = 28,
   className = "",
@@ -60,21 +61,30 @@ export default function CounterDeskZeroState({
     };
   }, []);
 
-  const handleOrderSubmit = (e) => {
+  const handleOrderSubmit = async (e) => {
     e.preventDefault();
-    setToastMessage(
-      `Sales Order booked for ${orderForm.customerName || "Customer"} via ${orderForm.paymentMode}!`
-    );
-    setOrderModalOpen(false);
-    setOrderForm({
-      customerName: "",
-      customerPhone: "",
-      itemsSummary: "",
-      totalAmount: "",
-      paymentMode: "UPI",
-      advanceCollected: "",
-    });
-    setTimeout(() => setToastMessage(""), 4500);
+    try {
+      if (typeof externalOnSubmit === "function") {
+        await externalOnSubmit(orderForm);
+      } else if (typeof onStartOrder === "function") {
+        await onStartOrder(orderForm);
+      }
+      setToastMessage(
+        `Sales Order booked for ${orderForm.customerName || "Customer"} via ${orderForm.paymentMode}!`
+      );
+      setOrderModalOpen(false);
+      setOrderForm({
+        customerName: "",
+        customerPhone: "",
+        itemsSummary: "",
+        totalAmount: "",
+        paymentMode: "UPI",
+        advanceCollected: "",
+      });
+      setTimeout(() => setToastMessage(""), 4500);
+    } catch (err) {
+      console.error("Failed to submit counter order:", err);
+    }
   };
 
   return (

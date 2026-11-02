@@ -3026,39 +3026,41 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
              ========================================================================= */}
           {allowedDeptTabs.some((t) => t.id === effectiveTab) && (
             <div className="space-y-6">
-              {/* Active Department Header / Role Badge */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 px-6 py-4 rounded-2xl shadow-xs">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-black">
-                    {(() => {
-                      const ActiveIcon = TAB_ICON_MAP[effectiveTab] || Layers;
-                      return <ActiveIcon className="w-5 h-5" />;
-                    })()}
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">
-                        {activeDeptConfig.name} • {activeDeptConfig.subtitle}
-                      </span>
-                      <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
-                        Clearance: {employee?.postLevel?.replace(/_/g, " ")}
-                      </span>
+              {/* Active Department Header / Role Badge - Omitted for Sales modules to eliminate duplicate legacy headers */}
+              {!(activeDepartmentKey === "SALES") && (
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white border border-slate-200/80 px-6 py-4 rounded-2xl shadow-xs">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-indigo-50 border border-indigo-100 text-indigo-600 flex items-center justify-center font-black">
+                      {(() => {
+                        const ActiveIcon = TAB_ICON_MAP[effectiveTab] || Layers;
+                        return <ActiveIcon className="w-5 h-5" />;
+                      })()}
                     </div>
-                    <h2 className="text-lg font-black text-slate-900">
-                      {allowedDeptTabs.find((t) => t.id === effectiveTab)?.title}
-                    </h2>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-black uppercase tracking-wider text-indigo-600">
+                          {activeDeptConfig.name} • {activeDeptConfig.subtitle}
+                        </span>
+                        <span className="text-[9px] font-extrabold uppercase px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                          Clearance: {employee?.postLevel?.replace(/_/g, " ")}
+                        </span>
+                      </div>
+                      <h2 className="text-lg font-black text-slate-900">
+                        {allowedDeptTabs.find((t) => t.id === effectiveTab)?.title}
+                      </h2>
+                    </div>
+                  </div>
+
+                  <div className="text-right hidden sm:block">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                      Authorized Role
+                    </span>
+                    <span className="text-xs font-black text-slate-700">
+                      {activeDeptConfig.rolesByLevel[employee?.postLevel]?.title || employee?.postTitle || "Authorized Staff"}
+                    </span>
                   </div>
                 </div>
-
-                <div className="text-right hidden sm:block">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
-                    Authorized Role
-                  </span>
-                  <span className="text-xs font-black text-slate-700">
-                    {activeDeptConfig.rolesByLevel[employee?.postLevel]?.title || employee?.postTitle || "Authorized Staff"}
-                  </span>
-                </div>
-              </div>
+              )}
 
               {/* Render Department-Specific View Engine */}
               {activeDepartmentKey === "OPERATIONS" && (

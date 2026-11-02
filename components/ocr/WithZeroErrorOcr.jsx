@@ -286,7 +286,7 @@ export default function WithZeroErrorOcr({
   submitLabel = "Save & Confirm Record",
   submitColor = "bg-emerald-600 hover:bg-emerald-700",
 }) {
-  const [activeMode, setActiveMode] = useState("ai_scan"); // 'ai_scan' | 'manual_form'
+  const [activeMode, setActiveMode] = useState("manual_form"); // 'manual_form' (default opt-in) | 'ai_scan'
   const [scanResult, setScanResult] = useState(null);
   const [showVerificationDrawer, setShowVerificationDrawer] = useState(false);
   const [showEdgeDetails, setShowEdgeDetails] = useState(false);

@@ -2,84 +2,92 @@
 import React from "react";
 import { useCa } from "./CaContext";
 import {
+  Shield,
   ShieldCheck,
-  Building2,
-  LogOut,
-  UserCheck2,
+  Moon,
   Sparkles,
   ExternalLink,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 export default function CaTopHeader() {
-  const router = useRouter();
-  const { user } = useCa();
+  const { user, activeTab, setActiveTab } = useCa();
 
-  const handleSignOut = () => {
-    document.cookie = "crown_session=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "fineops_role=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    document.cookie = "fineops_user_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-    router.push("/login");
-  };
-
-  const displayName = user?.partnerName || user?.name || "CA Rajesh K. Singhal (FCA)";
-  const firmName = user?.firmName || "Singhal & Associates, Chartered Accountants";
-  const icaiNumber = user?.icaiNumber || "FCA-048912";
+  const navLinks = [
+    { id: "dashboard", label: "Dashboard" },
+    { id: "clients", label: "Client Firms" },
+    { id: "data-requests", label: "Data Access" },
+    { id: "team", label: "Team" },
+    { id: "audit-signoffs", label: "Audit & Sign-offs" },
+    { id: "escalations", label: "Escalations" },
+    { id: "reports", label: "Reports" },
+    { id: "settings", label: "Settings" },
+  ];
 
   return (
-    <header className="h-20 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30">
-      {/* Brand & Practice Context */}
-      <div className="flex items-center gap-4">
-        <div className="w-11 h-11 rounded-2xl bg-slate-900 text-white flex items-center justify-center font-black shadow-md shadow-slate-900/10">
-          <ShieldCheck className="w-6 h-6 text-emerald-400" />
+    <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 sm:px-8 flex items-center justify-between sticky top-0 z-30 font-sans">
+      {/* Brand Context matching reference screenshot DNA (Logo icon + Two-line Brand title) */}
+      <div className="flex items-center gap-3">
+        <div className="w-9 h-9 rounded-xl bg-slate-900 text-white flex items-center justify-center font-black shadow-xs">
+          <ShieldCheck className="w-5 h-5 text-emerald-400" />
         </div>
-        <div>
+        <div className="leading-tight">
           <div className="flex items-center gap-2">
-            <h2 className="text-sm font-black text-slate-900 leading-tight">
-              {firmName}
-            </h2>
-            <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200">
-              ICAI Registered
+            <span className="text-sm font-black text-slate-900 tracking-tight">
+              Crown Ecosystems
+            </span>
+            <span className="text-[9px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-800 px-2 py-0.5 rounded-full border border-emerald-200 hidden sm:inline-block">
+              AY 2026-27
             </span>
           </div>
-          <p className="text-[11px] font-bold text-slate-400">
-            FRN / M.No: <span className="font-mono text-slate-600">{icaiNumber}</span> • Statutory Audit AY 2026-27
+          <p className="text-[10px] font-bold text-slate-400 tracking-wide">
+            Chartered Accountants Portal
           </p>
         </div>
       </div>
 
-      {/* Right Controls: User Profile + Sign Out */}
-      <div className="flex items-center gap-4">
-        {/* Practice Mode Badge */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-100 border border-slate-200 text-xs font-bold">
+      {/* Centered Horizontal Navigation Menu matching reference screenshot */}
+      <nav className="hidden xl:flex items-center gap-1.5 text-xs font-bold text-slate-600">
+        {navLinks.map((item) => {
+          const isActive = activeTab === item.id;
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => setActiveTab(item.id)}
+              className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                isActive
+                  ? "text-slate-950 font-black bg-slate-100"
+                  : "hover:text-slate-950 hover:bg-slate-50"
+              }`}
+            >
+              {item.label}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* Right Controls: Theme Moon Icon + Green Pill Admin Badge matching reference screenshot */}
+      <div className="flex items-center gap-3">
+        {/* Live Socket Feed Indicator */}
+        <div className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 border border-emerald-200 text-[10px] font-bold text-emerald-800">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-slate-800 font-black">CA Partner Console</span>
+          <span>Live Sync</span>
         </div>
 
-        {/* User Card */}
-        <div className="flex items-center gap-3 pl-2 border-l border-slate-200">
-          <div className="w-9 h-9 rounded-xl bg-purple-50 border border-purple-200 text-purple-700 flex items-center justify-center font-bold text-xs font-mono">
-            {displayName.slice(0, 2).toUpperCase()}
-          </div>
-          <div className="text-right hidden md:block">
-            <span className="text-xs font-black text-slate-800 block">
-              {displayName}
-            </span>
-            <span className="text-[10px] font-bold text-indigo-700 block">
-              Managing Partner (FCA)
-            </span>
-          </div>
-        </div>
-
-        {/* Sign Out Button */}
+        {/* Moon Icon matching reference screenshot */}
         <button
           type="button"
-          onClick={handleSignOut}
-          className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white border border-slate-200 hover:bg-slate-50 text-slate-600 hover:text-slate-900 text-xs font-bold transition-all shadow-2xs cursor-pointer"
+          className="p-2 rounded-xl text-slate-500 hover:text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
+          title="Toggle Theme"
         >
-          <LogOut className="w-3.5 h-3.5" />
-          <span>Sign Out</span>
+          <Moon className="w-4 h-4" />
         </button>
+
+        {/* Green Pill Admin / CA Partner Badge matching reference screenshot */}
+        <div className="inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full bg-[#0D7A5F] hover:bg-[#0B6851] text-white text-xs font-bold shadow-xs transition-colors cursor-pointer">
+          <Shield className="w-3.5 h-3.5 fill-white text-transparent" />
+          <span>CA Partner</span>
+        </div>
       </div>
     </header>
   );

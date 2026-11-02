@@ -50,6 +50,7 @@ export default function LeadPoolZeroState({
   ownerName = "Main HQ",
   dailyTarget = 50,
   callsCompleted = 0,
+  onSubmit: externalOnSubmit,
   onLogLead,
   onPingManager,
   className = "",
@@ -75,7 +76,9 @@ export default function LeadPoolZeroState({
 
   const onSubmit = async (data) => {
     try {
-      if (typeof onLogLead === "function") {
+      if (typeof externalOnSubmit === "function") {
+        await externalOnSubmit(data);
+      } else if (typeof onLogLead === "function") {
         await onLogLead(data);
       }
       setFeedbackToast(`Inquiry for "${data.name}" logged successfully!`);
