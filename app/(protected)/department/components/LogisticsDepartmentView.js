@@ -94,6 +94,9 @@ import CycleCountAuditModal from "./CycleCountAuditModal";
 import CatastrophicWriteOffModal from "./CatastrophicWriteOffModal";
 import ContractAuthModal from "./ContractAuthModal";
 import DirectorPoAuthModal from "./DirectorPoAuthModal";
+import CapexAllocationModal from "./CapexAllocationModal";
+import CloMsaAuthModal from "./CloMsaAuthModal";
+import OrgRestructureModal from "./OrgRestructureModal";
 import {
   Building,
   Handshake,
@@ -104,6 +107,13 @@ import {
   UserCheck,
   UserX,
   AlertOctagon,
+  Building2,
+  Globe,
+  Leaf,
+  Cpu,
+  Compass,
+  Factory,
+  Anchor,
 } from "lucide-react";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
@@ -116,15 +126,16 @@ export default function LogisticsDepartmentView({
   const deptConfig = DEPARTMENT_CONFIGS.LOGISTICS;
   const currentTab = deptConfig.tabs.find((t) => t.id === tabId) || deptConfig.tabs[2];
   const userRank = getHierarchyRank(employee?.postLevel);
-  const isDirector = userRank >= 6 || employee?.postLevel === "DIRECTOR" || employee?.postLevel === "CHIEF_OFFICER";
+  const isChief = userRank >= 7 || employee?.postLevel === "CHIEF_OFFICER";
+  const isDirector = userRank >= 6 || employee?.postLevel === "DIRECTOR" || isChief;
   const isManager = userRank >= 5 || employee?.postLevel === "MANAGER" || isDirector;
   const isSupervisor = userRank >= 4 || employee?.postLevel === "SUPERVISOR" || isManager;
   const isCoordinator = userRank >= 2 || employee?.postLevel === "COORDINATOR" || isSupervisor;
 
   // Active SubView state
   const [activeSubView, setActiveSubView] = useState(() => {
-    if (tabId === "logistics_dashboard") return "freight_analytics";
-    if (tabId === "procurement_po") return "purchase_orders";
+    if (tabId === "logistics_dashboard") return isChief ? "csuite_macro" : isDirector ? "capex_opex_financial" : "freight_analytics";
+    if (tabId === "procurement_po") return isChief ? "enterprise_msas" : "purchase_orders";
     if (tabId === "warehouse_stock") return isSupervisor ? "grn_notes" : "grn_notes";
     if (tabId === "dispatch_fleet") return isSupervisor ? "load_audit_gatepass" : isCoordinator ? "carrier_allocation" : "picklist_execution";
     return "freight_analytics";
@@ -210,6 +221,21 @@ export default function LogisticsDepartmentView({
   const [selectedContractItem, setSelectedContractItem] = useState(null);
   const [showDirectorPoModal, setShowDirectorPoModal] = useState(false);
   const [selectedDirectorPo, setSelectedDirectorPo] = useState(null);
+
+  // Tier 7 Chief Logistics Officer (CLO) States (Zero State First)
+  const [loadingCloMetrics, setLoadingCloMetrics] = useState(false);
+  const [cloMetrics, setCloMetrics] = useState(null);
+  const [capexProjects, setCapexProjects] = useState([]);
+  const [loadingCapex, setLoadingCapex] = useState(false);
+  const [ermRisks, setErmRisks] = useState([]);
+  const [loadingErm, setLoadingErm] = useState(false);
+
+  // Tier 7 CLO Modals
+  const [showCapexModal, setShowCapexModal] = useState(false);
+  const [selectedCapexProject, setSelectedCapexProject] = useState(null);
+  const [showCloMsaModal, setShowCloMsaModal] = useState(false);
+  const [selectedCloMsa, setSelectedCloMsa] = useState(null);
+  const [showOrgRestructureModal, setShowOrgRestructureModal] = useState(false);
 
   // Dock Door Allocation & MHE Equipment State (Zero State First)
   const [dockDoors, setDockDoors] = useState([]);
@@ -488,6 +514,10 @@ export default function LogisticsDepartmentView({
       fetchCatastrophicWriteoffs();
       fetchContracts();
     }
+    if (isChief) {
+      fetchCloMetrics();
+      fetchCapexProjects();
+    }
 
     return () => {
       isCancelled = true;
@@ -699,6 +729,39 @@ export default function LogisticsDepartmentView({
       console.warn("Could not fetch catastrophic write-offs:", e);
     } finally {
       setLoadingCatastrophic(false);
+    }
+  };
+
+  const fetchCloMetrics = async () => {
+    setLoadingCloMetrics(true);
+    setLoadingErm(true);
+    try {
+      const res = await fetch("/api/logistics/c-suite/enterprise-metrics");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.macroMetrics) setCloMetrics(data);
+        if (data.ermRisks) setErmRisks(data.ermRisks);
+      }
+    } catch (e) {
+      console.warn("Could not fetch CLO enterprise metrics:", e);
+    } finally {
+      setLoadingCloMetrics(false);
+      setLoadingErm(false);
+    }
+  };
+
+  const fetchCapexProjects = async () => {
+    setLoadingCapex(true);
+    try {
+      const res = await fetch("/api/logistics/c-suite/capex-allocation");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.projects) setCapexProjects(data.projects);
+      }
+    } catch (e) {
+      console.warn("Could not fetch CAPEX projects:", e);
+    } finally {
+      setLoadingCapex(false);
     }
   };
 
@@ -1115,13 +1178,17 @@ export default function LogisticsDepartmentView({
       {/* =========================================================================
           HEADER BANNER (Clean white surface with light blue employee highlights)
          ========================================================================= */}
-      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col gap-6 w-full">
+      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col gap-6 w-full overflow-hidden">
         <div className="w-full">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
               <Boxes className="w-3.5 h-3.5 text-sky-600" />
               Logistics & Supplies •{" "}
-              {isManager
+              {isChief
+                ? "Chief Logistics Officer (Tier 7)"
+                : isDirector
+                ? "Director of Logistics (Tier 6)"
+                : isManager
                 ? "Logistics Manager (Tier 5)"
                 : isSupervisor
                 ? "Logistics Supervisor (Tier 4)"
@@ -1141,7 +1208,11 @@ export default function LogisticsDepartmentView({
                   : "bg-emerald-50 text-emerald-700 border-emerald-200"
               }`}
             >
-              {isManager
+              {isChief
+                ? "Tier 7 Supreme C-Suite & Board Clearance"
+                : isDirector
+                ? "Tier 6 Director Executive Clearance"
+                : isManager
                 ? "Tier 5 Executive Supply Chain & SLA Clearance"
                 : isSupervisor
                 ? "Tier 4 Supervisory & Authorization Clearance"
@@ -1152,7 +1223,11 @@ export default function LogisticsDepartmentView({
           </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             {tabId === "logistics_dashboard"
-              ? "Supply Chain & SLA Hub (Executive Freight, SLA & Capacity Planning)"
+              ? isChief
+                ? "Boardroom Supply Chain & Financial Architecture (CLO Terminal)"
+                : isDirector
+                ? "Distribution Network Design & Executive Strategy (Director Terminal)"
+                : "Supply Chain & SLA Hub (Executive Freight, SLA & Capacity Planning)"
               : tabId === "procurement_po"
               ? isManager
                 ? "Procurement & Vendors (Inbound POs & Executive Dock Slot Override)"
@@ -1183,15 +1258,36 @@ export default function LogisticsDepartmentView({
         </div>
 
         {/* Dynamic Sub-View Switcher Pills */}
-        <div className="w-full flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80">
+        <div className="flex w-full items-center gap-2 overflow-x-auto overflow-y-hidden whitespace-nowrap pb-2 scrollbar-hide p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 shrink-0">
           {tabId === "logistics_dashboard" ? (
             <>
-              {[
-                { id: "freight_analytics", label: "Freight & Budget Analytics" },
-                { id: "carrier_sla", label: "Carrier SLA Scorecard", badge: carrierSlaData.carrierScorecard?.length },
-                { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
-                { id: "strategic_delegation", label: "Manager Headcount & Desk" },
-              ].map((sub) => (
+              {(isChief
+                ? [
+                    { id: "csuite_macro", label: "Financial Architecture (TCTS/C2C/ROIC)" },
+                    { id: "boardroom_risk_esg", label: "Boardroom Governance, ERM & ESG" },
+                    { id: "capex_expansion", label: "CAPEX & Network Expansion", badge: capexProjects.length },
+                    { id: "network_contracts", label: "Enterprise MSAs & M&A", badge: contractsList.length },
+                    { id: "freight_analytics", label: "Freight & Budget Analytics" },
+                    { id: "carrier_sla", label: "Carrier SLA Scorecard", badge: carrierSlaData.carrierScorecard?.length },
+                    { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
+                    { id: "strategic_delegation", label: "Restructure Architecture & Desk", badge: orgChartRoster.length },
+                  ]
+                : isDirector
+                ? [
+                    { id: "capex_opex_financial", label: "CAPEX/OPEX Financial Strategy" },
+                    { id: "network_contracts", label: "3PL/4PL MSAs & Contracts", badge: contractsList.length },
+                    { id: "freight_analytics", label: "Freight & Budget Analytics" },
+                    { id: "carrier_sla", label: "Carrier SLA Scorecard", badge: carrierSlaData.carrierScorecard?.length },
+                    { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
+                    { id: "strategic_delegation", label: "Manager Headcount & Desk", badge: orgChartRoster.length },
+                  ]
+                : [
+                    { id: "freight_analytics", label: "Freight & Budget Analytics" },
+                    { id: "carrier_sla", label: "Carrier SLA Scorecard", badge: carrierSlaData.carrierScorecard?.length },
+                    { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
+                    { id: "strategic_delegation", label: "Manager Headcount & Desk" },
+                  ]
+              ).map((sub) => (
                 <button
                   key={sub.id}
                   onClick={() => setActiveSubView(sub.id)}
@@ -1213,6 +1309,9 @@ export default function LogisticsDepartmentView({
           ) : tabId === "procurement_po" ? (
             <>
               {[
+                ...(isChief || isDirector
+                  ? [{ id: "enterprise_msas", label: "Enterprise MSAs & Joint Ventures", badge: contractsList.length }]
+                  : []),
                 { id: "purchase_orders", label: "Purchase Orders & ASNs", badge: purchaseOrders.length },
                 {
                   id: "dock_scheduling",
@@ -1388,6 +1487,603 @@ export default function LogisticsDepartmentView({
          ========================================================================= */}
       {tabId === "logistics_dashboard" && (
         <div className="space-y-6">
+                    {/* Tier 7 CLO Sub-view: Enterprise Financial Architecture (TCTS, C2C, ROIC) */}
+          {activeSubView === "csuite_macro" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <DollarSign className="w-3.5 h-3.5 text-sky-600" />
+                      Macroeconomic Financial Architecture
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 border border-sky-200 font-mono">
+                      Tier 7 CLO / Boardroom Terminal
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Total Cost to Serve (TCTS), Working Capital C2C &amp; ROIC Architecture
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Supreme executive governance of enterprise logistics profitability, inventory holding WACC, and cash conversion cycles.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCloMetrics}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh Telemetry</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCapexProject(null);
+                      setShowCapexModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>+ Authorize CAPEX</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingCloMetrics ? (
+                <CrownSkeletonLoader preset="MetricsCardsSkeleton" />
+              ) : !cloMetrics?.macroMetrics || !cloMetrics.macroMetrics.tctsTotal || cloMetrics.macroMetrics.tctsTotal === 0 ? (
+                <CrownZeroState
+                  variant="financial"
+                  icon={DollarSign}
+                  badge="Financial Telemetry Standby"
+                  title="No Financial Data Available"
+                  description="Enterprise financial telemetry has not synchronized."
+                  actionText="+ Refresh Financial Summary"
+                  onAction={fetchCloMetrics}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {/* High-Level 4 Metrics Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {/* TCTS Card */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Total Cost to Serve (TCTS)
+                        </span>
+                        <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
+                          <DollarSign className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-slate-900 tracking-tight">
+                        ₹{(cloMetrics.macroMetrics.tctsTotal || 0).toLocaleString("en-IN")}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-sky-50 text-sky-700 font-mono">
+                          {cloMetrics.macroMetrics.tctsPctRevenue}% of Revenue
+                        </span>
+                        <span className="text-[11px] text-slate-400 font-medium truncate">
+                          Pan-India logistics cost
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Cash-to-Cash Cycle */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Cash-to-Cash (C2C) Cycle
+                        </span>
+                        <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                          <RotateCcw className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-indigo-700 tracking-tight">
+                        {cloMetrics.macroMetrics.c2cCycleDays} Days
+                      </p>
+                      <div className="text-[11px] text-slate-500 font-mono flex items-center gap-1.5 flex-wrap">
+                        <span>DSI: {cloMetrics.macroMetrics.dsi}d</span>
+                        <span>•</span>
+                        <span>DSO: {cloMetrics.macroMetrics.dso}d</span>
+                        <span>•</span>
+                        <span className="text-emerald-600 font-bold">DPO: {cloMetrics.macroMetrics.dpo}d</span>
+                      </div>
+                    </div>
+
+                    {/* Return on Invested Capital */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Return on Invested Capital (ROIC)
+                        </span>
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                          <TrendingUp className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-emerald-700 tracking-tight">
+                        {cloMetrics.macroMetrics.roicPct}%
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700 font-mono">
+                          WACC: {cloMetrics.macroMetrics.waccPct}%
+                        </span>
+                        <span className="text-[11px] text-emerald-600 font-medium">
+                          EVA: +₹{(cloMetrics.macroMetrics.economicValueAdded || 0).toLocaleString("en-IN")}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Logistics NOPAT */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Logistics NOPAT &amp; Capital
+                        </span>
+                        <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                          <Building className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-purple-700 tracking-tight">
+                        ₹{(cloMetrics.macroMetrics.logisticsNopat || 0).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium truncate">
+                        Invested Capital: ₹{(cloMetrics.macroMetrics.totalInvestedCapital || 0).toLocaleString("en-IN")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* TCTS Detailed Breakdown and Working Capital Analysis */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    {/* TCTS Category Breakdown Card */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900">
+                            Total Cost to Serve (TCTS) Component Breakdown
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            Macro allocations across freight, warehousing, carrying cost, and administration.
+                          </p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-sky-700">
+                          100.0% Audited
+                        </span>
+                      </div>
+
+                      <div className="space-y-3">
+                        {(cloMetrics.macroMetrics.tctsBreakdown || []).map((item, idx) => (
+                          <div key={idx} className="space-y-1.5">
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-slate-700">{item.category}</span>
+                              <div className="flex items-center gap-2">
+                                <span className="font-mono font-bold text-slate-900">
+                                  ₹{(item.amount || 0).toLocaleString("en-IN")}
+                                </span>
+                                <span className="font-mono text-slate-400">({item.pct}%)</span>
+                              </div>
+                            </div>
+                            <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                              <div
+                                className="bg-sky-500 h-2 rounded-full transition-all duration-500"
+                                style={{ width: `${Math.min(100, Math.max(5, item.pct))}%` }}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Cash-to-Cash Cycle Timeline & Governance */}
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-2xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900">
+                            Cash Conversion Working Capital Anatomy
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            Inventory turnover days minus vendor payment terms equals net working capital exposure.
+                          </p>
+                        </div>
+                        <span className="text-xs font-mono font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          Optimum C2C Band
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3 text-center">
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Days Inventory (DSI)</span>
+                          <span className="text-xl font-black font-mono text-slate-800 mt-1 block">
+                            +{cloMetrics.macroMetrics.dsi}d
+                          </span>
+                          <span className="text-[10px] text-slate-500">Stock turnover span</span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Days Sales (DSO)</span>
+                          <span className="text-xl font-black font-mono text-slate-800 mt-1 block">
+                            +{cloMetrics.macroMetrics.dso}d
+                          </span>
+                          <span className="text-[10px] text-slate-500">Accounts receivable</span>
+                        </div>
+
+                        <div className="p-3.5 rounded-2xl bg-emerald-50/70 border border-emerald-200/80">
+                          <span className="text-[10px] font-bold text-emerald-800 uppercase block">Days Payable (DPO)</span>
+                          <span className="text-xl font-black font-mono text-emerald-700 mt-1 block">
+                            -{cloMetrics.macroMetrics.dpo}d
+                          </span>
+                          <span className="text-[10px] text-emerald-600">Vendor trade credit</span>
+                        </div>
+                      </div>
+
+                      <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-100 flex items-center justify-between">
+                        <div>
+                          <span className="text-xs font-black text-sky-900 block">
+                            Net Cash-to-Cash Cycle Time: {cloMetrics.macroMetrics.c2cCycleDays} Days
+                          </span>
+                          <p className="text-[11px] text-sky-700">
+                            Cash tied up in supply chain is recovered in under 23 calendar days.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toast.success("Working capital efficiency model synced with corporate treasury.")}
+                          className="px-3 py-1.5 rounded-xl border border-sky-200 bg-white hover:bg-sky-50 text-xs font-bold text-sky-700 cursor-pointer shadow-2xs transition-colors"
+                        >
+                          Treasury Sync
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tier 7 CLO Sub-view: Boardroom Governance, ERM & ESG Carbon Neutrality */}
+          {activeSubView === "boardroom_risk_esg" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-emerald-700 uppercase tracking-wider flex items-center gap-1.5 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/60">
+                      <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                      Boardroom Governance &amp; ESG
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 border border-emerald-200 font-mono">
+                      Scope 1, 2, 3 Neutrality
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Enterprise Risk Management (ERM) &amp; ESG Carbon Intensity Matrix
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Board-level resilience tracking across single-point-of-failure multi-modal hubs, fuel price hedging collars, and Scope 1-3 fleet decarbonization.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCloMetrics}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh Matrix</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => toast.success("Enterprise Business Continuity Plan (BCP) simulation verified.")}
+                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>Run BCP Simulation</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingErm || loadingCloMetrics ? (
+                <div className="space-y-4">
+                  <CrownSkeletonLoader preset="MetricsCardsSkeleton" />
+                  <CrownSkeletonLoader preset="TableSkeleton" />
+                </div>
+              ) : (!ermRisks || ermRisks.length === 0) && (!cloMetrics?.esgMetrics || !cloMetrics.esgMetrics.totalCarbonEmissions || cloMetrics.esgMetrics.totalCarbonEmissions === 0) ? (
+                <CrownZeroState
+                  variant="shield"
+                  icon={ShieldAlert}
+                  badge="Boardroom Governance Standby"
+                  title="No Boardroom Governance Data"
+                  description="Risk matrices and carbon intensity logs are currently empty."
+                  actionText="+ Synchronize Telemetry"
+                  onAction={fetchCloMetrics}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {/* ESG Carbon Intensity Overview Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Scope 1 Direct Diesel Fleet
+                        </span>
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                          <Leaf className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-slate-900 tracking-tight">
+                        {cloMetrics?.esgMetrics?.scope1DirectDiesel || 0} <span className="text-xs font-medium text-slate-500">tCO2e</span>
+                      </p>
+                      <p className="text-[11px] text-emerald-600 font-medium">
+                        Primary linehaul vehicle emissions.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Scope 2 Facility Power
+                        </span>
+                        <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
+                          <Building2 className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-sky-700 tracking-tight">
+                        {cloMetrics?.esgMetrics?.scope2FacilityGrid || 0} <span className="text-xs font-medium text-slate-500">tCO2e</span>
+                      </p>
+                      <p className="text-[11px] text-sky-600 font-medium">
+                        {cloMetrics?.esgMetrics?.solarMicrogridCoveragePct || 0}% Solar microgrid powered.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Scope 3 3PL Freight
+                        </span>
+                        <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                          <Globe className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-indigo-700 tracking-tight">
+                        {cloMetrics?.esgMetrics?.scope3CarrierFreight || 0} <span className="text-xs font-medium text-slate-500">tCO2e</span>
+                      </p>
+                      <p className="text-[11px] text-indigo-600 font-medium">
+                        Intensity: {cloMetrics?.esgMetrics?.carbonIntensityGramPerTonKm || 0} gCO2e/ton-km.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Fleet Electrification
+                        </span>
+                        <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                          <Cpu className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-purple-700 tracking-tight">
+                        {cloMetrics?.esgMetrics?.greenFleetEvAdoptionPct || 0}%
+                      </p>
+                      <p className="text-[11px] text-purple-600 font-medium">
+                        EV / CNG fleet on 2030 Net Zero roadmap.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* ERM Risk Table */}
+                  <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                    <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                      <div>
+                        <h4 className="text-sm font-black text-slate-900">
+                          Enterprise Risk Management (ERM) &amp; Business Continuity Register
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          Active monitoring of systemic macro logistics risks and board-mandated mitigations.
+                        </p>
+                      </div>
+                      <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700">
+                        {ermRisks.length} Risk Vectors Assessed
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead className="bg-slate-50/75 text-slate-500 uppercase font-black text-[10px] tracking-wider border-b border-slate-100">
+                          <tr>
+                            <th className="py-2.5 px-4">Risk ID &amp; Domain</th>
+                            <th className="py-2.5 px-3">Severity</th>
+                            <th className="py-2.5 px-3">Risk Score</th>
+                            <th className="py-2.5 px-4">Threat Description</th>
+                            <th className="py-2.5 px-4">Mitigation Strategy</th>
+                            <th className="py-2.5 px-4 text-right">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {ermRisks.map((risk) => (
+                            <tr key={risk.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-4">
+                                <span className="font-mono font-bold text-slate-900 block">{risk.id}</span>
+                                <span className="font-bold text-slate-800">{risk.riskDomain}</span>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span
+                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                    risk.severity === "HIGH"
+                                      ? "bg-rose-100 text-rose-800"
+                                      : risk.severity === "MEDIUM"
+                                      ? "bg-amber-100 text-amber-800"
+                                      : "bg-emerald-100 text-emerald-800"
+                                  }`}
+                                >
+                                  {risk.severity}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                                {risk.riskScore}/100
+                              </td>
+                              <td className="py-3 px-4 text-slate-600 max-w-xs">{risk.description}</td>
+                              <td className="py-3 px-4 text-slate-700 font-medium max-w-sm">{risk.mitigationPlan}</td>
+                              <td className="py-3 px-4 text-right">
+                                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200">
+                                  {risk.status?.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tier 7 CLO Sub-view: CAPEX & Greenfield Network Expansion */}
+          {activeSubView === "capex_expansion" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <Building2 className="w-3.5 h-3.5 text-sky-600" />
+                      CAPEX &amp; Infrastructure
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-sky-100 text-sky-800 border border-sky-200 font-mono">
+                      Multi-Million Deployments
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Multi-Year CAPEX Deployment &amp; AMR Mega-Hub Expansion
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Supreme executive allocation for greenfield mega-hubs, Automated Mobile Robots (AMR), and cold-chain infrastructure across national corridors.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCapexProjects}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCapexProject(null);
+                      setShowCapexModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Building2 className="w-4 h-4" />
+                    <span>+ Authorize New CAPEX Deployment</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingCapex ? (
+                <CrownSkeletonLoader preset="TableSkeleton" />
+              ) : capexProjects.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Building2}
+                  badge="CAPEX Registry Standby"
+                  title="Supply Chain & Logistics Network on Standby"
+                  description="No multi-year capital deployment projects currently registered. Authorize new mega-hubs or AMR automation to expand logistics capacity."
+                  actionText="+ Authorize New CAPEX Deployment"
+                  onAction={() => {
+                    setSelectedCapexProject(null);
+                    setShowCapexModal(true);
+                  }}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">
+                        Multi-Year Infrastructure &amp; Mega-Hub Projects ({capexProjects.length})
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Capital expenditure pipeline authorized under Board charter.
+                      </p>
+                    </div>
+                    <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-lg bg-sky-50 text-sky-800 border border-sky-200">
+                      Total Allocated: ₹{(capexProjects.reduce((sum, p) => sum + (Number(p.allocatedCapex) || 0), 0)).toLocaleString("en-IN")}
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50/75 text-slate-500 uppercase font-black text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                          <th className="py-2.5 px-4">Project Code &amp; Facility</th>
+                          <th className="py-2.5 px-3">Category</th>
+                          <th className="py-2.5 px-3">Location &amp; Region</th>
+                          <th className="py-2.5 px-3">Allocated CAPEX</th>
+                          <th className="py-2.5 px-3">IRR / Payback</th>
+                          <th className="py-2.5 px-3">ESG Rating</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-4 text-right">Executive Sign-Off</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {capexProjects.map((p) => (
+                          <tr key={p.id || p.projectCode} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-4">
+                              <span className="font-mono font-bold text-slate-900 block">{p.projectCode}</span>
+                              <span className="font-bold text-slate-800">{p.title}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                {p.category?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="font-medium text-slate-800 block">{p.location}</span>
+                              <span className="text-[10px] text-slate-500">{p.region}</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                              ₹{(p.allocatedCapex || 0).toLocaleString("en-IN")}
+                              <span className="text-[10px] text-slate-400 block font-normal">{p.tenureYears} Year Deployment</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono">
+                              <span className="font-bold text-emerald-700">{p.projectedIrrPct}% IRR</span>
+                              <span className="text-[10px] text-slate-500 block">{p.paybackYears}y Payback</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono">
+                              <span className="font-black text-sky-700">{p.esgRating}</span>
+                              <span className="text-[10px] text-emerald-600 block">-{p.scope3ReductionPct}% Scope 3</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                                {p.status?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right font-mono text-[11px]">
+                              <span className="font-bold text-slate-800 block">{p.approvedByName || "CLO"}</span>
+                              <span className="text-[10px] text-slate-400">{p.boardResolutionRef}</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Director Sub-view 0A: CAPEX/OPEX Financial Strategy Dashboard */}
           {activeSubView === "capex_opex_financial" && (
             <div className="space-y-6">
@@ -2298,6 +2994,16 @@ export default function LogisticsDepartmentView({
                 </div>
 
                 <div className="flex items-center gap-2 shrink-0">
+                  {isChief && (
+                    <button
+                      type="button"
+                      onClick={() => setShowOrgRestructureModal(true)}
+                      className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                    >
+                      <Network className="w-4 h-4" />
+                      <span>Restructure Command Hierarchy</span>
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => setShowNewObjectiveModal(true)}
@@ -2523,6 +3229,143 @@ export default function LogisticsDepartmentView({
       {tabId === "procurement_po" && (
         <div className="space-y-6">
           {/* Sub-view: Purchase Orders */}
+                    {/* Sub-view: Enterprise MSAs & M&A (Tier 7 CLO & Tier 6 Director) */}
+          {activeSubView === "enterprise_msas" && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
+                      <Handshake className="w-3.5 h-3.5 text-indigo-600" />
+                      Enterprise MSAs &amp; Strategic M&amp;A
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      C-Suite Signing Authority
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Master Service Agreements, Strategic Joint Ventures &amp; Fleet Leasing
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Highest level of sign-off for enterprise agreements with national 3PLs/4PLs, multi-modal container consortiums, and fleet leasing.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchContracts}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCloMsa(null);
+                      setShowCloMsaModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Handshake className="w-4 h-4" />
+                    <span>+ Charter Strategic MSA / JV</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingContracts ? (
+                <CrownSkeletonLoader preset="TableSkeleton" />
+              ) : contractsList.length === 0 ? (
+                <CrownZeroState
+                  variant="handshake"
+                  icon={Handshake}
+                  badge="Contracts Ledger Standby"
+                  title="Supply Chain & Logistics Network on Standby"
+                  description="No active enterprise master service agreements or strategic joint ventures on file. Initiate a new charter or register partner."
+                  actionText="+ Charter Strategic MSA / Joint Venture"
+                  onAction={() => {
+                    setSelectedCloMsa(null);
+                    setShowCloMsaModal(true);
+                  }}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 shadow-xs overflow-hidden">
+                  <div className="p-5 border-b border-slate-100 flex items-center justify-between">
+                    <div>
+                      <h4 className="text-sm font-black text-slate-900">
+                        Enterprise Strategic Agreements &amp; MSAs ({contractsList.length})
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        National agreements authorized with sovereign carrier commitments.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-50/75 text-slate-500 uppercase font-black text-[10px] tracking-wider border-b border-slate-100">
+                        <tr>
+                          <th className="py-2.5 px-4">Contract Code &amp; Partner</th>
+                          <th className="py-2.5 px-3">Agreement Type</th>
+                          <th className="py-2.5 px-3">Annual Value</th>
+                          <th className="py-2.5 px-3">Tenure</th>
+                          <th className="py-2.5 px-3">SLA OTIF</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-4 text-right">CLO Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {contractsList.map((c) => (
+                          <tr key={c.id || c.contractCode} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-4">
+                              <span className="font-mono font-bold text-slate-900 block">{c.contractCode}</span>
+                              <span className="font-bold text-slate-800">{c.partnerName}</span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-indigo-50 text-indigo-700">
+                                {c.contractType?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                              ₹{(c.annualValue || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-3 font-mono">{c.tenureYears} Years</td>
+                            <td className="py-3 px-3 font-mono font-bold text-emerald-700">{c.slaCommitmentOtif}%</td>
+                            <td className="py-3 px-3">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                                {c.status?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              {isChief && !c.cloSignOff ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCloMsa(c);
+                                    setShowCloMsaModal(true);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg border border-sky-300 bg-sky-50 hover:bg-sky-100 text-[11px] font-bold text-sky-800 cursor-pointer transition-colors"
+                                >
+                                  Execute Sign-Off
+                                </button>
+                              ) : (
+                                <span className="text-[10px] font-mono text-slate-500 font-bold">
+                                  {c.cloSignOff ? "CLO Executed" : "Active"}
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {activeSubView === "purchase_orders" && (
             <div className="space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
@@ -5239,6 +6082,47 @@ export default function LogisticsDepartmentView({
         }}
         employee={employee}
         selectedPo={selectedDirectorPo}
+      />
+
+      {/* 19. CLO MODAL: Authorize Multi-Year CAPEX Deployment */}
+      <CapexAllocationModal
+        isOpen={showCapexModal}
+        onClose={() => {
+          setShowCapexModal(false);
+          setSelectedCapexProject(null);
+        }}
+        onSuccess={() => {
+          fetchCapexProjects();
+          fetchCloMetrics();
+        }}
+        employee={employee}
+      />
+
+      {/* 20. CLO MODAL: Strategic Enterprise MSA & Joint Venture Sign-Off */}
+      <CloMsaAuthModal
+        isOpen={showCloMsaModal}
+        onClose={() => {
+          setShowCloMsaModal(false);
+          setSelectedCloMsa(null);
+        }}
+        onSuccess={() => {
+          fetchContracts();
+          fetchCloMetrics();
+        }}
+        employee={employee}
+        selectedContract={selectedCloMsa}
+      />
+
+      {/* 21. CLO MODAL: Restructure Command Hierarchy & Executive Appointments */}
+      <OrgRestructureModal
+        isOpen={showOrgRestructureModal}
+        onClose={() => setShowOrgRestructureModal(false)}
+        onSuccess={() => {
+          fetchDirectorFinancialSummary();
+          fetchCloMetrics();
+        }}
+        employee={employee}
+        roster={orgChartRoster}
       />
     </div>
   );

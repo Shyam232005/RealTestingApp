@@ -17,7 +17,14 @@ const LogisticsContractSchema = new mongoose.Schema(
     },
     partnerType: {
       type: String,
-      enum: ["3PL_CARRIER", "4PL_LEAD_LOGISTICS", "WAREHOUSE_LANDLORD", "MATERIAL_SUPPLIER"],
+      enum: [
+        "3PL_CARRIER",
+        "4PL_LEAD_LOGISTICS",
+        "WAREHOUSE_LANDLORD",
+        "MATERIAL_SUPPLIER",
+        "JOINT_VENTURE_PARTNER",
+        "FLEET_LEASING_CONSORTIUM",
+      ],
       default: "3PL_CARRIER",
     },
     contractType: {
@@ -27,6 +34,9 @@ const LogisticsContractSchema = new mongoose.Schema(
         "4PL_MANAGED_LOGISTICS",
         "FACILITY_LEASE_ACQUISITION",
         "MULTI_YEAR_VENDOR_PO",
+        "STRATEGIC_JOINT_VENTURE",
+        "CARRIER_FLEET_LEASING",
+        "ASSET_DIVESTMENT",
       ],
       default: "3PL_MASTER_SERVICE_AGREEMENT",
       index: true,
@@ -77,7 +87,15 @@ const LogisticsContractSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["DRAFT", "PENDING_DIRECTOR_SIGN_OFF", "ACTIVE_APPROVED", "REJECTED", "TERMINATED"],
+      enum: [
+        "DRAFT",
+        "PENDING_DIRECTOR_SIGN_OFF",
+        "PENDING_CLO_SIGN_OFF",
+        "CLO_EXECUTED",
+        "ACTIVE_APPROVED",
+        "REJECTED",
+        "TERMINATED",
+      ],
       default: "PENDING_DIRECTOR_SIGN_OFF",
       index: true,
     },
@@ -97,6 +115,42 @@ const LogisticsContractSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    // Tier 7 Chief Logistics Officer (CLO) Supreme Sign-Off & Corporate Governance
+    cloSignOff: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    cloSignOffBy: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Employee",
+    },
+    cloSignOffByName: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    cloSignOffAt: {
+      type: Date,
+    },
+    boardResolutionRef: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    cloNotes: {
+      type: String,
+      trim: true,
+      default: "",
+    },
+    jvEquityPct: {
+      type: Number,
+      default: 0,
+    },
+    divestmentProceeds: {
+      type: Number,
+      default: 0,
     },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,
@@ -123,6 +177,7 @@ const LogisticsContractSchema = new mongoose.Schema(
 
 LogisticsContractSchema.index({ companyId: 1, status: 1 });
 LogisticsContractSchema.index({ companyId: 1, contractType: 1 });
+LogisticsContractSchema.index({ companyId: 1, cloSignOff: 1 });
 
 export default mongoose.models.LogisticsContract ||
   mongoose.model("LogisticsContract", LogisticsContractSchema);
