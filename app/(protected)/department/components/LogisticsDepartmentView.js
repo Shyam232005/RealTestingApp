@@ -47,9 +47,35 @@ import {
   Lock,
   DoorOpen,
   CheckCheck,
+  TrendingUp,
+  BarChart2,
+  Users,
+  Target,
+  Award,
+  DollarSign,
+  Activity,
+  FileCheck,
+  CreditCard,
 } from "lucide-react";
-import CrownZeroState from "@/components/ui/CrownZeroState";
 import {
+  ResponsiveContainer,
+  AreaChart,
+  Area,
+  BarChart,
+  Bar,
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ReferenceLine,
+} from "recharts";
+import ExecutiveWriteOffModal from "./ExecutiveWriteOffModal";
+import CarrierPayoutModal from "./CarrierPayoutModal";
+import CrownZeroState from "@/components/ui/CrownZeroState";
+import CrownSkeletonLoader, {
   TableSkeleton,
   MetricsCardsSkeleton,
   ScannerLaserSkeleton,
@@ -76,15 +102,17 @@ export default function LogisticsDepartmentView({
   const deptConfig = DEPARTMENT_CONFIGS.LOGISTICS;
   const currentTab = deptConfig.tabs.find((t) => t.id === tabId) || deptConfig.tabs[2];
   const userRank = getHierarchyRank(employee?.postLevel);
-  const isSupervisor = userRank >= 4 || employee?.postLevel === "SUPERVISOR";
+  const isManager = userRank >= 5 || employee?.postLevel === "MANAGER" || employee?.postLevel === "DIRECTOR" || employee?.postLevel === "CHIEF_OFFICER";
+  const isSupervisor = userRank >= 4 || employee?.postLevel === "SUPERVISOR" || isManager;
   const isCoordinator = userRank >= 2 || employee?.postLevel === "COORDINATOR" || isSupervisor;
 
   // Active SubView state
   const [activeSubView, setActiveSubView] = useState(() => {
+    if (tabId === "logistics_dashboard") return "freight_analytics";
     if (tabId === "procurement_po") return "purchase_orders";
     if (tabId === "warehouse_stock") return isSupervisor ? "grn_notes" : "grn_notes";
     if (tabId === "dispatch_fleet") return isSupervisor ? "load_audit_gatepass" : isCoordinator ? "carrier_allocation" : "picklist_execution";
-    return "grn_notes";
+    return "freight_analytics";
   });
 
   // Zero-State Initializations (Strictly initialized empty/null)
@@ -101,23 +129,59 @@ export default function LogisticsDepartmentView({
   const [freightAudits, setFreightAudits] = useState([]);
   const [gatePasses, setGatePasses] = useState([]);
 
-  // Dock Door Allocation State (Doors 1 to 6)
-  const [dockDoors, setDockDoors] = useState([
-    { id: 1, name: "Dock Door 1", type: "INBOUND", status: "OFFLOADING", vehicle: "MH-14-GH-1022", material: "Tata Steel Grade 304" },
-    { id: 2, name: "Dock Door 2", type: "INBOUND", status: "AVAILABLE", vehicle: null, material: null },
-    { id: 3, name: "Dock Door 3", type: "INBOUND", status: "STANDBY_HOLD", vehicle: "GJ-06-XX-4411", material: "Quarantine Inspection" },
-    { id: 4, name: "Dock Door 4", type: "OUTBOUND", status: "LOADING", vehicle: "MH-12-RN-8841", material: "BlueDart Express Staging" },
-    { id: 5, name: "Dock Door 5", type: "OUTBOUND", status: "AVAILABLE", vehicle: null, material: null },
-    { id: 6, name: "Dock Door 6", type: "OUTBOUND", status: "GATE_PASS_READY", vehicle: "MH-04-BT-9021", material: "V-Trans Heavy Freight" },
-  ]);
+  // Tier 5 Manager Analytics & Financial Authorization States (Zero State First)
+  const [freightSpendData, setFreightSpendData] = useState({
+    summary: {
+      totalSpend: 0,
+      monthlyOpexBudget: 450000,
+      budgetVariancePct: 0,
+      spendPctOfRevenue: 0,
+      activeCarriersCount: 0,
+      disputedAmount: 0,
+    },
+    monthlyTrends: [],
+    carrierBreakdown: [],
+    spendCategories: [],
+  });
+  const [carrierSlaData, setCarrierSlaData] = useState({
+    overallMetrics: {
+      averageOtif: 0,
+      averageNdrClearance: 0,
+      averageDamageRate: 0,
+      activePartners: 0,
+    },
+    carrierScorecard: [],
+    capacityForecast: [],
+  });
+  const [executiveWriteOffs, setExecutiveWriteOffs] = useState([]);
+  const [carrierPayoutBatches, setCarrierPayoutBatches] = useState([]);
+  const [highValueDisputes, setHighValueDisputes] = useState([]);
+  const [strategicObjectives, setStrategicObjectives] = useState([]);
+  const [loadingObjectives, setLoadingObjectives] = useState(false);
+  const [loadingCapacity, setLoadingCapacity] = useState(false);
 
-  // MHE Equipment Pre-Shift Inspection State
-  const [mheList, setMheList] = useState([
-    { id: "FL-01", name: "Forklift FL-01", model: "Toyota 3.0T Diesel", status: "PASSED", batteryFuel: "95%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:15 AM" },
-    { id: "RT-02", name: "Reach Truck RT-02", model: "Crown 1.5T Electric", status: "PASSED", batteryFuel: "88%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:20 AM" },
-    { id: "EPJ-04", name: "Electric Pallet Jack EPJ-04", model: "Godrej 2.0T Electric", status: "PASSED", batteryFuel: "100%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:10 AM" },
-    { id: "BS-02", name: "Battery Stacker BS-02", model: "Voltas 1.0T Mast", status: "NEEDS_INSPECTION", batteryFuel: "42%", hydraulics: "CHECK_REQUIRED", brakes: "NORMAL", inspectedAt: "Pending" },
-  ]);
+  const [loadingFreightSpend, setLoadingFreightSpend] = useState(false);
+  const [loadingCarrierSla, setLoadingCarrierSla] = useState(false);
+  const [loadingWriteOffs, setLoadingWriteOffs] = useState(false);
+  const [loadingPayoutBatches, setLoadingPayoutBatches] = useState(false);
+
+  // Manager Modals
+  const [showExecutiveWriteOffModal, setShowExecutiveWriteOffModal] = useState(false);
+  const [selectedWriteOffItem, setSelectedWriteOffItem] = useState(null);
+  const [showCarrierPayoutModal, setShowCarrierPayoutModal] = useState(false);
+  const [selectedPayoutBatch, setSelectedPayoutBatch] = useState(null);
+  const [showNewObjectiveModal, setShowNewObjectiveModal] = useState(false);
+  const [newObjectiveForm, setNewObjectiveForm] = useState({
+    title: "",
+    assignedSupervisor: "Warehouse Supervisor (Morning Shift)",
+    shift: "Shift A (06:00 - 14:00)",
+    targetThroughput: "40 Trucks / Shift",
+  });
+
+  // Dock Door Allocation & MHE Equipment State (Zero State First)
+  const [dockDoors, setDockDoors] = useState([]);
+  const [mheList, setMheList] = useState([]);
+  const [loadingDockMhe, setLoadingDockMhe] = useState(false);
 
   // Loading States
   const [loadingGrns, setLoadingGrns] = useState(false);
@@ -188,7 +252,9 @@ export default function LogisticsDepartmentView({
 
   // Sync subview when parent tabId changes
   useEffect(() => {
-    if (tabId === "procurement_po") {
+    if (tabId === "logistics_dashboard") {
+      setActiveSubView("freight_analytics");
+    } else if (tabId === "procurement_po") {
       setActiveSubView("purchase_orders");
     } else if (tabId === "warehouse_stock") {
       setActiveSubView("grn_notes");
@@ -480,6 +546,7 @@ export default function LogisticsDepartmentView({
       setLoadingPos(false);
     }
   };
+  const fetchPos = fetchPurchaseOrders;
 
   const fetchCarrierAllocations = async () => {
     setLoadingAllocations(true);
@@ -494,6 +561,142 @@ export default function LogisticsDepartmentView({
     } finally {
       setLoadingAllocations(false);
     }
+  };
+
+  const fetchFreightSpend = async () => {
+    setLoadingFreightSpend(true);
+    try {
+      const res = await fetch("/api/logistics/analytics/freight-spend");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setFreightSpendData(data);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch freight spend analytics:", err);
+    } finally {
+      setLoadingFreightSpend(false);
+    }
+  };
+
+  const fetchCarrierSla = async () => {
+    setLoadingCarrierSla(true);
+    setLoadingCapacity(true);
+    try {
+      const res = await fetch("/api/logistics/analytics/carrier-sla");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setCarrierSlaData(data);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch carrier SLA scorecard:", err);
+    } finally {
+      setLoadingCarrierSla(false);
+      setLoadingCapacity(false);
+    }
+  };
+
+  const fetchExecutiveWriteOffs = async () => {
+    setLoadingWriteOffs(true);
+    try {
+      const res = await fetch("/api/logistics/inventory/executive-writeoff");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.records) {
+          setExecutiveWriteOffs(data.records);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch executive write-offs:", err);
+    } finally {
+      setLoadingWriteOffs(false);
+    }
+  };
+
+  const fetchCarrierPayouts = async () => {
+    setLoadingPayoutBatches(true);
+    try {
+      const res = await fetch("/api/logistics/freight/payout-auth");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.payoutBatches) {
+          setCarrierPayoutBatches(data.payoutBatches);
+        }
+        if (data.highValueDisputes) {
+          setHighValueDisputes(data.highValueDisputes);
+        }
+      }
+    } catch (err) {
+      console.warn("Could not fetch carrier payouts:", err);
+    } finally {
+      setLoadingPayoutBatches(false);
+    }
+  };
+
+  const handleSeedFreightAnalytics = () => {
+    setLoadingFreightSpend(true);
+    setTimeout(() => {
+      setFreightSpendData({
+        summary: {
+          totalSpend: 428000,
+          monthlyOpexBudget: 450000,
+          budgetVariancePct: -4.8,
+          spendPctOfRevenue: 6.85,
+          activeCarriersCount: 4,
+          disputedAmount: 18500,
+        },
+        monthlyTrends: [
+          { month: "May", spend: 380000, budget: 450000, variance: -70000, variancePct: -15.5, revenueBenchmark: 5500000, spendPctRevenue: 6.9 },
+          { month: "Jun", spend: 410000, budget: 450000, variance: -40000, variancePct: -8.8, revenueBenchmark: 5900000, spendPctRevenue: 6.94 },
+          { month: "Jul", spend: 435000, budget: 450000, variance: -15000, variancePct: -3.3, revenueBenchmark: 6300000, spendPctRevenue: 6.9 },
+          { month: "Aug", spend: 460000, budget: 450000, variance: 10000, variancePct: 2.2, revenueBenchmark: 6800000, spendPctRevenue: 6.76 },
+          { month: "Sep", spend: 442000, budget: 450000, variance: -8000, variancePct: -1.7, revenueBenchmark: 6500000, spendPctRevenue: 6.8 },
+          { month: "Oct", spend: 428000, budget: 450000, variance: -22000, variancePct: -4.8, revenueBenchmark: 6250000, spendPctRevenue: 6.85 },
+        ],
+        carrierBreakdown: [
+          { carrier: "BlueDart Express", spend: 165000, count: 48 },
+          { carrier: "Delhivery Surface", spend: 132000, count: 62 },
+          { carrier: "V-Trans Heavy Freight", spend: 89000, count: 18 },
+          { carrier: "Safexpress Multimodal", spend: 42000, count: 14 },
+        ],
+        spendCategories: [
+          { category: "Express Air 3PL", percentage: 38, amount: 162640 },
+          { category: "Surface LTL Part-Truck", percentage: 44, amount: 188320 },
+          { category: "FTL Heavy Dedicated", percentage: 18, amount: 77040 },
+        ],
+      });
+      setLoadingFreightSpend(false);
+      toast.success("Freight Spend analytics baseline populated.");
+    }, 400);
+  };
+
+  const handleCreateStrategicObjective = (e) => {
+    e.preventDefault();
+    if (!newObjectiveForm.title.trim()) {
+      toast.error("Objective title is required.");
+      return;
+    }
+    const newObj = {
+      id: `OBJ-2026-0${strategicObjectives.length + 1}`,
+      title: newObjectiveForm.title,
+      assignedSupervisor: newObjectiveForm.assignedSupervisor,
+      shift: newObjectiveForm.shift,
+      targetThroughput: newObjectiveForm.targetThroughput,
+      currentMetric: "Initiated",
+      status: "ON_TRACK",
+    };
+    setStrategicObjectives((prev) => [newObj, ...prev]);
+    setShowNewObjectiveModal(false);
+    setNewObjectiveForm({
+      title: "",
+      assignedSupervisor: "Warehouse Supervisor (Morning Shift)",
+      shift: "Shift A (06:00 - 14:00)",
+      targetThroughput: "40 Trucks / Shift",
+    });
+    toast.success("Strategic operational objective delegated to Supervisor.");
   };
 
   const fetchExceptions = async () => {
@@ -555,6 +758,28 @@ export default function LogisticsDepartmentView({
       )
     );
     toast.info(`Dock Door #${doorId} status updated.`);
+  };
+
+  const handleInitializeDefaultDockMhe = () => {
+    setLoadingDockMhe(true);
+    setTimeout(() => {
+      setDockDoors([
+        { id: 1, name: "Dock Door 1", type: "INBOUND", status: "OFFLOADING", vehicle: "MH-14-GH-1022", material: "Tata Steel Grade 304" },
+        { id: 2, name: "Dock Door 2", type: "INBOUND", status: "AVAILABLE", vehicle: null, material: null },
+        { id: 3, name: "Dock Door 3", type: "INBOUND", status: "STANDBY_HOLD", vehicle: "GJ-06-XX-4411", material: "Quarantine Inspection" },
+        { id: 4, name: "Dock Door 4", type: "OUTBOUND", status: "LOADING", vehicle: "MH-12-RN-8841", material: "BlueDart Express Staging" },
+        { id: 5, name: "Dock Door 5", type: "OUTBOUND", status: "AVAILABLE", vehicle: null, material: null },
+        { id: 6, name: "Dock Door 6", type: "OUTBOUND", status: "GATE_PASS_READY", vehicle: "MH-04-BT-9021", material: "V-Trans Heavy Freight" },
+      ]);
+      setMheList([
+        { id: "FL-01", name: "Forklift FL-01", model: "Toyota 3.0T Diesel", status: "PASSED", batteryFuel: "95%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:15 AM" },
+        { id: "RT-02", name: "Reach Truck RT-02", model: "Crown 1.5T Electric", status: "PASSED", batteryFuel: "88%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:20 AM" },
+        { id: "EPJ-04", name: "Electric Pallet Jack EPJ-04", model: "Godrej 2.0T Electric", status: "PASSED", batteryFuel: "100%", hydraulics: "NORMAL", brakes: "NORMAL", inspectedAt: "08:10 AM" },
+        { id: "BS-02", name: "Battery Stacker BS-02", model: "Voltas 1.0T Mast", status: "NEEDS_INSPECTION", batteryFuel: "42%", hydraulics: "CHECK_REQUIRED", brakes: "NORMAL", inspectedAt: "Pending" },
+      ]);
+      setLoadingDockMhe(false);
+      toast.success("Standard 6-Door Dock layout and MHE fleet initialized.");
+    }, 350);
   };
 
   // ---------------------------------------------------------------------------
@@ -804,13 +1029,15 @@ export default function LogisticsDepartmentView({
       {/* =========================================================================
           HEADER BANNER (Clean white surface with light blue employee highlights)
          ========================================================================= */}
-      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
+      <div className="rounded-3xl bg-white border border-slate-200/90 p-6 sm:p-8 shadow-xs flex flex-col gap-6 w-full">
+        <div className="w-full">
           <div className="flex items-center gap-2 mb-1.5 flex-wrap">
             <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
               <Boxes className="w-3.5 h-3.5 text-sky-600" />
               Logistics & Supplies •{" "}
-              {isSupervisor
+              {isManager
+                ? "Logistics Manager (Tier 5)"
+                : isSupervisor
                 ? "Logistics Supervisor (Tier 4)"
                 : isCoordinator
                 ? "Logistics Coordinator (Tier 2)"
@@ -828,28 +1055,40 @@ export default function LogisticsDepartmentView({
                   : "bg-emerald-50 text-emerald-700 border-emerald-200"
               }`}
             >
-              {isSupervisor
+              {isManager
+                ? "Tier 5 Executive Supply Chain & SLA Clearance"
+                : isSupervisor
                 ? "Tier 4 Supervisory & Authorization Clearance"
                 : isCoordinator
                 ? "Tier 2 Inbound/Outbound Clearance"
                 : "Tier 1 Inward/Outbound Clearance"}
             </span>
           </div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-            {tabId === "procurement_po"
-              ? "Procurement & Vendors (Inbound POs & Dock Slots)"
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">
+            {tabId === "logistics_dashboard"
+              ? "Supply Chain & SLA Hub (Executive Freight, SLA & Capacity Planning)"
+              : tabId === "procurement_po"
+              ? isManager
+                ? "Procurement & Vendors (Inbound POs & Executive Dock Slot Override)"
+                : "Procurement & Vendors (Inbound POs & Dock Slots)"
               : tabId === "warehouse_stock"
-              ? isSupervisor
+              ? isManager
+                ? "Warehouse & Stock Ledger (Major Write-Offs & Transit Claims >₹50,000)"
+                : isSupervisor
                 ? "Warehouse & Inward Receiving (GRN Authorization & Stock Ledger)"
                 : "Warehouse & Inward Receiving (Draft GRN)"
               : tabId === "dispatch_fleet"
-              ? isSupervisor
+              ? isManager
+                ? "Order & Dispatch Hub (Carrier Payout Authorization & High-Value Disputes)"
+                : isSupervisor
                 ? "Order & Dispatch Hub (Load Auditing, Gate Passes & Dock MHE)"
                 : "Order & Dispatch Hub (3PL Routing, AWB & Exceptions)"
               : currentTab.title}
-          </h2>
-          <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
-            {isSupervisor
+          </h1>
+          <p className="text-xs text-slate-500 mt-1 leading-relaxed">
+            {isManager
+              ? "Executive Supply Chain & Logistics terminal for monthly freight spend analytics vs. OPEX budget limits, 3PL carrier SLA compliance scorecards, hub-and-spoke volumetric capacity planning, major write-down authorization (>₹50,000), monthly carrier payout sign-offs, and departmental headcount delegation."
+              : isSupervisor
               ? "Operations desk for Final GRN Authorization, Quarantine Adjudication & Debit Memos, Cycle Count Variance Audits, Outward Gate Pass Issuance with 5-point Load Audits, and Dock Door & MHE Pre-Shift Inspections."
               : isCoordinator
               ? "Supervisory terminal for vendor Purchase Orders & ASNs, dock appointment scheduling to prevent demurrage, 3PL volumetric carrier routing, NDR/RTO exception resolution, freight pre-auditing (5% tolerance gate), and subordinate delegation."
@@ -858,8 +1097,34 @@ export default function LogisticsDepartmentView({
         </div>
 
         {/* Dynamic Sub-View Switcher Pills */}
-        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80 overflow-x-auto self-start md:self-auto shrink-0">
-          {tabId === "procurement_po" ? (
+        <div className="w-full flex items-center gap-2 overflow-x-auto whitespace-nowrap pb-2 scrollbar-hide p-1.5 rounded-2xl bg-slate-100/90 border border-slate-200/80">
+          {tabId === "logistics_dashboard" ? (
+            <>
+              {[
+                { id: "freight_analytics", label: "Freight & Budget Analytics" },
+                { id: "carrier_sla", label: "Carrier SLA Scorecard", badge: carrierSlaData.carrierScorecard?.length },
+                { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
+                { id: "strategic_delegation", label: "Manager Headcount & Desk" },
+              ].map((sub) => (
+                <button
+                  key={sub.id}
+                  onClick={() => setActiveSubView(sub.id)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap cursor-pointer transition-all flex items-center gap-1.5 ${
+                    activeSubView === sub.id
+                      ? "bg-white text-sky-900 shadow-xs border border-sky-100"
+                      : "text-slate-600 hover:text-slate-900 hover:bg-white/60"
+                  }`}
+                >
+                  <span>{sub.label}</span>
+                  {sub.badge !== undefined && sub.badge > 0 && (
+                    <span className="text-[10px] px-1.5 py-0.2 rounded-md font-mono bg-sky-100 text-sky-800">
+                      {sub.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </>
+          ) : tabId === "procurement_po" ? (
             <>
               {[
                 { id: "purchase_orders", label: "Purchase Orders & ASNs", badge: purchaseOrders.length },
@@ -904,6 +1169,14 @@ export default function LogisticsDepartmentView({
                       badge: cycleCountVariances.length,
                       alert: cycleCountVariances.length > 0,
                     },
+                    ...(isManager
+                      ? [{
+                          id: "executive_writeoff",
+                          label: "Major Write-Offs (>₹50k)",
+                          badge: executiveWriteOffs.length,
+                          alert: executiveWriteOffs.length > 0,
+                        }]
+                      : []),
                     { id: "live_inventory", label: "Bin Stock Map", badge: binList.length },
                   ]
                 : [
@@ -954,6 +1227,13 @@ export default function LogisticsDepartmentView({
                       alert: exceptionsList.length > 0,
                     },
                     { id: "freight_audit", label: "Freight Volumetric Audit", badge: freightAudits.length },
+                    ...(isManager
+                      ? [{
+                          id: "carrier_payouts",
+                          label: "Monthly Carrier Payouts",
+                          badge: carrierPayoutBatches.length,
+                        }]
+                      : []),
                     { id: "picklist_execution", label: "Pick Lists (Bin Cards)", badge: picklists.length },
                     { id: "staging_bays", label: "Dispatch Staging Bays", badge: stagedConsignments.length },
                   ]
@@ -1016,6 +1296,845 @@ export default function LogisticsDepartmentView({
           )}
         </div>
       </div>
+
+      {/* =========================================================================
+          MODULE 0: SUPPLY CHAIN & SLA HUB (Tier 5 Manager)
+         ========================================================================= */}
+      {tabId === "logistics_dashboard" && (
+        <div className="space-y-6">
+          {/* Sub-view 1: Freight & Budget Analytics */}
+          {activeSubView === "freight_analytics" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <BarChart2 className="w-3.5 h-3.5 text-sky-600" />
+                      Executive Spend Analytics
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Tier 5 Manager Desk
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Freight Spend vs. OPEX Budget & Revenue Benchmark
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Real-time monitoring of freight logistics cost as a percentage of company revenue and monthly OPEX variance tracking.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchFreightSpend}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh Data</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleSeedFreightAnalytics}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <TrendingUp className="w-4 h-4" />
+                    <span>Seed Analytics Baseline</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingFreightSpend ? (
+                <MetricsCardsSkeleton count={6} />
+              ) : freightSpendData.monthlyTrends.length === 0 ? (
+                <CrownZeroState
+                  variant="invoices"
+                  icon={BarChart2}
+                  badge="Freight Analytics Standby"
+                  title="Zero Freight Spend Telemetry"
+                  description="Historical freight invoices and OPEX variance will populate once carrier invoices and bills of lading are processed."
+                  actionText="+ Seed Analytics Baseline"
+                  onAction={handleSeedFreightAnalytics}
+                />
+              ) : (
+                <>
+                  {/* KPI Metric Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Total Freight Spend</span>
+                      <span className="text-lg font-mono font-black text-slate-900">
+                        ₹{(freightSpendData.summary?.totalSpend || 0).toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-emerald-700 font-bold block">October 2026</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Monthly OPEX Limit</span>
+                      <span className="text-lg font-mono font-black text-slate-900">
+                        ₹{(freightSpendData.summary?.monthlyOpexBudget || 450000).toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block">Approved Budget Cap</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Budget Variance</span>
+                      <span className={`text-lg font-mono font-black ${
+                        (freightSpendData.summary?.budgetVariancePct || 0) <= 0 ? "text-emerald-700" : "text-rose-700"
+                      }`}>
+                        {freightSpendData.summary?.budgetVariancePct > 0 ? `+${freightSpendData.summary?.budgetVariancePct}%` : `${freightSpendData.summary?.budgetVariancePct}%`}
+                      </span>
+                      <span className="text-[10px] text-emerald-600 font-semibold block">Under OPEX Ceiling ✓</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Spend % of Revenue</span>
+                      <span className="text-lg font-mono font-black text-sky-700">
+                        {freightSpendData.summary?.spendPctOfRevenue || 6.85}%
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block">Benchmark: &lt; 7.5%</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Disputed Invoices</span>
+                      <span className="text-lg font-mono font-black text-amber-700">
+                        ₹{(freightSpendData.summary?.disputedAmount || 0).toLocaleString("en-IN")}
+                      </span>
+                      <span className="text-[10px] text-amber-600 font-bold block">Pending Settlement</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Active 3PL Carriers</span>
+                      <span className="text-lg font-mono font-black text-purple-700">
+                        {freightSpendData.summary?.activeCarriersCount || 4}
+                      </span>
+                      <span className="text-[10px] text-purple-600 font-bold block">National MSAs</span>
+                    </div>
+                  </div>
+
+                  {/* Recharts Visualizations */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
+                    {/* Chart 1: Spend vs Budget */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900 uppercase">
+                            Monthly Spend vs. OPEX Budget Limit
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Trailing 6 months spend trajectory in INR (₹)</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-lg border border-emerald-200">
+                          -4.8% Variance
+                        </span>
+                      </div>
+
+                      <div className="h-64 w-full pt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <AreaChart data={freightSpendData.monthlyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="colorSpend" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#0284c7" stopOpacity={0.25} />
+                                <stop offset="95%" stopColor="#0284c7" stopOpacity={0.0} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `₹${v / 1000}k`} />
+                            <Tooltip
+                              formatter={(value) => [`₹${Number(value).toLocaleString("en-IN")}`, ""]}
+                              contentStyle={{ borderRadius: "16px", borderColor: "#e2e8f0", fontSize: "12px", boxShadow: "0 4px 12px rgba(0,0,0,0.05)" }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                            <Area type="monotone" dataKey="spend" name="Actual Freight Spend" stroke="#0284c7" strokeWidth={2.5} fillOpacity={1} fill="url(#colorSpend)" />
+                            <Line type="monotone" dataKey="budget" name="Monthly OPEX Cap" stroke="#e11d48" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+                          </AreaChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+
+                    {/* Chart 2: Freight as % of Revenue */}
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                        <div>
+                          <h4 className="text-sm font-black text-slate-900 uppercase">
+                            Freight Cost as % of Revenue
+                          </h4>
+                          <p className="text-[11px] text-slate-500">Target threshold ceiling is strictly &lt; 7.5%</p>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-lg border border-sky-200">
+                          6.85% (Optimal)
+                        </span>
+                      </div>
+
+                      <div className="h-64 w-full pt-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={freightSpendData.monthlyTrends} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                            <XAxis dataKey="month" stroke="#94a3b8" fontSize={11} tickLine={false} />
+                            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `${v}%`} domain={[0, 10]} />
+                            <Tooltip
+                              formatter={(value) => [`${value}%`, "Freight % Revenue"]}
+                              contentStyle={{ borderRadius: "16px", borderColor: "#e2e8f0", fontSize: "12px" }}
+                            />
+                            <Legend wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }} />
+                            <ReferenceLine y={7.5} stroke="#e11d48" strokeDasharray="3 3" label={{ value: "7.5% Cap", fill: "#e11d48", fontSize: 10 }} />
+                            <Bar dataKey="spendPctRevenue" name="Freight % of Revenue" fill="#4f46e5" radius={[6, 6, 0, 0]} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Carrier Breakdown Cards */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+                    {(freightSpendData.carrierBreakdown || []).map((cb) => (
+                      <div key={cb.carrier} className="p-4 rounded-2xl bg-white border border-slate-200 shadow-2xs space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-bold text-xs text-slate-900">{cb.carrier}</span>
+                          <span className="text-[10px] font-mono font-bold text-slate-400">{cb.count} Shipments</span>
+                        </div>
+                        <div className="flex items-baseline justify-between">
+                          <span className="text-sm font-mono font-black text-slate-900">
+                            ₹{(cb.spend || 0).toLocaleString("en-IN")}
+                          </span>
+                          <span className="text-[10px] font-bold text-sky-700">
+                            {freightSpendData.summary?.totalSpend > 0 ? Math.round((cb.spend / freightSpendData.summary.totalSpend) * 100) : 0}% of Total
+                          </span>
+                        </div>
+                        <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-sky-600 h-1.5 rounded-full"
+                            style={{ width: `${freightSpendData.summary?.totalSpend > 0 ? (cb.spend / freightSpendData.summary.totalSpend) * 100 : 0}%` }}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view 2: Carrier SLA Scorecard */}
+          {activeSubView === "carrier_sla" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-purple-700 uppercase tracking-wider flex items-center gap-1.5 bg-purple-50 px-2.5 py-1 rounded-lg border border-purple-200/60">
+                      <Target className="w-3.5 h-3.5 text-purple-600" />
+                      3PL Partner Governance
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                      MSA Performance Matrix
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Carrier SLA Performance & Compliance Scorecard
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Tracking On-Time In-Full (OTIF) delivery compliance, NDR resolution percentages, and cargo transit damage penalties.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCarrierSla}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh Scorecard</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingCarrierSla ? (
+                <TableSkeleton rows={4} cols={7} />
+              ) : carrierSlaData.carrierScorecard?.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Target}
+                  badge="SLA Matrix Standby"
+                  title="No Carrier Telemetry Active"
+                  description="All 3PL carrier SLA metrics are currently clear. Real-time delivery and damage rates populate as dispatch routes execute."
+                  actionText="Refresh SLA Scorecard"
+                  onAction={fetchCarrierSla}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {/* Overview Banner */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Fleet Average OTIF</span>
+                      <span className="text-xl font-mono font-black text-emerald-700">
+                        {carrierSlaData.overallMetrics?.averageOtif || 94.8}%
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block">Target: &ge; 95.0%</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">NDR Clearance Rate</span>
+                      <span className="text-xl font-mono font-black text-sky-700">
+                        {carrierSlaData.overallMetrics?.averageNdrClearance || 92.5}%
+                      </span>
+                      <span className="text-[10px] text-emerald-600 font-bold block">First-Attempt Delivery</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Transit Damage Rate</span>
+                      <span className="text-xl font-mono font-black text-indigo-700">
+                        {carrierSlaData.overallMetrics?.averageDamageRate || 0.65}%
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium block">Ceiling: &lt; 1.0%</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase block">Contracted Carriers</span>
+                      <span className="text-xl font-mono font-black text-purple-700">
+                        {carrierSlaData.overallMetrics?.activePartners || 4} National 3PLs
+                      </span>
+                      <span className="text-[10px] text-purple-600 font-bold block">All MSAs Active</span>
+                    </div>
+                  </div>
+
+                  {/* Scorecard Table */}
+                  <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Carrier Partner</th>
+                          <th className="py-2.5 px-3">Monthly Shipments</th>
+                          <th className="py-2.5 px-3">OTIF Compliance %</th>
+                          <th className="py-2.5 px-3">NDR Resolution %</th>
+                          <th className="py-2.5 px-3">Transit Damage %</th>
+                          <th className="py-2.5 px-3">Avg Transit Days</th>
+                          <th className="py-2.5 px-3">SLA Status</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {carrierSlaData.carrierScorecard?.map((c) => (
+                          <tr key={c.carrier} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3">
+                              <span className="font-bold text-slate-900 block">{c.carrier}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{c.contractTier}</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-slate-800">{c.totalShipments} Consignments</td>
+                            <td className="py-3 px-3 font-mono">
+                              <span className={`font-black px-2 py-0.5 rounded-md text-[10px] ${
+                                c.otifPercent >= 95 ? "bg-emerald-100 text-emerald-800" : c.otifPercent >= 90 ? "bg-amber-100 text-amber-800" : "bg-rose-100 text-rose-800"
+                              }`}>
+                                {c.otifPercent}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-700">{c.ndrClearanceRate}%</td>
+                            <td className="py-3 px-3 font-mono">
+                              <span className={`text-[10px] font-bold ${c.transitDamageRate > 1.0 ? "text-rose-600" : "text-slate-700"}`}>
+                                {c.transitDamageRate}%
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-700">{c.avgTransitDays} Days</td>
+                            <td className="py-3 px-3">
+                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                c.slaStatus === "EXEMPLARY" ? "bg-emerald-100 text-emerald-800" : c.slaStatus === "COMPLIANT" ? "bg-sky-100 text-sky-800" : "bg-amber-100 text-amber-800"
+                              }`}>
+                                {c.slaStatus}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  toast.info(`MSA Contract & Performance dossier for ${c.carrier} verified.`);
+                                }}
+                                className="px-3 py-1 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+                              >
+                                Review MSA
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view 3: Demand Forecasting & Network Capacity */}
+          {activeSubView === "demand_forecasting" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
+                      <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                      Capacity Planning Engine
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200 font-mono">
+                      Peak Season Staging
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Hub-and-Spoke Volumetric Network Capacity Planning
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Facility tonnage utilization and buffer bay reservations across North, West, South, and East distribution godowns.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCarrierSla}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Sync Telemetry</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Zero State / Loading / Data View */}
+              {loadingCapacity || loadingCarrierSla ? (
+                <CrownSkeletonLoader preset="TableSkeleton" />
+              ) : (!carrierSlaData.capacityForecast || carrierSlaData.capacityForecast.length === 0) ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Layers}
+                  badge="Capacity Telemetry Standby"
+                  title="No Capacity Data Available"
+                  description="Godown volumetric telemetry has not synchronized yet."
+                  actionText="+ Sync Volumetric Data"
+                  onAction={fetchCarrierSla}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs overflow-x-auto space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>Distribution Hub Volumetric Allocation</span>
+                    <span className="text-slate-400 font-normal">Updated Live from Godown Telemetry</span>
+                  </div>
+
+                  <table className="w-full text-left text-xs">
+                    <thead>
+                      <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                        <th className="py-2.5 px-3">Distribution Hub</th>
+                        <th className="py-2.5 px-3">Current Load (Tons)</th>
+                        <th className="py-2.5 px-3">Peak Limit (Tons)</th>
+                        <th className="py-2.5 px-3">Utilization %</th>
+                        <th className="py-2.5 px-3">Network Status</th>
+                        <th className="py-2.5 px-3 text-right">Peak Staging Action</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {carrierSlaData.capacityForecast.map((h) => (
+                        <tr key={h.hub} className="hover:bg-slate-50/70 transition-colors">
+                          <td className="py-3 px-3 font-bold text-slate-900">{h.hub}</td>
+                          <td className="py-3 px-3 font-mono font-bold text-slate-800">{h.currentVolumetricTon} MT</td>
+                          <td className="py-3 px-3 font-mono text-slate-500">{h.peakCapacityTon} MT</td>
+                          <td className="py-3 px-3">
+                            <div className="flex items-center gap-2">
+                              <div className="w-24 bg-slate-100 rounded-full h-2 overflow-hidden">
+                                <div
+                                  className={`h-2 rounded-full ${
+                                    h.utilizationPct > 85 ? "bg-rose-500" : h.utilizationPct > 70 ? "bg-amber-500" : "bg-emerald-500"
+                                  }`}
+                                  style={{ width: `${h.utilizationPct}%` }}
+                                />
+                              </div>
+                              <span className="font-mono font-black text-xs text-slate-800">{h.utilizationPct}%</span>
+                            </div>
+                          </td>
+                          <td className="py-3 px-3">
+                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                              h.status === "OPTIMAL" ? "bg-emerald-100 text-emerald-800" : h.status === "NEAR_CAPACITY" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
+                            }`}>
+                              {h.status?.replace(/_/g, " ")}
+                            </span>
+                          </td>
+                          <td className="py-3 px-3 text-right">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                toast.success(`Staging buffer rebalanced for ${h.hub}.`);
+                              }}
+                              className="px-3 py-1 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+                            >
+                              Rebalance Bays
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view 4: Strategic Headcount & Delegation Desk */}
+          {activeSubView === "strategic_delegation" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <Users className="w-3.5 h-3.5 text-sky-600" />
+                      Executive Leadership Desk
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Departmental Governance
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Logistics Department Headcount & Strategic Objective Delegation
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Assign multi-shift strategic throughput goals to Tier 4 Supervisors and monitor departmental operational capacity.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setShowNewObjectiveModal(true)}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Delegate Strategic Objective</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Zero State / Loading / Data View */}
+              {loadingObjectives ? (
+                <div className="space-y-4">
+                  <CrownSkeletonLoader preset="MetricsCardsSkeleton" count={4} />
+                  <CrownSkeletonLoader preset="TableSkeleton" />
+                </div>
+              ) : strategicObjectives.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Users}
+                  badge="Headcount & Goals Idle"
+                  title="No Strategic Objectives Delegated"
+                  description="Assign multi-shift throughput goals to Tier 4 Supervisors to begin tracking."
+                  actionText="+ Delegate Strategic Objective"
+                  onAction={() => setShowNewObjectiveModal(true)}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {/* Dynamic Headcount Metrics Cards (Only rendered when live data exists) */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    <div className="bg-white p-4 rounded-2xl border border-purple-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black text-purple-700 uppercase block">Tier 4 Supervisors</span>
+                      <span className="text-2xl font-mono font-black text-slate-900">
+                        {new Set(strategicObjectives.map((o) => o.assignedSupervisor)).size || 1} Active
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">Warehouse & Fleet Leads</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-indigo-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black text-indigo-700 uppercase block">Tier 2 Coordinators</span>
+                      <span className="text-2xl font-mono font-black text-slate-900">
+                        {carrierAllocations.length > 0 ? Math.max(2, Math.ceil(carrierAllocations.length / 3)) : 2} Active
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">PO, 3PL Routing & NDRs</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-sky-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black text-sky-700 uppercase block">Tier 1 Assistants</span>
+                      <span className="text-2xl font-mono font-black text-slate-900">
+                        {picklists.length > 0 ? Math.max(4, Math.ceil(picklists.length * 2)) : 4} Active
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">Picklists, Bins & Draft GRNs</span>
+                    </div>
+
+                    <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-2xs space-y-1">
+                      <span className="text-[10px] font-black text-slate-600 uppercase block">Material Handlers / Drivers</span>
+                      <span className="text-2xl font-mono font-black text-slate-900">
+                        {dockDoors.length > 0 ? dockDoors.length * 2 : 6} Active
+                      </span>
+                      <span className="text-[10px] text-slate-400 block">MHE, Forklifts & Dock Staging</span>
+                    </div>
+                  </div>
+
+                  {/* Strategic Objectives Table */}
+                  <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                      <span>Delegated Strategic Objectives ({strategicObjectives.length})</span>
+                      <span className="text-purple-700 text-[11px] font-bold">Enforced by Manager</span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                            <th className="py-2.5 px-3">Objective ID</th>
+                            <th className="py-2.5 px-3">Strategic Goal Description</th>
+                            <th className="py-2.5 px-3">Assigned Supervisor</th>
+                            <th className="py-2.5 px-3">Shift & Facility</th>
+                            <th className="py-2.5 px-3">Throughput Target</th>
+                            <th className="py-2.5 px-3">Live Throughput</th>
+                            <th className="py-2.5 px-3">Status</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {strategicObjectives.map((obj) => (
+                            <tr key={obj.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-3 font-mono font-bold text-slate-900">{obj.id}</td>
+                              <td className="py-3 px-3 font-semibold text-slate-900 max-w-xs">{obj.title}</td>
+                              <td className="py-3 px-3 font-medium text-purple-800 bg-purple-50/40">{obj.assignedSupervisor}</td>
+                              <td className="py-3 px-3 text-slate-600 font-medium">{obj.shift}</td>
+                              <td className="py-3 px-3 font-mono font-bold text-slate-800">{obj.targetThroughput}</td>
+                              <td className="py-3 px-3 font-mono text-emerald-700 font-bold">{obj.currentMetric}</td>
+                              <td className="py-3 px-3">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                  obj.status === "ACHIEVED" ? "bg-emerald-100 text-emerald-800" : "bg-sky-100 text-sky-800"
+                                }`}>
+                                  {obj.status?.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =========================================================================
+          MODULE: PROCUREMENT & VENDORS (INBOUND)
+         ========================================================================= */}
+      {tabId === "procurement_po" && (
+        <div className="space-y-6">
+          {/* Sub-view: Purchase Orders */}
+          {activeSubView === "purchase_orders" && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <PackageCheck className="w-3.5 h-3.5 text-sky-600" />
+                      Inbound Procurement Desk
+                    </span>
+                    {isManager && (
+                      <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                        Manager Override Active
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Vendor Purchase Orders & Advanced Shipping Notices (ASN)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Cross-reference supplier delivery schedules with godown dock slots to ensure demurrage-free receiving.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchPos}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePoModal(true)}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Create Inbound PO & ASN</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingPos ? (
+                <TableSkeleton rows={4} cols={6} />
+              ) : purchaseOrders.length === 0 ? (
+                <CrownZeroState
+                  variant="invoices"
+                  icon={PackageCheck}
+                  badge="Procurement Desk Clean"
+                  title="No Purchase Orders Generated"
+                  description="Vendor Purchase Orders and ASNs populate here as procurement cycles are initiated."
+                  actionText="+ Create Inbound PO & ASN"
+                  onAction={() => setShowCreatePoModal(true)}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>Active Inbound Purchase Orders ({purchaseOrders.length})</span>
+                    {isManager && (
+                      <span className="text-[11px] text-purple-700 font-bold">
+                        Manager Executive Override Authorized
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">PO & ASN Number</th>
+                          <th className="py-2.5 px-3">Vendor Name</th>
+                          <th className="py-2.5 px-3">Material Items Summary</th>
+                          <th className="py-2.5 px-3">Total Value</th>
+                          <th className="py-2.5 px-3">Dock Appointment</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          {isManager && <th className="py-2.5 px-3 text-right">Executive Override</th>}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {purchaseOrders.map((po) => (
+                          <tr key={po.id || po.poNumber} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3">
+                              <span className="font-mono font-bold text-slate-900 block">{po.poNumber}</span>
+                              <span className="text-[10px] text-sky-700 font-mono">{po.asnNumber}</span>
+                            </td>
+                            <td className="py-3 px-3 font-semibold text-slate-800">{po.vendorName}</td>
+                            <td className="py-3 px-3 text-slate-600 max-w-xs truncate">{po.itemsSummary || "Industrial Raw Materials"}</td>
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                              ₹{(po.totalCost || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-sky-50 text-sky-800 border border-sky-200 block w-max">
+                                {po.dockAppointmentSlot || "Bay 1 (Morning 09:00 - 12:00)"}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800">
+                                {po.status || "APPROVED_PO"}
+                              </span>
+                            </td>
+                            {isManager && (
+                              <td className="py-3 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    toast.success(`Executive slot override granted for PO #${po.poNumber}.`);
+                                  }}
+                                  className="px-2.5 py-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-[11px] font-bold text-purple-700 cursor-pointer transition-colors"
+                                >
+                                  Override Slot
+                                </button>
+                              </td>
+                            )}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view: Dock Appointment Timeline */}
+          {activeSubView === "dock_scheduling" && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <h3 className="text-lg font-black text-slate-900">
+                    Demurrage-Free Inbound Dock Appointment Schedule
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Scheduled delivery windows reserved to eliminate supplier lorry detention and demurrage charges.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={fetchPurchaseOrders}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowCreatePoModal(true)}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Create Inbound PO & ASN</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingPos ? (
+                <CrownSkeletonLoader preset="MetricsCardsSkeleton" count={3} />
+              ) : purchaseOrders.filter((p) => p.dockAppointmentSlot).length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Calendar}
+                  badge="Dock Schedule Idle"
+                  title="No Dock Appointments Scheduled"
+                  description="No inbound vendor delivery windows are currently reserved for the loading dock."
+                  actionText="+ Create Inbound PO & ASN"
+                  onAction={() => setShowCreatePoModal(true)}
+                />
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {purchaseOrders
+                    .filter((p) => p.dockAppointmentSlot)
+                    .map((s) => (
+                      <div key={s.id || s.poNumber} className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <span className="font-mono font-bold text-xs text-slate-900">{s.dockAppointmentSlot}</span>
+                          <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded bg-emerald-100 text-emerald-800">
+                            {(s.dockStatus || "SCHEDULED").replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <div className="space-y-1">
+                          <p className="text-xs font-bold text-slate-800">PO: {s.poNumber}</p>
+                          <p className="text-xs font-mono text-slate-600">Vendor: {s.vendorName}</p>
+                          {s.asnNumber && (
+                            <p className="text-[11px] font-mono text-sky-700">ASN: {s.asnNumber}</p>
+                          )}
+                          {s.itemsSummary && (
+                            <p className="text-[11px] text-slate-500 truncate" title={s.itemsSummary}>
+                              Items: {s.itemsSummary}
+                            </p>
+                          )}
+                          {s.expectedDeliveryDate && (
+                            <p className="text-[10px] text-slate-400">Delivery: {s.expectedDeliveryDate}</p>
+                          )}
+                        </div>
+                        {isManager && (
+                          <button
+                            type="button"
+                            onClick={() => toast.info(`Manager emergency hold cleared for ${s.dockAppointmentSlot || s.poNumber}.`)}
+                            className="w-full py-1.5 rounded-xl border border-purple-200 bg-purple-50 text-[11px] font-bold text-purple-700 hover:bg-purple-100 cursor-pointer transition-colors"
+                          >
+                            Emergency Slot Override
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* =========================================================================
           MODULE 1: WAREHOUSE & STOCK LEDGER
@@ -1532,6 +2651,124 @@ export default function LogisticsDepartmentView({
             </div>
           )}
 
+          {/* Sub-view: Major Inventory Write-Offs > ₹50,000 (Tier 5 Manager) */}
+          {activeSubView === "executive_writeoff" && isManager && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-rose-700 uppercase tracking-wider flex items-center gap-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60">
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                      Executive Write-Down Desk
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Threshold &gt; ₹50,000
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Major Stock Write-Offs & Transit Damage Insurance Claims
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    High-value discrepancies exceeding the Supervisor approval threshold requiring executive authorization and cargo underwriter submission.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchExecutiveWriteOffs}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedWriteOffItem(executiveWriteOffs[0] || null);
+                      setShowExecutiveWriteOffModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <ShieldCheck className="w-4 h-4" />
+                    <span>+ Authorize Executive Write-Off</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingWriteOffs ? (
+                <TableSkeleton rows={4} cols={6} />
+              ) : executiveWriteOffs.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={ShieldCheck}
+                  badge="Audit Clean"
+                  title="No Major Write-Offs Pending"
+                  description="Zero inventory discrepancies or transit damage claims exceed the ₹50,000 threshold requiring Manager sign-off."
+                  actionText="+ Authorize Executive Write-Off"
+                  onAction={() => setShowExecutiveWriteOffModal(true)}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>High-Value Damage & Variance Docket ({executiveWriteOffs.length})</span>
+                    <span className="text-rose-700 font-mono text-[11px] font-bold">&gt; ₹50,000 Threshold Filter</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Docket Ref</th>
+                          <th className="py-2.5 px-3">Item Description & SKU</th>
+                          <th className="py-2.5 px-3">Quantity</th>
+                          <th className="py-2.5 px-3">Loss Valuation</th>
+                          <th className="py-2.5 px-3">Quarantine Location</th>
+                          <th className="py-2.5 px-3">Resolution Status</th>
+                          <th className="py-2.5 px-3 text-right">Sign-Off</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {executiveWriteOffs.map((w) => (
+                          <tr key={w.id || w.referenceCode} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">{w.referenceCode}</td>
+                            <td className="py-3 px-3">
+                              <span className="font-bold text-slate-900 block">{w.itemDescription}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{w.skuCode}</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono">{w.quantity} {w.uom}</td>
+                            <td className="py-3 px-3 font-mono font-black text-rose-700">
+                              ₹{(w.estimatedLossAmount || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-700">{w.quarantineCageLocation}</td>
+                            <td className="py-3 px-3">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">
+                                {w.status?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setSelectedWriteOffItem(w);
+                                  setShowExecutiveWriteOffModal(true);
+                                }}
+                                className="px-3 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold cursor-pointer transition-colors"
+                              >
+                                Authorize
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sub-view 4: Live Bin Stock Map (Zero State First) */}
           {activeSubView === "live_inventory" && (
             <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-xs space-y-4">
@@ -1719,128 +2956,190 @@ export default function LogisticsDepartmentView({
           {/* Sub-view 2: Dock Doors & MHE Pre-Shift Inspections (Tier 4 Supervisor) */}
           {activeSubView === "dock_mhe_management" && (
             <div className="space-y-6">
-              {/* Part A: 6-Door Dock Allocation Board */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <DoorOpen className="w-5 h-5 text-sky-600" />
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 uppercase">
-                        Visual Dock Door Allocation Board (Doors 1 to 6)
-                      </h3>
-                      <p className="text-xs text-slate-500">Live staging and loading status across facility dock doors.</p>
-                    </div>
+              {/* Header Control Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <DoorOpen className="w-3.5 h-3.5 text-sky-600" />
+                      Loading Docks & MHE Fleet
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Tier 4 Supervisory Desk
+                    </span>
                   </div>
-                  <span className="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-3 py-1 rounded-xl border border-sky-200">
-                    6 Operational Doors
-                  </span>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Dock Allocation & MHE Daily Safety Inspection
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Live staging and loading status across facility dock doors, plus daily OSHA-compliant safety checklists.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {dockDoors.map((door) => (
-                    <div
-                      key={door.id}
-                      onClick={() => handleToggleDockDoor(door.id)}
-                      className="p-4 rounded-2xl border border-slate-200 hover:border-sky-300 bg-white shadow-2xs space-y-2 cursor-pointer transition-all"
+                <div className="flex items-center gap-2 shrink-0">
+                  {dockDoors.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setDockDoors([]);
+                        setMheList([]);
+                        toast.info("Dock and MHE state reset to Zero State.");
+                      }}
+                      className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-600 transition-colors cursor-pointer"
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono font-black text-xs text-slate-900">{door.name}</span>
-                        <span
-                          className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                            door.status === "AVAILABLE"
-                              ? "bg-slate-100 text-slate-600"
-                              : door.status === "OFFLOADING"
-                              ? "bg-amber-100 text-amber-800"
-                              : door.status === "LOADING"
-                              ? "bg-sky-100 text-sky-800"
-                              : "bg-emerald-100 text-emerald-800"
-                          }`}
+                      Clear Allocations
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    onClick={handleInitializeDefaultDockMhe}
+                    className="px-4 py-2 rounded-xl bg-sky-600 hover:bg-sky-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <DoorOpen className="w-4 h-4" />
+                    <span>{dockDoors.length === 0 ? "Initialize 6-Door Dock Layout" : "Reset Standard Bays"}</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingDockMhe ? (
+                <MetricsCardsSkeleton count={6} />
+              ) : dockDoors.length === 0 && mheList.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  badge="Dock & MHE Idle"
+                  title="No Dock Allocations Active"
+                  description="No dock doors or Material Handling Equipment (MHE) have active operational allocations or inspection schedules. Supervisors can configure bays and log daily pre-shift safety inspections."
+                  actionText="+ Initialize 6-Door Dock Layout"
+                  onAction={handleInitializeDefaultDockMhe}
+                />
+              ) : (
+                <>
+                  {/* Part A: 6-Door Dock Allocation Board */}
+                  <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
+                    <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                      <div className="flex items-center gap-2.5">
+                        <DoorOpen className="w-5 h-5 text-sky-600" />
+                        <div>
+                          <h3 className="text-sm font-black text-slate-900 uppercase">
+                            Visual Dock Door Allocation Board ({dockDoors.length} Doors)
+                          </h3>
+                          <p className="text-xs text-slate-500">Live staging and loading status across facility dock doors.</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-mono font-bold text-sky-700 bg-sky-50 px-3 py-1 rounded-xl border border-sky-200">
+                        {dockDoors.length} Operational Doors
+                      </span>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {dockDoors.map((door) => (
+                        <div
+                          key={door.id}
+                          onClick={() => handleToggleDockDoor(door.id)}
+                          className="p-4 rounded-2xl border border-slate-200 hover:border-sky-300 bg-white shadow-2xs space-y-2 cursor-pointer transition-all"
                         >
-                          {door.status.replace(/_/g, " ")}
+                          <div className="flex items-center justify-between">
+                            <span className="font-mono font-black text-xs text-slate-900">{door.name}</span>
+                            <span
+                              className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                door.status === "AVAILABLE"
+                                  ? "bg-slate-100 text-slate-600"
+                                  : door.status === "OFFLOADING"
+                                  ? "bg-amber-100 text-amber-800"
+                                  : door.status === "LOADING"
+                                  ? "bg-sky-100 text-sky-800"
+                                  : "bg-emerald-100 text-emerald-800"
+                              }`}
+                            >
+                              {door.status.replace(/_/g, " ")}
+                            </span>
+                          </div>
+
+                          <div className="text-[11px] space-y-0.5">
+                            <p className="text-slate-500">
+                              Zone: <strong className="text-slate-800">{door.type} Operation</strong>
+                            </p>
+                            <p className="text-slate-500 font-mono">
+                              Vehicle: <strong className="text-slate-900">{door.vehicle || "Bay Open"}</strong>
+                            </p>
+                            {door.material && (
+                              <p className="text-[10px] text-slate-400 truncate">{door.material}</p>
+                            )}
+                          </div>
+
+                          <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-sky-700 font-bold">
+                            <span>Tap to Toggle Bay Status</span>
+                            <ArrowRight className="w-3 h-3" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Part B: Material Handling Equipment (MHE) Pre-Shift Daily Inspection */}
+                  {mheList.length > 0 && (
+                    <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
+                      <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                        <div className="flex items-center gap-2.5">
+                          <Wrench className="w-5 h-5 text-purple-600" />
+                          <div>
+                            <h3 className="text-sm font-black text-slate-900 uppercase">
+                              Material Handling Equipment (MHE) Pre-Shift Inspection
+                            </h3>
+                            <p className="text-xs text-slate-500">Daily safety sign-off for forklifts, reach trucks, and pallet stackers.</p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200">
+                          Daily Safety Sign-Off
                         </span>
                       </div>
 
-                      <div className="text-[11px] space-y-0.5">
-                        <p className="text-slate-500">
-                          Zone: <strong className="text-slate-800">{door.type} Operation</strong>
-                        </p>
-                        <p className="text-slate-500 font-mono">
-                          Vehicle: <strong className="text-slate-900">{door.vehicle || "Bay Open"}</strong>
-                        </p>
-                        {door.material && (
-                          <p className="text-[10px] text-slate-400 truncate">{door.material}</p>
-                        )}
-                      </div>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        {mheList.map((mhe) => {
+                          const isPassed = mhe.status === "PASSED";
+                          return (
+                            <div
+                              key={mhe.id}
+                              onClick={() => handleToggleMheInspection(mhe.id)}
+                              className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-2 select-none ${
+                                isPassed
+                                  ? "bg-white border-emerald-300 shadow-2xs"
+                                  : "bg-amber-50/50 border-amber-300"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between">
+                                <span className="font-mono font-black text-xs text-slate-900">{mhe.id}</span>
+                                <span
+                                  className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                    isPassed
+                                      ? "bg-emerald-100 text-emerald-800"
+                                      : "bg-amber-100 text-amber-800"
+                                  }`}
+                                >
+                                  {isPassed ? "PASSED ✓" : "PENDING INSPECTION"}
+                                </span>
+                              </div>
 
-                      <div className="pt-1.5 border-t border-slate-100 flex items-center justify-between text-[10px] text-sky-700 font-bold">
-                        <span>Tap to Toggle Bay Status</span>
-                        <ArrowRight className="w-3 h-3" />
+                              <p className="text-xs font-bold text-slate-800">{mhe.model}</p>
+
+                              <div className="text-[10px] space-y-0.5 text-slate-500">
+                                <p>Battery/Fuel: <strong className="font-mono text-slate-800">{mhe.batteryFuel}</strong></p>
+                                <p>Hydraulics: <strong className="text-slate-800">{mhe.hydraulics}</strong></p>
+                                <p>Brakes: <strong className="text-slate-800">{mhe.brakes}</strong></p>
+                                <p>Last Inspection: <strong className="font-mono text-slate-800">{mhe.inspectedAt}</strong></p>
+                              </div>
+
+                              <div className="pt-1.5 border-t border-slate-100 text-[10px] font-bold text-purple-700 text-center">
+                                {isPassed ? "Tap to Flag Maintenance" : "Tap to Pass Safety Sign-Off"}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Part B: Material Handling Equipment (MHE) Pre-Shift Daily Inspection */}
-              <div className="bg-white p-6 rounded-3xl border border-slate-200/90 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2.5">
-                    <Wrench className="w-5 h-5 text-purple-600" />
-                    <div>
-                      <h3 className="text-sm font-black text-slate-900 uppercase">
-                        Material Handling Equipment (MHE) Pre-Shift Inspection
-                      </h3>
-                      <p className="text-xs text-slate-500">Daily safety sign-off for forklifts, reach trucks, and pallet stackers.</p>
-                    </div>
-                  </div>
-                  <span className="text-xs font-mono font-bold text-purple-700 bg-purple-50 px-3 py-1 rounded-xl border border-purple-200">
-                    Daily Safety Sign-Off
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                  {mheList.map((mhe) => {
-                    const isPassed = mhe.status === "PASSED";
-                    return (
-                      <div
-                        key={mhe.id}
-                        onClick={() => handleToggleMheInspection(mhe.id)}
-                        className={`p-4 rounded-2xl border transition-all cursor-pointer space-y-2 select-none ${
-                          isPassed
-                            ? "bg-white border-emerald-300 shadow-2xs"
-                            : "bg-amber-50/50 border-amber-300"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-mono font-black text-xs text-slate-900">{mhe.id}</span>
-                          <span
-                            className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
-                              isPassed
-                                ? "bg-emerald-100 text-emerald-800"
-                                : "bg-amber-100 text-amber-800"
-                            }`}
-                          >
-                            {isPassed ? "PASSED ✓" : "PENDING INSPECTION"}
-                          </span>
-                        </div>
-
-                        <p className="text-xs font-bold text-slate-800">{mhe.model}</p>
-
-                        <div className="text-[10px] space-y-0.5 text-slate-500">
-                          <p>Battery/Fuel: <strong className="font-mono text-slate-800">{mhe.batteryFuel}</strong></p>
-                          <p>Hydraulics: <strong className="text-slate-800">{mhe.hydraulics}</strong></p>
-                          <p>Brakes: <strong className="text-slate-800">{mhe.brakes}</strong></p>
-                          <p>Last Inspection: <strong className="font-mono text-slate-800">{mhe.inspectedAt}</strong></p>
-                        </div>
-
-                        <div className="pt-1.5 border-t border-slate-100 text-[10px] font-bold text-purple-700 text-center">
-                          {isPassed ? "Tap to Flag Maintenance" : "Tap to Pass Safety Sign-Off"}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+                  )}
+                </>
+              )}
             </div>
           )}
 
@@ -2004,6 +3303,385 @@ export default function LogisticsDepartmentView({
                       </div>
                     </div>
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view: NDR & RTO Exceptions (Tier 2 Coordinator & Tier 4 Supervisor) */}
+          {activeSubView === "ndr_rto_exceptions" && (
+            <div className="space-y-5">
+              {/* Header Control Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-rose-700 uppercase tracking-wider flex items-center gap-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60">
+                      <AlertTriangle className="w-3.5 h-3.5 text-rose-600" />
+                      Exception Management Desk
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200 font-mono">
+                      NDR / RTO Resolution
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Non-Delivery Reports (NDR) & Return to Origin (RTO)
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Review customer address corrections, reschedule deliveries with 3PL carriers, or approve RTO freight returns.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchExceptions}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowExceptionModal(true)}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <AlertCircle className="w-4 h-4" />
+                    <span>+ Log NDR / Return Exception</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Zero State / Loading / Data View */}
+              {loadingExceptions ? (
+                <TableSkeleton rows={4} cols={5} />
+              ) : exceptionsList.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={AlertTriangle}
+                  badge="Delivery Operations Clear"
+                  title="No Active Exceptions"
+                  description="All Non-Delivery Reports (NDR) and RTO exceptions have been cleared."
+                  actionText="+ Log NDR / Return Exception"
+                  onAction={() => setShowExceptionModal(true)}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>Active Delivery Exceptions ({exceptionsList.length})</span>
+                    <button
+                      type="button"
+                      onClick={fetchExceptions}
+                      className="text-[11px] text-sky-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Refresh
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Exception ID</th>
+                          <th className="py-2.5 px-3">AWB & Order Ref</th>
+                          <th className="py-2.5 px-3">Carrier</th>
+                          <th className="py-2.5 px-3">Customer & Destination</th>
+                          <th className="py-2.5 px-3">Exception Cause</th>
+                          <th className="py-2.5 px-3">Action Status</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {exceptionsList.map((exc) => (
+                          <tr key={exc.id || exc.exceptionId} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">{exc.exceptionId || exc.id}</td>
+                            <td className="py-3 px-3">
+                              <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded text-[10px] border border-indigo-100 block w-max">
+                                {exc.awbNumber}
+                              </span>
+                              <span className="text-[10px] text-slate-400 font-mono mt-0.5 block">{exc.orderReference}</span>
+                            </td>
+                            <td className="py-3 px-3 font-semibold text-slate-800">{exc.carrier}</td>
+                            <td className="py-3 px-3">
+                              <div className="font-bold text-slate-900">{exc.customerName}</div>
+                              <div className="text-[10px] text-slate-500">{exc.destinationCity} ({exc.deliveryPinCode})</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-50 text-amber-800 border border-amber-200">
+                                {exc.exceptionType?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                exc.actionTaken?.includes("RTO")
+                                  ? "bg-rose-100 text-rose-800"
+                                  : exc.actionTaken?.includes("REATTEMPT")
+                                  ? "bg-sky-100 text-sky-800"
+                                  : "bg-slate-100 text-slate-700"
+                              }`}>
+                                {exc.actionTaken?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              <button
+                                type="button"
+                                onClick={() => setShowExceptionModal(true)}
+                                className="px-3 py-1 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+                              >
+                                Review
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view: Freight Volumetric Audit (Tier 2 Coordinator & Tier 4 Supervisor) */}
+          {activeSubView === "freight_audit" && (
+            <div className="space-y-5">
+              {/* Header Control Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
+                      <Scale className="w-3.5 h-3.5 text-indigo-600" />
+                      Billing Pre-Audit Desk
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-sky-50 text-sky-700 border border-sky-200 font-mono">
+                      5% Tolerance Gate
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Freight Volumetric Weight & Demurrage Pre-Audit
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Verify 3PL carrier invoiced weight against internal weighbridge logs to detect over-billing prior to Accounts Payable sign-off.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchFreightAudits}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setShowFreightAuditModal(true)}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Scale className="w-4 h-4" />
+                    <span>+ Run New Freight Audit</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Zero State / Loading / Data View */}
+              {loadingFreight ? (
+                <TableSkeleton rows={4} cols={5} />
+              ) : freightAudits.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={Scale}
+                  badge="Freight Reconciled"
+                  title="No Pending Freight Audits"
+                  description="All carrier volumetric weights have been reconciled against internal logs."
+                  actionText="+ Run New Freight Audit"
+                  onAction={() => setShowFreightAuditModal(true)}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>Reconciled Freight Invoices ({freightAudits.length})</span>
+                    <button
+                      type="button"
+                      onClick={fetchFreightAudits}
+                      className="text-[11px] text-sky-700 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <RefreshCw className="w-3 h-3" /> Refresh
+                    </button>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Invoice & AWB</th>
+                          <th className="py-2.5 px-3">Carrier</th>
+                          <th className="py-2.5 px-3">Actual vs Billed Wt</th>
+                          <th className="py-2.5 px-3">Variance %</th>
+                          <th className="py-2.5 px-3">Billed / Expected Amt</th>
+                          <th className="py-2.5 px-3">Dispute Status</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {freightAudits.map((fa) => {
+                          const isOverTolerance = Math.abs(fa.variancePercent || 0) > 5;
+                          return (
+                            <tr key={fa.id || fa.invoiceNumber} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-3">
+                                <div className="font-mono font-bold text-slate-900">{fa.invoiceNumber}</div>
+                                <div className="text-[10px] text-indigo-700 font-mono">AWB: {fa.awbNumber}</div>
+                              </td>
+                              <td className="py-3 px-3 font-semibold text-slate-800">{fa.carrier}</td>
+                              <td className="py-3 px-3 font-mono">
+                                <div>Actual: <strong className="text-slate-900">{fa.actualWeightKg} kg</strong></div>
+                                <div className="text-slate-400 text-[10px]">Billed: {fa.billedWeightKg} kg</div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className={`text-[10px] font-black px-2 py-0.5 rounded-md ${
+                                  isOverTolerance
+                                    ? "bg-rose-100 text-rose-800 border border-rose-200"
+                                    : "bg-emerald-100 text-emerald-800 border border-emerald-200"
+                                }`}>
+                                  {fa.variancePercent > 0 ? `+${fa.variancePercent}%` : `${fa.variancePercent}%`}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 font-mono">
+                                <div className="font-bold text-slate-900">₹{(fa.billedAmount || 0).toLocaleString("en-IN")}</div>
+                                <div className="text-[10px] text-slate-400">Exp: ₹{(fa.expectedAmount || 0).toLocaleString("en-IN")}</div>
+                              </td>
+                              <td className="py-3 px-3">
+                                <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                                  fa.auditStatus === "DISPUTE_RAISED"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : fa.auditStatus === "AUDIT_PASSED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}>
+                                  {fa.auditStatus?.replace(/_/g, " ")}
+                                </span>
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => setShowFreightAuditModal(true)}
+                                  className="px-3 py-1 rounded-lg border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 cursor-pointer transition-colors"
+                                >
+                                  Details
+                                </button>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Sub-view: Monthly Carrier Payouts & Dispute Resolution (Tier 5 Manager) */}
+          {activeSubView === "carrier_payouts" && isManager && (
+            <div className="space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
+                      <CreditCard className="w-3.5 h-3.5 text-indigo-600" />
+                      Executive Disbursement Sign-Off
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Accounts Payable Authorization
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Consolidated Monthly 3PL Carrier Payout Batches
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Review and sign off on monthly carrier freight payouts with automated deductions for 5% SLA weight variances and damage penalties.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCarrierPayouts}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPayoutBatch(carrierPayoutBatches[0] || null);
+                      setShowCarrierPayoutModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <FileCheck className="w-4 h-4" />
+                    <span>+ Sign Off Carrier Payout</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingPayoutBatches ? (
+                <TableSkeleton rows={4} cols={6} />
+              ) : carrierPayoutBatches.length === 0 ? (
+                <CrownZeroState
+                  variant="invoices"
+                  icon={CreditCard}
+                  badge="Disbursements Current"
+                  title="No Payout Batches Pending"
+                  description="All monthly carrier freight invoices and high-value disputes have been reconciled and signed off."
+                  actionText="+ Sign Off Carrier Payout"
+                  onAction={() => setShowCarrierPayoutModal(true)}
+                />
+              ) : (
+                <div className="space-y-4">
+                  {/* Payout Batches Grid */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    {carrierPayoutBatches.map((b) => (
+                      <div key={b.batchId} className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+                        <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                          <span className="font-mono font-bold text-xs text-indigo-700">{b.batchId}</span>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-md ${
+                            b.payoutStatus === "EXECUTIVE_APPROVED" ? "bg-emerald-100 text-emerald-800" : "bg-amber-100 text-amber-800"
+                          }`}>
+                            {b.payoutStatus.replace(/_/g, " ")}
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-slate-900">{b.carrier}</h4>
+                        <div className="text-xs space-y-1">
+                          <div className="flex justify-between text-slate-500">
+                            <span>Gross Invoiced:</span>
+                            <span className="font-mono font-bold text-slate-800">₹{(b.grossBilledAmount || 0).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="flex justify-between text-rose-600">
+                            <span>Penalties Deducted:</span>
+                            <span className="font-mono font-bold">-₹{(b.penaltyDeductions || 0).toLocaleString("en-IN")}</span>
+                          </div>
+                          <div className="flex justify-between text-slate-900 pt-1 border-t border-slate-100 font-bold">
+                            <span>Net Payable:</span>
+                            <span className="font-mono font-black text-indigo-700">₹{(b.netPayableAmount || 0).toLocaleString("en-IN")}</span>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedPayoutBatch(b);
+                            setShowCarrierPayoutModal(true);
+                          }}
+                          className="w-full py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold border border-indigo-200 cursor-pointer transition-colors"
+                        >
+                          Sign Off Disbursement
+                        </button>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </div>
@@ -2629,7 +4307,133 @@ export default function LogisticsDepartmentView({
         stagedConsignments={stagedConsignments}
       />
 
-      {/* 12. SUPERVISOR MODAL: Log Cycle Count Audit */}
+      {/* 13. MANAGER MODAL: Executive Major Write-Off */}
+      <ExecutiveWriteOffModal
+        isOpen={showExecutiveWriteOffModal}
+        onClose={() => {
+          setShowExecutiveWriteOffModal(false);
+          setSelectedWriteOffItem(null);
+        }}
+        onSuccess={() => {
+          fetchExecutiveWriteOffs();
+          fetchDiscrepancyMemos();
+          fetchVariances();
+        }}
+        selectedItem={selectedWriteOffItem}
+        employee={employee}
+      />
+
+      {/* 14. MANAGER MODAL: Executive Carrier Payout Sign-Off */}
+      <CarrierPayoutModal
+        isOpen={showCarrierPayoutModal}
+        onClose={() => {
+          setShowCarrierPayoutModal(false);
+          setSelectedPayoutBatch(null);
+        }}
+        onSuccess={() => {
+          fetchCarrierPayouts();
+          fetchFreightAudits();
+        }}
+        selectedBatch={selectedPayoutBatch}
+        employee={employee}
+      />
+
+      {/* 15. MANAGER MODAL: Delegate Strategic Objective */}
+      {showNewObjectiveModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs">
+          <div className="relative w-full max-w-lg rounded-3xl bg-white border border-slate-200 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-2xl bg-purple-50 border border-purple-200 text-purple-700">
+                  <Target className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900">Delegate Strategic Objective</h3>
+                  <p className="text-xs text-slate-500">Assign throughput KPI to Tier 4 Supervisor</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowNewObjectiveModal(false)}
+                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateStrategicObjective} className="p-6 space-y-4 text-xs">
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Strategic Objective Title</label>
+                <input
+                  type="text"
+                  required
+                  value={newObjectiveForm.title}
+                  onChange={(e) => setNewObjectiveForm({ ...newObjectiveForm, title: e.target.value })}
+                  placeholder="e.g. Maintain 98% Outbound Gate Pass Clearance under 15 Mins"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Assigned Supervisor</label>
+                  <select
+                    value={newObjectiveForm.assignedSupervisor}
+                    onChange={(e) => setNewObjectiveForm({ ...newObjectiveForm, assignedSupervisor: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium"
+                  >
+                    <option value="Warehouse Supervisor (Morning Shift)">Warehouse Supervisor (Morning Shift)</option>
+                    <option value="QC / Inward Receiving Lead">QC / Inward Receiving Lead</option>
+                    <option value="Fleet & Dock In-charge">Fleet & Dock In-charge</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1">Shift</label>
+                  <select
+                    value={newObjectiveForm.shift}
+                    onChange={(e) => setNewObjectiveForm({ ...newObjectiveForm, shift: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium"
+                  >
+                    <option value="Shift A (06:00 - 14:00)">Shift A (06:00 - 14:00)</option>
+                    <option value="Shift B (14:00 - 22:00)">Shift B (14:00 - 22:00)</option>
+                    <option value="General Shift">General Shift</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">Throughput Target</label>
+                <input
+                  type="text"
+                  required
+                  value={newObjectiveForm.targetThroughput}
+                  onChange={(e) => setNewObjectiveForm({ ...newObjectiveForm, targetThroughput: e.target.value })}
+                  placeholder="e.g. 45 Trucks / Shift"
+                  className="w-full px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-mono font-bold"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setShowNewObjectiveModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-bold text-slate-600 hover:bg-slate-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-black text-xs shadow-xs"
+                >
+                  Assign Objective
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+            {/* 12. SUPERVISOR MODAL: Log Cycle Count Audit */}
       <CycleCountAuditModal
         isOpen={showCycleCountModal}
         onClose={() => setShowCycleCountModal(false)}

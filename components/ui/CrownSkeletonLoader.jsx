@@ -318,3 +318,23 @@ export function PageHeaderSkeleton({ title = "Loading Crownops..." }) {
     </div>
   );
 }
+
+/**
+ * Default CrownSkeletonLoader wrapper component supporting preset prop.
+ */
+export default function CrownSkeletonLoader({ preset = "TableSkeleton", ...props }) {
+  if (preset === "MetricsCardsSkeleton") {
+    return <MetricsCardsSkeleton {...props} />;
+  }
+  if (preset === "ScannerLaserSkeleton") {
+    return <ScannerLaserSkeleton {...props} />;
+  }
+  if (preset === "ChartSkeleton") {
+    return <ChartSkeleton {...props} />;
+  }
+  if (preset === "PageHeaderSkeleton") {
+    return <PageHeaderSkeleton {...props} />;
+  }
+  return <TableSkeleton {...props} />;
+}
+
