@@ -5,6 +5,8 @@ import Employee from "@/models/Employee";
 import { getHierarchyRank } from "@/lib/hierarchy";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 const DEPARTMENTS = ["OPERATIONS", "SALES", "LOGISTICS", "FINANCIAL"];
 
 // GET /api/owner/tasks - Fetch owner-assigned tasks and top-tier department leaders

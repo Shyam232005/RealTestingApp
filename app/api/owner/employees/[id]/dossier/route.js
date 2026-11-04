@@ -8,6 +8,8 @@ import Attendance from "@/models/Attendance";
 import Submission from "@/models/Submission";
 import Leave from "@/models/Leave";
 
+export const dynamic = "force-dynamic";
+
 async function getAuthenticatedOwner() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("crown_session")?.value;

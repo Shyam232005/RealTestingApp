@@ -3,6 +3,8 @@ import { withRouteMiddleware, parseRequestBody, parseRequestQuery } from "@/lib/
 import LogisticsException from "@/models/LogisticsException";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/logistics/outbound/exceptions
  * Exception Management Dashboard (NDR / RTO).

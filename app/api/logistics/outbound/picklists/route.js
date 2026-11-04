@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { withRouteMiddleware } from "@/lib/routeMiddleware";
 import SalesOrder from "@/models/SalesOrder";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/logistics/outbound/picklists
  * Fetches approved picklists passed down from Sales department dependencies.

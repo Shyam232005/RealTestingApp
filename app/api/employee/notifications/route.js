@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Notification from "@/models/Notification";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/employee/notifications - Get employee's notifications and unread count
 export async function GET(request) {
   try {

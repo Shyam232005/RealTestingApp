@@ -12,6 +12,8 @@ import ApprovalRequest from "@/models/ApprovalRequest";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/ca/data-pipeline
  * Ultra-Fast High-Speed Financial Data Transfer Pipeline

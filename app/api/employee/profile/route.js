@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const auth = await getAuthenticatedEmployee({ requireApproved: true });

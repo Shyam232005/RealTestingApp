@@ -10,6 +10,8 @@ import {
   buildFullPlanDetails,
 } from "@/lib/subscriptionHelper";
 
+export const dynamic = "force-dynamic";
+
 // Re-export for any consumers
 export { PLAN_TIERS_CONFIG };
 

@@ -15,6 +15,8 @@ import Leave from "@/models/Leave";
 import { buildFullPlanDetails } from "@/lib/subscriptionHelper";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/users/[id] - Fetch comprehensive user profile details
 export async function GET(request, { params }) {
   try {

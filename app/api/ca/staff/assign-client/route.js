@@ -6,6 +6,8 @@ import Owner from "@/models/Owner";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     await connectDB();

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedOwner } from "@/lib/ownerAuth";
 import Submission from "@/models/Submission";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/owner/submissions/files - Dedicated repository of all work files attached by employees
 export async function GET(request) {
   try {

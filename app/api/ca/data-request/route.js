@@ -10,6 +10,8 @@ import Notification from "@/models/Notification";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 // Helper: Authenticate CA session
 async function getAuthenticatedCA() {
   const cookieStore = await cookies();

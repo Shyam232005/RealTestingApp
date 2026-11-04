@@ -9,6 +9,8 @@ import {
   normalizePlanName,
 } from "@/lib/subscriptionHelper";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const auth = await getAuthenticatedSuperAdmin();

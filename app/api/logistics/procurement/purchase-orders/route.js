@@ -3,6 +3,8 @@ import { withRouteMiddleware, parseRequestBody, parseRequestQuery } from "@/lib/
 import PurchaseOrder from "@/models/PurchaseOrder";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/logistics/procurement/purchase-orders
  * Generates and approves Vendor Purchase Orders (PO) and Advanced Shipping Notices (ASN).

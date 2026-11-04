@@ -4,6 +4,8 @@ import DispatchLog from "@/models/DispatchLog";
 import SalesOrder from "@/models/SalesOrder";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
+export const dynamic = "force-dynamic";
+
 /**
  * PUT /api/logistics/outbound/carrier-allocation
  * Assigns shipments to contracted 3PL carriers based on volumetric weight & pin codes.

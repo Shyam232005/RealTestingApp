@@ -5,6 +5,8 @@ import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 
+export const dynamic = "force-dynamic";
+
 const caSetupSchema = z.object({
   firmName: z
     .string()

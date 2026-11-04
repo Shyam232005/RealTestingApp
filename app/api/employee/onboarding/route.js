@@ -3,6 +3,8 @@ import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Employee, { DEPARTMENT_LIST, POST_HIERARCHY_LEVELS } from "@/models/Employee";
 import { createOwnerNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     const auth = await getAuthenticatedEmployee({ requireApproved: false });

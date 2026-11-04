@@ -6,6 +6,8 @@ import { auditDocumentPayload } from "@/lib/ocrMathGuardrails";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 // Verified MSME & Industrial Indian Samples for 1-Click Zero-Mistake Testing
 const SAMPLE_DOCUMENTS = {
   "tata-steel-challan": {

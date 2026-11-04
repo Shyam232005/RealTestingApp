@@ -9,6 +9,8 @@ import CA from "@/models/CA";
 import CAStaff from "@/models/CAStaff";
 import { resolveOrganizationForOwner, buildFullPlanDetails } from "@/lib/subscriptionHelper";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/admin/users - Universal registry of all users across Owner, Employee, CA, and CA Staff
 export async function GET(request) {
   try {

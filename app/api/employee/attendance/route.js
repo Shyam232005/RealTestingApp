@@ -3,6 +3,8 @@ import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Attendance from "@/models/Attendance";
 import { createOwnerNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 function getTodayString() {
   const d = new Date();
   const year = d.getFullYear();

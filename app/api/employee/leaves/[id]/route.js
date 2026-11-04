@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Leave from "@/models/Leave";
 
+export const dynamic = "force-dynamic";
+
 export async function DELETE(request, { params }) {
   try {
     const auth = await getAuthenticatedEmployee({ requireApproved: true });

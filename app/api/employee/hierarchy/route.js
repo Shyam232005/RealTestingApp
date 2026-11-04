@@ -7,6 +7,8 @@ import {
   getSubordinates,
 } from "@/lib/hierarchyServer";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/employee/hierarchy - Get reporting structure, rank, and subordinates
 export async function GET() {
   try {

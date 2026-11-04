@@ -6,6 +6,8 @@ import Owner from "@/models/Owner";
 import Organization from "@/models/Organization";
 import Transaction from "@/models/Transaction";
 
+export const dynamic = "force-dynamic";
+
 async function getAuthenticatedOwner() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("crown_session")?.value;

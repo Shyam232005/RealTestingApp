@@ -3,6 +3,8 @@ import { getAuthenticatedOwner } from "@/lib/ownerAuth";
 import connectDB from "@/lib/mongodb";
 import { getAccountLedger } from "@/lib/ledgerEngine";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request, { params }) {
   try {
     const auth = await getAuthenticatedOwner();

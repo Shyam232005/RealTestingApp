@@ -7,6 +7,8 @@ import CATask from "@/models/CATask";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 // Helper: Verify session and extract user
 async function getAuthSession() {
   const cookieStore = await cookies();

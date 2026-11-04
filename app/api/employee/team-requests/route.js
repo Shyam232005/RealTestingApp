@@ -5,6 +5,8 @@ import Submission from "@/models/Submission";
 import TaskAssignment from "@/models/TaskAssignment";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/employee/team-requests
 // Returns:
 // 1. Requests from lower staff assigned to this supervisor (Leaves, Daily Work Submissions, Task Reviews)

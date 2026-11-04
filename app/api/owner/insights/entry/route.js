@@ -6,6 +6,8 @@ import Transaction from "@/models/Transaction";
 import Organization from "@/models/Organization";
 import { ensureChartOfAccounts } from "@/lib/ledgerEngine";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     const auth = await getAuthenticatedOwner();

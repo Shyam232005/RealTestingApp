@@ -9,6 +9,8 @@ import {
   calculateSubscriptionEndDate,
 } from "@/lib/subscriptionHelper";
 
+export const dynamic = "force-dynamic";
+
 // PUT /api/admin/subscriptions/[id] - SuperAdmin updates or extends subscription
 export async function PUT(request, { params }) {
   try {

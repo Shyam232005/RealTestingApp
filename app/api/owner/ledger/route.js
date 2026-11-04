@@ -8,6 +8,8 @@ import {
   ensureOpeningBalanceJournal,
 } from "@/lib/ledgerEngine";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/owner/ledger
  * Returns chart of accounts and all posted journal entries

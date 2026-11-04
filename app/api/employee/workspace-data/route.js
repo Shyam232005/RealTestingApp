@@ -12,6 +12,8 @@ import {
   getSubordinates,
 } from "@/lib/hierarchyServer";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/employee/workspace-data
 // High-performance consolidated endpoint: replaces 9 separate HTTP calls with a single lean query roundtrip
 export async function GET(request) {

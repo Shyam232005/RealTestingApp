@@ -6,6 +6,8 @@ import Owner from "@/models/Owner";
 import Organization from "@/models/Organization";
 import Transaction from "@/models/Transaction";
 
+export const dynamic = "force-dynamic";
+
 // Helper: Extract & verify authenticated Owner session
 async function getAuthenticatedOwner() {
   const cookieStore = await cookies();

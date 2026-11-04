@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { withRouteMiddleware, parseRequestBody } from "@/lib/routeMiddleware";
 import WarehouseBin from "@/models/WarehouseBin";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/logistics/inventory/bins
  * Fetches real warehouse aisle & bin allocations for the active tenant.

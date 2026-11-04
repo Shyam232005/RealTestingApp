@@ -5,6 +5,8 @@ import connectDB from "@/lib/mongodb";
 import Owner from "@/models/Owner";
 import Leave from "@/models/Leave";
 
+export const dynamic = "force-dynamic";
+
 async function getAuthenticatedOwner() {
   const cookieStore = await cookies();
   const sessionToken = cookieStore.get("crown_session")?.value;

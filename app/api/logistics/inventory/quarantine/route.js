@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { withRouteMiddleware, parseRequestBody, parseRequestQuery } from "@/lib/routeMiddleware";
 import QuarantineLog from "@/models/QuarantineLog";
 
+export const dynamic = "force-dynamic";
+
 /**
  * PUT /api/logistics/inventory/quarantine
  * Flags specific carton IDs as defective / crushed and moves them to quarantine hold.

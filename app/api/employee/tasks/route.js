@@ -5,6 +5,8 @@ import Employee from "@/models/Employee";
 import { getHierarchyRank, isUpperRole } from "@/lib/hierarchy";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 // GET /api/employee/tasks - List assigned tasks
 export async function GET(request) {
   try {

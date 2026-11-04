@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 // High-fidelity pre-configured industry profiles for instant verification & sample scanning
 const OCR_SAMPLE_PROFILES = {
   "tata-steel": {

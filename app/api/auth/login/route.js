@@ -10,6 +10,8 @@ import CA from "@/models/CA";
 import CAStaff from "@/models/CAStaff";
 import SuperAdmin from "@/models/SuperAdmin";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     await connectDB();

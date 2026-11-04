@@ -6,6 +6,8 @@ import Owner from "@/models/Owner";
 import Organization from "@/models/Organization";
 import Employee from "@/models/Employee";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const cookieStore = await cookies();

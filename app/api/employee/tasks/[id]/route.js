@@ -3,6 +3,8 @@ import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import TaskAssignment from "@/models/TaskAssignment";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 // PATCH /api/employee/tasks/[id] - Update task status / submit / approve
 export async function PATCH(request, { params }) {
   try {

@@ -8,6 +8,8 @@ import ApprovalRequest from "@/models/ApprovalRequest";
 import Employee from "@/models/Employee";
 import CA from "@/models/CA";
 
+export const dynamic = "force-dynamic";
+
 // Helper: Extract & verify authenticated Owner session
 async function getAuthenticatedOwner() {
   const cookieStore = await cookies();

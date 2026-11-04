@@ -306,9 +306,9 @@ export const DEPARTMENT_CONFIGS = {
         allowedLevels: ["DIRECTOR", "MANAGER", "SUPERVISOR", "ANALYST", "COORDINATOR", "ASSISTANT", "OTHER"],
         subViews: [
           { id: "grn_notes", label: "Goods Receipt Notes (GRN)" },
-          { id: "quarantine_discrepancy", label: "Quarantine & Defects" },
-          { id: "live_inventory", label: "Live Inventory & Bins" },
-          { id: "loading_dock", label: "Loading Dock Schedule" },
+          { id: "quarantine_discrepancy", label: "Quarantine & Memos" },
+          { id: "inventory_audits", label: "Cycle Count & Stock Audits" },
+          { id: "live_inventory", label: "Bin Stock Map" },
         ],
       },
       {
@@ -316,6 +316,8 @@ export const DEPARTMENT_CONFIGS = {
         title: "Order & Dispatch Hub (Outbound)",
         allowedLevels: ["MANAGER", "SUPERVISOR", "COORDINATOR", "ASSISTANT", "OTHER"],
         subViews: [
+          { id: "load_audit_gatepass", label: "Load Auditing & Gate Passes" },
+          { id: "dock_mhe_management", label: "Dock & MHE Management" },
           { id: "carrier_allocation", label: "3PL Carrier Routing" },
           { id: "dispatch_documentation", label: "AWB & Part-B E-Way Bills" },
           { id: "ndr_rto_exceptions", label: "NDR & RTO Exceptions" },

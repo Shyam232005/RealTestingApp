@@ -7,6 +7,8 @@ import {
   generateBalanceSheet,
 } from "@/lib/ledgerEngine";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   try {
     const auth = await getAuthenticatedOwner();

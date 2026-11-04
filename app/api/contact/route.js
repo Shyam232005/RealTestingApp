@@ -3,6 +3,8 @@ import Contact from "@/models/Contact"
 import connectDB from "@/lib/mongodb"
 import { success } from "zod";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req) {
     const body = await req.json()
     if (body) {

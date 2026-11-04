@@ -3,6 +3,8 @@ import mongoose from "mongoose";
 import Owner from "@/models/Owner";
 import CA from "@/models/CA";
 
+export const dynamic = "force-dynamic";
+
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) return;
   await mongoose.connect(process.env.MONGODB_URI);

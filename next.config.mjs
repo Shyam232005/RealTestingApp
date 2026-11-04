@@ -6,8 +6,6 @@ const nextConfig = {
     agentUpgrade: "security",
     cpus: 1,
   },
-  cacheComponents: true,
-  partialPrefetching: true,
   async rewrites() {
     return [
       {

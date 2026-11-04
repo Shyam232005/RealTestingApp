@@ -17,6 +17,8 @@ import JournalEntry from "@/models/JournalEntry";
 import LedgerAccount from "@/models/LedgerAccount";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const auth = await getAuthenticatedSuperAdmin();

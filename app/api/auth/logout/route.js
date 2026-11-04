@@ -6,6 +6,8 @@ import Employee from "@/models/Employee";
 import Attendance from "@/models/Attendance";
 import { createOwnerNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 export async function POST() {
   try {
     const cookieStore = await cookies();

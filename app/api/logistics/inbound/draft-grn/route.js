@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { withRouteMiddleware, parseRequestBody } from "@/lib/routeMiddleware";
 import UniversalDocumentRecord from "@/models/UniversalDocumentRecord";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/logistics/inbound/draft-grn
  * Accepts draft inbound receiving data.

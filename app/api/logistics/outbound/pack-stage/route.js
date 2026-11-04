@@ -3,6 +3,8 @@ import { withRouteMiddleware, parseRequestBody, parseRequestQuery } from "@/lib/
 import DispatchLog from "@/models/DispatchLog";
 import SalesOrder from "@/models/SalesOrder";
 
+export const dynamic = "force-dynamic";
+
 /**
  * PUT /api/logistics/outbound/pack-stage
  * Updates order status to packed/staged in designated staging bays.

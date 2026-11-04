@@ -4,6 +4,8 @@ import Submission from "@/models/Submission";
 import { createOwnerNotification, createEmployeeNotification } from "@/lib/notifications";
 import { resolveReportingSupervisor } from "@/lib/hierarchyServer";
 
+export const dynamic = "force-dynamic";
+
 export async function GET() {
   try {
     const auth = await getAuthenticatedEmployee({ requireApproved: true });

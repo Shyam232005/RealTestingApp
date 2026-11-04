@@ -3,6 +3,8 @@ import { withRouteMiddleware, parseRequestBody, parseRequestQuery } from "@/lib/
 import FreightAuditLog from "@/models/FreightAuditLog";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/logistics/freight/audit
  * Fetches carrier freight bills vs. actual volumetric weights for billing pre-audit.

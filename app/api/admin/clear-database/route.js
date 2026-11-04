@@ -3,6 +3,8 @@ import { getAuthenticatedSuperAdmin } from "@/lib/adminAuth";
 import connectDB from "@/lib/mongodb";
 import mongoose from "mongoose";
 
+export const dynamic = "force-dynamic";
+
 // Required Super Password - strictly enforced with zero alternatives
 const REQUIRED_SUPER_CLEAR_PASSWORD = "Shyam@Sangani#Clear@Databased#23072005@2026";
 

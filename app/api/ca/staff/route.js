@@ -6,6 +6,8 @@ import CATask from "@/models/CATask";
 import { cookies } from "next/headers";
 import jwt from "jsonwebtoken";
 
+export const dynamic = "force-dynamic";
+
 export async function GET(request) {
   try {
     await connectDB();

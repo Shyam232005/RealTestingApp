@@ -7,6 +7,8 @@ import Employee from "@/models/Employee";
 import CA from "@/models/CA";
 import CAStaff from "@/models/CAStaff";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(request) {
   try {
     await connectDB();

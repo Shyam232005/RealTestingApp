@@ -9,6 +9,8 @@ import Attendance from "@/models/Attendance";
 import Submission from "@/models/Submission";
 import Leave from "@/models/Leave";
 
+export const dynamic = "force-dynamic";
+
 function getTodayString() {
   const d = new Date();
   const year = d.getFullYear();

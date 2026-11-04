@@ -7,6 +7,8 @@ import TaskAssignment from "@/models/TaskAssignment";
 import Submission from "@/models/Submission";
 import { createEmployeeNotification } from "@/lib/notifications";
 
+export const dynamic = "force-dynamic";
+
 // PATCH /api/owner/employees/[id] - Transfer / Reassign employee to another department or role
 export async function PATCH(request, { params }) {
   try {
