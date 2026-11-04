@@ -5,7 +5,7 @@ import {
   isUpperRole,
   resolveReportingSupervisor,
   getSubordinates,
-} from "@/lib/hierarchy";
+} from "@/lib/hierarchyServer";
 
 // GET /api/employee/hierarchy - Get reporting structure, rank, and subordinates
 export async function GET() {

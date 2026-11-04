@@ -10,7 +10,7 @@ import {
   isUpperRole,
   resolveReportingSupervisor,
   getSubordinates,
-} from "@/lib/hierarchy";
+} from "@/lib/hierarchyServer";
 
 // GET /api/employee/workspace-data
 // High-performance consolidated endpoint: replaces 9 separate HTTP calls with a single lean query roundtrip

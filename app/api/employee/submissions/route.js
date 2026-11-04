@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { getAuthenticatedEmployee } from "@/lib/employeeAuth";
 import Submission from "@/models/Submission";
 import { createOwnerNotification, createEmployeeNotification } from "@/lib/notifications";
-import { resolveReportingSupervisor } from "@/lib/hierarchy";
+import { resolveReportingSupervisor } from "@/lib/hierarchyServer";
 
 export async function GET() {
   try {

@@ -134,6 +134,9 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
     blockers: "",
     summary: "",
     files: [],
+    dockToStockLatency: "",
+    orderPickingAccuracy: "",
+    cycleCountVariance: "",
   });
 
   // Work Delegation (Assign Work) Form State
@@ -729,6 +732,9 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
       blockers: submissionForm.blockers,
       summary: submissionForm.summary,
       files: submissionForm.files,
+      dockToStockLatency: submissionForm.dockToStockLatency,
+      orderPickingAccuracy: submissionForm.orderPickingAccuracy,
+      cycleCountVariance: submissionForm.cycleCountVariance,
     };
     setSubmissionForm({
       title: "",
@@ -736,6 +742,9 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
       blockers: "",
       summary: "",
       files: [],
+      dockToStockLatency: "",
+      orderPickingAccuracy: "",
+      cycleCountVariance: "",
     });
     setFeedback({
       type: "success",
@@ -3086,6 +3095,7 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                   tabId={effectiveTab}
                   employee={employee}
                   company={company}
+                  hierarchyData={hierarchyData}
                   onNotify={handleModuleNotify}
                 />
               )}
@@ -4071,6 +4081,63 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                   placeholder="e.g. Machine 2 requires spare belt, vendor contact needed"
                   className="w-full px-3.5 py-2.5 rounded-xl border border-slate-200 text-xs font-medium focus:outline-hidden"
                 />
+              </div>
+
+              {/* Logistics & Operational KPIs */}
+              <div className="p-3.5 rounded-2xl bg-sky-50/60 border border-sky-200/80 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black text-sky-950 uppercase tracking-tight flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-sky-600" />
+                    Operational & Logistics KPIs (Tier 1 Milestones)
+                  </span>
+                  <span className="text-[10px] font-bold text-sky-700 bg-white px-2 py-0.5 rounded border border-sky-200">
+                    Daily Metrics
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Dock-to-Stock Latency
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 1.5 hrs"
+                      value={submissionForm.dockToStockLatency || ""}
+                      onChange={(e) =>
+                        setSubmissionForm({ ...submissionForm, dockToStockLatency: e.target.value })
+                      }
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:outline-hidden focus:border-sky-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Order Picking Accuracy
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 99.8%"
+                      value={submissionForm.orderPickingAccuracy || ""}
+                      onChange={(e) =>
+                        setSubmissionForm({ ...submissionForm, orderPickingAccuracy: e.target.value })
+                      }
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:outline-hidden focus:border-sky-400"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[10px] font-bold text-slate-600 uppercase mb-1">
+                      Cycle Count Variance
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 0.02%"
+                      value={submissionForm.cycleCountVariance || ""}
+                      onChange={(e) =>
+                        setSubmissionForm({ ...submissionForm, cycleCountVariance: e.target.value })
+                      }
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 text-xs font-medium bg-white focus:outline-hidden focus:border-sky-400"
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Attach Work Deliverable Files */}
