@@ -77,6 +77,7 @@ const CycleCountVarianceSchema = new mongoose.Schema(
         "ADJUSTMENT_REQUESTED",
         "ADJUSTMENT_APPROVED",
         "WRITE_OFF_RECORDED",
+        "CATASTROPHIC_WRITE_OFF_RECORDED",
         "RECONCILED",
       ],
       default: "PENDING_AUDIT_REVIEW",
@@ -86,6 +87,23 @@ const CycleCountVarianceSchema = new mongoose.Schema(
       type: String,
       trim: true,
       default: "",
+    },
+    catastrophicSettlement: {
+      type: Boolean,
+      default: false,
+    },
+    directorSignOffByName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    directorSignOffAt: {
+      type: Date,
+    },
+    legalSettlementRef: {
+      type: String,
+      default: "",
+      trim: true,
     },
     auditedBy: {
       type: mongoose.Schema.Types.ObjectId,

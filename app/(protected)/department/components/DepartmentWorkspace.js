@@ -1966,8 +1966,8 @@ export default function DepartmentWorkspace({ currentDepartment = "OPERATIONS" }
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
-                        {attendanceHistory.map((item) => (
-                          <tr key={item._id} className="hover:bg-slate-50/60 transition-colors">
+                        {attendanceHistory.map((item, index) => (
+                          <tr key={item._id || item.id || `attendance-${index}`} className="hover:bg-slate-50/60 transition-colors">
                             <td className="py-3 pl-2 font-bold text-slate-800">{item.date}</td>
                             <td className="py-3 font-semibold text-slate-600">{item.shiftType || "GENERAL"}</td>
                             <td className="py-3 font-mono text-slate-700">

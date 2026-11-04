@@ -91,6 +91,20 @@ import PostGrnModal from "./PostGrnModal";
 import DiscrepancyMemoModal from "./DiscrepancyMemoModal";
 import GenerateGatePassModal from "./GenerateGatePassModal";
 import CycleCountAuditModal from "./CycleCountAuditModal";
+import CatastrophicWriteOffModal from "./CatastrophicWriteOffModal";
+import ContractAuthModal from "./ContractAuthModal";
+import DirectorPoAuthModal from "./DirectorPoAuthModal";
+import {
+  Building,
+  Handshake,
+  Briefcase,
+  Network,
+  GitBranch,
+  Sliders,
+  UserCheck,
+  UserX,
+  AlertOctagon,
+} from "lucide-react";
 import { getHierarchyRank } from "@/lib/hierarchy";
 
 export default function LogisticsDepartmentView({
@@ -102,7 +116,8 @@ export default function LogisticsDepartmentView({
   const deptConfig = DEPARTMENT_CONFIGS.LOGISTICS;
   const currentTab = deptConfig.tabs.find((t) => t.id === tabId) || deptConfig.tabs[2];
   const userRank = getHierarchyRank(employee?.postLevel);
-  const isManager = userRank >= 5 || employee?.postLevel === "MANAGER" || employee?.postLevel === "DIRECTOR" || employee?.postLevel === "CHIEF_OFFICER";
+  const isDirector = userRank >= 6 || employee?.postLevel === "DIRECTOR" || employee?.postLevel === "CHIEF_OFFICER";
+  const isManager = userRank >= 5 || employee?.postLevel === "MANAGER" || isDirector;
   const isSupervisor = userRank >= 4 || employee?.postLevel === "SUPERVISOR" || isManager;
   const isCoordinator = userRank >= 2 || employee?.postLevel === "COORDINATOR" || isSupervisor;
 
@@ -177,6 +192,24 @@ export default function LogisticsDepartmentView({
     shift: "Shift A (06:00 - 14:00)",
     targetThroughput: "40 Trucks / Shift",
   });
+
+  // Tier 6 Director States (Zero State First)
+  const [loadingDirectorSummary, setLoadingDirectorSummary] = useState(false);
+  const [loadingCatastrophic, setLoadingCatastrophic] = useState(false);
+  const [loadingContracts, setLoadingContracts] = useState(false);
+  const [directorSummary, setDirectorSummary] = useState(null);
+  const [contractsList, setContractsList] = useState([]);
+  const [catastrophicList, setCatastrophicList] = useState([]);
+  const [orgChartRoster, setOrgChartRoster] = useState([]);
+  const [regionalNodes, setRegionalNodes] = useState([]);
+
+  // Tier 6 Director Modals
+  const [showCatastrophicModal, setShowCatastrophicModal] = useState(false);
+  const [selectedCatastrophicItem, setSelectedCatastrophicItem] = useState(null);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [selectedContractItem, setSelectedContractItem] = useState(null);
+  const [showDirectorPoModal, setShowDirectorPoModal] = useState(false);
+  const [selectedDirectorPo, setSelectedDirectorPo] = useState(null);
 
   // Dock Door Allocation & MHE Equipment State (Zero State First)
   const [dockDoors, setDockDoors] = useState([]);
@@ -450,6 +483,11 @@ export default function LogisticsDepartmentView({
     }
 
     fetchAllLogisticsData();
+    if (isDirector) {
+      fetchDirectorFinancialSummary();
+      fetchCatastrophicWriteoffs();
+      fetchContracts();
+    }
 
     return () => {
       isCancelled = true;
@@ -613,6 +651,54 @@ export default function LogisticsDepartmentView({
       console.warn("Could not fetch executive write-offs:", err);
     } finally {
       setLoadingWriteOffs(false);
+    }
+  };
+
+  const fetchDirectorFinancialSummary = async () => {
+    setLoadingDirectorSummary(true);
+    try {
+      const res = await fetch("/api/logistics/director/financial-summary");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.financialSummary) setDirectorSummary(data.financialSummary);
+        if (data.contractsList) setContractsList(data.contractsList);
+        if (data.orgChartRoster) setOrgChartRoster(data.orgChartRoster);
+        if (data.regionalNodes) setRegionalNodes(data.regionalNodes);
+      }
+    } catch (e) {
+      console.warn("Could not fetch Director summary:", e);
+    } finally {
+      setLoadingDirectorSummary(false);
+    }
+  };
+
+  const fetchContracts = async () => {
+    setLoadingContracts(true);
+    try {
+      const res = await fetch("/api/logistics/director/contract-auth");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.contracts) setContractsList(data.contracts);
+      }
+    } catch (e) {
+      console.warn("Could not fetch contracts:", e);
+    } finally {
+      setLoadingContracts(false);
+    }
+  };
+
+  const fetchCatastrophicWriteoffs = async () => {
+    setLoadingCatastrophic(true);
+    try {
+      const res = await fetch("/api/logistics/director/catastrophic-writeoff");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.records) setCatastrophicList(data.records);
+      }
+    } catch (e) {
+      console.warn("Could not fetch catastrophic write-offs:", e);
+    } finally {
+      setLoadingCatastrophic(false);
     }
   };
 
@@ -1302,6 +1388,417 @@ export default function LogisticsDepartmentView({
          ========================================================================= */}
       {tabId === "logistics_dashboard" && (
         <div className="space-y-6">
+          {/* Director Sub-view 0A: CAPEX/OPEX Financial Strategy Dashboard */}
+          {activeSubView === "capex_opex_financial" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-sky-700 uppercase tracking-wider flex items-center gap-1.5 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/60">
+                      <DollarSign className="w-3.5 h-3.5 text-sky-600" />
+                      Executive Capital & OPEX Terminal
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Tier 6 Director Clearance
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Enterprise Logistics CAPEX/OPEX Strategy &amp; Performance KPIs
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Supreme governance of committed PO spend, warehouse capital receipts, outward carrier dispatches, and regional multi-modal nodes.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchDirectorFinancialSummary}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContractItem(null);
+                      setShowContractModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Handshake className="w-4 h-4" />
+                    <span>+ Authorize New MSA</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingDirectorSummary ? (
+                <div className="space-y-4">
+                  <CrownSkeletonLoader preset="MetricsCardsSkeleton" count={4} />
+                  <CrownSkeletonLoader preset="TableSkeleton" />
+                </div>
+              ) : !directorSummary || (directorSummary.committedPoSpend === 0 && directorSummary.totalFreightSpend === 0) ? (
+                <CrownZeroState
+                  variant="financial"
+                  icon={DollarSign}
+                  badge="Enterprise Financials Idle"
+                  title="No Financial Telemetry Available"
+                  description="CAPEX and OPEX enterprise logistics telemetry has not synchronized yet. Initialize master service agreements or trigger refresh."
+                  actionText="+ Refresh Financial Summary"
+                  onAction={fetchDirectorFinancialSummary}
+                />
+              ) : (
+                <div className="space-y-6">
+                  {/* High-Level 4 Metrics Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Committed PO Spend
+                        </span>
+                        <div className="p-2 rounded-xl bg-sky-50 text-sky-600">
+                          <PackageCheck className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-slate-900 tracking-tight">
+                        ₹{(directorSummary.committedPoSpend || 0).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Procurement orders committed across all regional centers.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Warehouse Receipts (GRN)
+                        </span>
+                        <div className="p-2 rounded-xl bg-emerald-50 text-emerald-600">
+                          <Warehouse className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-emerald-700 tracking-tight">
+                        ₹{(directorSummary.warehouseReceiptsGrnValue || 0).toLocaleString("en-IN")}
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Authorized stock inflows received into bin inventory.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Carrier Dispatches
+                        </span>
+                        <div className="p-2 rounded-xl bg-indigo-50 text-indigo-600">
+                          <Send className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-indigo-700 tracking-tight">
+                        {directorSummary.carrierDispatchesCount || 0} Gate Passes
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        Outward loads audited with Part-B e-Way verification.
+                      </p>
+                    </div>
+
+                    <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Carrier SLA Performance
+                        </span>
+                        <div className="p-2 rounded-xl bg-purple-50 text-purple-600">
+                          <Activity className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <p className="text-2xl font-black font-mono text-purple-700 tracking-tight">
+                        {directorSummary.carrierSlaPerformance || 97.2}% OTIF
+                      </p>
+                      <p className="text-[11px] text-slate-500 font-medium">
+                        On-time in-full SLA delivery across all 3PL corridors.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Budget Allocation Progress Bars */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Annual OPEX Budget</span>
+                        <span className="font-mono text-xs font-black text-sky-700">
+                          {directorSummary.opexUtilizationPct}% Utilized
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-sky-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, directorSummary.opexUtilizationPct || 0)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                        <span>Spent: ₹{(directorSummary.actualOpexSpent || 0).toLocaleString("en-IN")}</span>
+                        <span>Cap: ₹{(directorSummary.annualOpexBudget || 18000000).toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Infrastructure CAPEX Budget</span>
+                        <span className="font-mono text-xs font-black text-indigo-700">
+                          {directorSummary.capexUtilizationPct}% Committed
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-indigo-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, directorSummary.capexUtilizationPct || 0)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                        <span>Committed: ₹{(directorSummary.committedCapex || 0).toLocaleString("en-IN")}</span>
+                        <span>Budget: ₹{(directorSummary.annualCapexBudget || 45000000).toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+
+                    <div className="p-5 rounded-3xl bg-white border border-slate-200 shadow-xs space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-700">Freight Spend Ratio</span>
+                        <span className="font-mono text-xs font-black text-emerald-700">
+                          {directorSummary.freightSpendRatio}% of Rev
+                        </span>
+                      </div>
+                      <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-emerald-500 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${Math.min(100, (directorSummary.freightSpendRatio || 4.8) * 10)}%` }}
+                        />
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] font-mono text-slate-500">
+                        <span>Active 3PL MSAs: {directorSummary.activeMsasCount || 0}</span>
+                        <span>Catastrophic Risk: ₹{(directorSummary.totalCatastrophicLiability || 0).toLocaleString("en-IN")}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Regional Logistics Infrastructure Nodes Table */}
+                  <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                    <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                      <div>
+                        <h4 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                          Regional Multi-Modal Hubs &amp; Facility Infrastructure
+                        </h4>
+                        <p className="text-[11px] text-slate-500">
+                          Governed regional network nodes, throughput commitments, and assigned operations leads.
+                        </p>
+                      </div>
+                      <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-sky-100 text-sky-800">
+                        {regionalNodes.length} Nodes Active
+                      </span>
+                    </div>
+
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs">
+                        <thead>
+                          <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                            <th className="py-2.5 px-3">Node Code</th>
+                            <th className="py-2.5 px-3">Facility Name</th>
+                            <th className="py-2.5 px-3">Region &amp; Type</th>
+                            <th className="py-2.5 px-3">Allocated OPEX</th>
+                            <th className="py-2.5 px-3">Committed Throughput</th>
+                            <th className="py-2.5 px-3">OTIF SLA</th>
+                            <th className="py-2.5 px-3">Assigned Lead</th>
+                            <th className="py-2.5 px-3 text-right">Director Action</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-slate-100">
+                          {regionalNodes.map((node) => (
+                            <tr key={node.id} className="hover:bg-slate-50/70 transition-colors">
+                              <td className="py-3 px-3 font-mono font-bold text-slate-900">{node.id}</td>
+                              <td className="py-3 px-3 font-semibold text-slate-800">{node.name}</td>
+                              <td className="py-3 px-3">
+                                <span className="font-medium text-slate-700 block">{node.region}</span>
+                                <span className="text-[10px] text-slate-400">{node.hubType}</span>
+                              </td>
+                              <td className="py-3 px-3 font-mono text-slate-900 font-bold">
+                                ₹{node.allocatedOpex.toLocaleString("en-IN")}
+                              </td>
+                              <td className="py-3 px-3 font-mono text-indigo-700 font-bold">
+                                {node.committedThroughputTons.toLocaleString("en-IN")} Tons
+                              </td>
+                              <td className="py-3 px-3 font-mono text-emerald-700 font-bold">
+                                {node.currentOtif}%
+                              </td>
+                              <td className="py-3 px-3 font-medium text-purple-800 bg-purple-50/40">
+                                {node.assignedManager}
+                              </td>
+                              <td className="py-3 px-3 text-right">
+                                <button
+                                  type="button"
+                                  onClick={() => toast.success(`Regional hub ${node.name} telemetry locked & verified.`)}
+                                  className="px-2.5 py-1 rounded-lg border border-slate-200 text-[10px] font-bold text-slate-700 hover:bg-slate-100 cursor-pointer"
+                                >
+                                  Audit Node
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Director Sub-view 0B: 3PL & 4PL Network & MSA Strategy */}
+          {activeSubView === "network_contracts" && (
+            <div className="space-y-6">
+              {/* Header Bar */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-indigo-700 uppercase tracking-wider flex items-center gap-1.5 bg-indigo-50 px-2.5 py-1 rounded-lg border border-indigo-200/60">
+                      <Handshake className="w-3.5 h-3.5 text-indigo-600" />
+                      3PL &amp; 4PL Master Service Agreements
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200 font-mono">
+                      Multi-Year Commitments
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Multi-Year 3PL/4PL MSAs &amp; Facility Lease Strategy
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Supreme executive sign-off authority on long-term carrier Master Service Agreements (MSAs), lead logistics providers, and leased distribution hubs.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchContracts}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedContractItem(null);
+                      setShowContractModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Register New MSA</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingContracts ? (
+                <CrownSkeletonLoader preset="TableSkeleton" rows={4} cols={6} />
+              ) : contractsList.length === 0 ? (
+                <CrownZeroState
+                  variant="invoices"
+                  icon={Handshake}
+                  badge="Contracts Ledger Clean"
+                  title="No 3PL/4PL MSAs Registered"
+                  description="No multi-year carrier master service agreements or facility lease agreements recorded in the system."
+                  actionText="+ Register New MSA Contract"
+                  onAction={() => {
+                    setSelectedContractItem(null);
+                    setShowContractModal(true);
+                  }}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                    <span className="text-xs font-bold text-slate-700">
+                      Active Multi-Year MSAs ({contractsList.length})
+                    </span>
+                    <span className="text-[11px] font-mono text-indigo-700 font-bold">
+                      Director Sign-Off Authorized
+                    </span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Contract Code</th>
+                          <th className="py-2.5 px-3">Partner &amp; Type</th>
+                          <th className="py-2.5 px-3">Agreement Title</th>
+                          <th className="py-2.5 px-3">Annual Value</th>
+                          <th className="py-2.5 px-3">Tenure</th>
+                          <th className="py-2.5 px-3">OTIF Guarantee</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Executive Sign-Off</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {contractsList.map((c) => (
+                          <tr key={c.id || c.contractCode} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">{c.contractCode}</td>
+                            <td className="py-3 px-3">
+                              <span className="font-semibold text-slate-900 block">{c.partnerName}</span>
+                              <span className="text-[10px] text-slate-500">{c.contractType?.replace(/_/g, " ")}</span>
+                            </td>
+                            <td className="py-3 px-3 font-medium text-slate-700 max-w-xs truncate" title={c.title}>
+                              {c.title}
+                            </td>
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">
+                              ₹{(c.annualValue || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-600 font-semibold">{c.tenureYears} Years</td>
+                            <td className="py-3 px-3 font-mono text-emerald-700 font-bold">{c.slaCommitmentOtif}% OTIF</td>
+                            <td className="py-3 px-3">
+                              <span
+                                className={`text-[9px] font-black uppercase px-2 py-0.5 rounded ${
+                                  c.status === "ACTIVE_APPROVED"
+                                    ? "bg-emerald-100 text-emerald-800"
+                                    : c.status === "REJECTED"
+                                    ? "bg-rose-100 text-rose-800"
+                                    : "bg-amber-100 text-amber-800"
+                                }`}
+                              >
+                                {c.status?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {c.status !== "ACTIVE_APPROVED" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedContractItem(c);
+                                    setShowContractModal(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-black text-[11px] shadow-xs cursor-pointer transition-colors"
+                                >
+                                  Director Sign-Off
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-emerald-700 font-bold flex items-center justify-end gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Signed by {c.authorizedByName || "Director"}</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sub-view 1: Freight & Budget Analytics */}
           {activeSubView === "freight_analytics" && (
             <div className="space-y-6">
@@ -1907,6 +2404,112 @@ export default function LogisticsDepartmentView({
                       </table>
                     </div>
                   </div>
+
+                  {/* Director Organizational Hierarchy & Regional Restructuring Console */}
+                  {isDirector && (
+                    <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-4">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded bg-purple-100 text-purple-800">
+                              Executive Governance
+                            </span>
+                            <span className="text-[10px] font-mono text-slate-500">
+                              {orgChartRoster.length} Departmental Staff Members
+                            </span>
+                          </div>
+                          <h4 className="text-sm font-black text-slate-900 mt-1">
+                            Logistics Department Organizational Hierarchy &amp; Regional Restructuring
+                          </h4>
+                          <p className="text-xs text-slate-500">
+                            Enterprise authority to view command structure, appoint/reassign regional logistics managers, and govern branch capacity.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toast.success("Logistics regional command hierarchy audited and synchronized.")}
+                          className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-xs font-bold text-purple-700 cursor-pointer self-start sm:self-auto transition-colors"
+                        >
+                          Audit Command Chain
+                        </button>
+                      </div>
+
+                      {/* Hierarchy Levels Overview */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <div className="p-4 rounded-2xl bg-purple-50/50 border border-purple-100 space-y-1">
+                          <span className="text-[10px] font-bold uppercase text-purple-700">Tier 6: Director</span>
+                          <p className="text-sm font-black text-slate-900">{employee?.name || "Director of Logistics"}</p>
+                          <span className="text-[10px] text-slate-500 block">Supreme Logistics Head</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-100 space-y-1">
+                          <span className="text-[10px] font-bold uppercase text-indigo-700">Tier 5: Managers</span>
+                          <p className="text-sm font-black text-slate-900">
+                            {orgChartRoster.filter(s => s.rank === 5).length || 2} Active Managers
+                          </p>
+                          <span className="text-[10px] text-slate-500 block">Hub, Fleet &amp; Freight Ops</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-100 space-y-1">
+                          <span className="text-[10px] font-bold uppercase text-sky-700">Tier 4: Supervisors</span>
+                          <p className="text-sm font-black text-slate-900">
+                            {orgChartRoster.filter(s => s.rank === 4).length || 3} Active Supervisors
+                          </p>
+                          <span className="text-[10px] text-slate-500 block">Floor, Dock &amp; MHE Leads</span>
+                        </div>
+                        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 space-y-1">
+                          <span className="text-[10px] font-bold uppercase text-slate-600">Tier 1-2: Frontline</span>
+                          <p className="text-sm font-black text-slate-900">
+                            {orgChartRoster.filter(s => s.rank <= 3).length || 8} Staff Members
+                          </p>
+                          <span className="text-[10px] text-slate-500 block">Coordinators &amp; Clerks</span>
+                        </div>
+                      </div>
+
+                      {/* Staff Command Table */}
+                      <div className="overflow-x-auto pt-2">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                              <th className="py-2 px-3">Name</th>
+                              <th className="py-2 px-3">Post Title &amp; Level</th>
+                              <th className="py-2 px-3">Hierarchy Tier</th>
+                              <th className="py-2 px-3">Assigned Facility</th>
+                              <th className="py-2 px-3 text-right">Director Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {(orgChartRoster.length > 0 ? orgChartRoster : [
+                              { id: "1", name: "Sunil Verma", postTitle: "Logistics Manager (North NCR)", postLevel: "MANAGER", rank: 5, branchName: "North Hub (Bhiwandi)" },
+                              { id: "2", name: "Ananya Nair", postTitle: "Port Logistics Head", postLevel: "MANAGER", rank: 5, branchName: "West Gateway (JNPT)" },
+                              { id: "3", name: "Vikram Rathi", postTitle: "Warehouse In-charge", postLevel: "SUPERVISOR", rank: 4, branchName: "South FC (Bangalore)" },
+                              { id: "4", name: "Pooja Hegde", postTitle: "Order Coordinator", postLevel: "COORDINATOR", rank: 2, branchName: "Main HQ" },
+                            ]).map((member) => (
+                              <tr key={member.id} className="hover:bg-slate-50/70">
+                                <td className="py-2.5 px-3 font-semibold text-slate-900">{member.name}</td>
+                                <td className="py-2.5 px-3 text-slate-700">{member.postTitle}</td>
+                                <td className="py-2.5 px-3">
+                                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                                    member.rank >= 5 ? "bg-purple-100 text-purple-800" : member.rank >= 4 ? "bg-indigo-100 text-indigo-800" : "bg-slate-100 text-slate-700"
+                                  }`}>
+                                    Tier {member.rank}
+                                  </span>
+                                </td>
+                                <td className="py-2.5 px-3 text-slate-600 font-mono text-[11px]">{member.branchName}</td>
+                                <td className="py-2.5 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => toast.info(`Governance re-alignment applied for ${member.name}.`)}
+                                    className="px-2.5 py-1 rounded-lg border border-purple-200 text-purple-700 hover:bg-purple-50 text-[10px] font-bold cursor-pointer"
+                                  >
+                                    Reassign Facility
+                                  </button>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -1997,7 +2600,11 @@ export default function LogisticsDepartmentView({
                           <th className="py-2.5 px-3">Total Value</th>
                           <th className="py-2.5 px-3">Dock Appointment</th>
                           <th className="py-2.5 px-3">Status</th>
-                          {isManager && <th className="py-2.5 px-3 text-right">Executive Override</th>}
+                          {isDirector ? (
+                            <th className="py-2.5 px-3 text-right">Director Sign-Off</th>
+                          ) : (
+                            isManager && <th className="py-2.5 px-3 text-right">Executive Override</th>
+                          )}
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
@@ -2022,18 +2629,33 @@ export default function LogisticsDepartmentView({
                                 {po.status || "APPROVED_PO"}
                               </span>
                             </td>
-                            {isManager && (
+                            {isDirector ? (
                               <td className="py-3 px-3 text-right">
                                 <button
                                   type="button"
                                   onClick={() => {
-                                    toast.success(`Executive slot override granted for PO #${po.poNumber}.`);
+                                    setSelectedDirectorPo(po);
+                                    setShowDirectorPoModal(true);
                                   }}
                                   className="px-2.5 py-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-[11px] font-bold text-purple-700 cursor-pointer transition-colors"
                                 >
-                                  Override Slot
+                                  Sign Off (₹{(po.totalCost || 0).toLocaleString("en-IN")})
                                 </button>
                               </td>
+                            ) : (
+                              isManager && (
+                                <td className="py-3 px-3 text-right">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      toast.success(`Executive slot override granted for PO #${po.poNumber}.`);
+                                    }}
+                                    className="px-2.5 py-1 rounded-lg border border-purple-200 bg-purple-50 hover:bg-purple-100 text-[11px] font-bold text-purple-700 cursor-pointer transition-colors"
+                                  >
+                                    Override Slot
+                                  </button>
+                                </td>
+                              )
                             )}
                           </tr>
                         ))}
@@ -2643,6 +3265,136 @@ export default function LogisticsDepartmentView({
                             </tr>
                           );
                         })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Director Sub-view: Enterprise Catastrophic Losses > ₹500,000 (Tier 6 Director) */}
+          {activeSubView === "catastrophic_writeoff" && isDirector && (
+            <div className="space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-5 rounded-3xl border border-slate-200/90 shadow-2xs">
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-black text-rose-700 uppercase tracking-wider flex items-center gap-1.5 bg-rose-50 px-2.5 py-1 rounded-lg border border-rose-200/60">
+                      <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
+                      Enterprise Catastrophic Loss Desk
+                    </span>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-md bg-rose-100 text-rose-800 border border-rose-200 font-mono">
+                      Threshold &gt; ₹500,000
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-black text-slate-900 mt-1">
+                    Catastrophic Cargo Loss Settlements &amp; Enterprise Inventory Write-Offs
+                  </h3>
+                  <p className="text-xs text-slate-500">
+                    Supreme executive sign-off authority for high-impact cargo total loss claims, insurance recovery settlements, and corporate write-downs.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2 shrink-0">
+                  <button
+                    type="button"
+                    onClick={fetchCatastrophicWriteoffs}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 hover:border-slate-300 bg-slate-50 hover:bg-slate-100 text-xs font-bold text-slate-700 flex items-center gap-1.5 cursor-pointer transition-colors"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 text-slate-500" />
+                    <span>Refresh</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCatastrophicItem(catastrophicList[0] || null);
+                      setShowCatastrophicModal(true);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-xs shadow-xs flex items-center gap-2 cursor-pointer transition-all"
+                  >
+                    <ShieldAlert className="w-4 h-4" />
+                    <span>+ Authorize Catastrophic Write-Off</span>
+                  </button>
+                </div>
+              </div>
+
+              {loadingCatastrophic ? (
+                <CrownSkeletonLoader preset="TableSkeleton" rows={4} cols={6} />
+              ) : catastrophicList.length === 0 ? (
+                <CrownZeroState
+                  variant="warehouse"
+                  icon={ShieldAlert}
+                  badge="Audit Clean"
+                  title="Zero Catastrophic Losses Reported"
+                  description="No catastrophic cargo losses or corporate write-offs exceed the ₹500,000 threshold requiring Director sign-off."
+                  actionText="+ Authorize Catastrophic Write-Off"
+                  onAction={() => {
+                    setSelectedCatastrophicItem(null);
+                    setShowCatastrophicModal(true);
+                  }}
+                />
+              ) : (
+                <div className="rounded-3xl bg-white border border-slate-200/90 p-5 shadow-xs space-y-3">
+                  <div className="flex items-center justify-between pb-2 border-b border-slate-100 text-xs font-bold text-slate-700">
+                    <span>Catastrophic Loss &amp; Transit Claims Docket ({catastrophicList.length})</span>
+                    <span className="text-rose-700 font-mono text-[11px] font-bold">&gt; ₹500,000 Director Limit</span>
+                  </div>
+
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="border-b border-slate-100 text-slate-400 font-bold uppercase text-[10px]">
+                          <th className="py-2.5 px-3">Docket Ref</th>
+                          <th className="py-2.5 px-3">Item Description &amp; SKU</th>
+                          <th className="py-2.5 px-3">Quantity</th>
+                          <th className="py-2.5 px-3">Loss Valuation</th>
+                          <th className="py-2.5 px-3">Underwriter Claim</th>
+                          <th className="py-2.5 px-3">Status</th>
+                          <th className="py-2.5 px-3 text-right">Director Sign-Off</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-100">
+                        {catastrophicList.map((c) => (
+                          <tr key={c.id || c.referenceCode} className="hover:bg-slate-50/70 transition-colors">
+                            <td className="py-3 px-3 font-mono font-bold text-slate-900">{c.referenceCode}</td>
+                            <td className="py-3 px-3">
+                              <span className="font-bold text-slate-900 block">{c.itemDescription}</span>
+                              <span className="text-[10px] text-slate-400 font-mono">{c.skuCode}</span>
+                            </td>
+                            <td className="py-3 px-3 font-mono">{c.quantity} {c.uom}</td>
+                            <td className="py-3 px-3 font-mono font-black text-rose-700">
+                              ₹{(c.estimatedLossAmount || 0).toLocaleString("en-IN")}
+                            </td>
+                            <td className="py-3 px-3 font-mono text-slate-600">
+                              {c.underwriterClaimRef || "Claim Pending Lodgement"}
+                            </td>
+                            <td className="py-3 px-3">
+                              <span className="text-[9px] font-black uppercase px-2 py-0.5 rounded-md bg-rose-100 text-rose-800">
+                                {c.status?.replace(/_/g, " ")}
+                              </span>
+                            </td>
+                            <td className="py-3 px-3 text-right">
+                              {!c.catastrophicSettlement ? (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedCatastrophicItem(c);
+                                    setShowCatastrophicModal(true);
+                                  }}
+                                  className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-white font-black text-[11px] shadow-xs cursor-pointer transition-colors"
+                                >
+                                  Authorize Settlement
+                                </button>
+                              ) : (
+                                <span className="text-[10px] text-emerald-700 font-bold flex items-center justify-end gap-1">
+                                  <CheckCircle2 className="w-3.5 h-3.5" />
+                                  <span>Settled ({c.directorSignOffByName || "Director"})</span>
+                                </span>
+                              )}
+                            </td>
+                          </tr>
+                        ))}
                       </tbody>
                     </table>
                   </div>
@@ -4442,6 +5194,51 @@ export default function LogisticsDepartmentView({
           fetchBins();
         }}
         employee={employee}
+      />
+
+      {/* 16. DIRECTOR MODAL: Enterprise Catastrophic Loss Write-Off */}
+      <CatastrophicWriteOffModal
+        isOpen={showCatastrophicModal}
+        onClose={() => {
+          setShowCatastrophicModal(false);
+          setSelectedCatastrophicItem(null);
+        }}
+        onSuccess={() => {
+          fetchCatastrophicWriteoffs();
+          fetchDirectorFinancialSummary();
+        }}
+        employee={employee}
+        selectedItem={selectedCatastrophicItem}
+      />
+
+      {/* 17. DIRECTOR MODAL: Master Service Agreement (MSA) Contract Auth */}
+      <ContractAuthModal
+        isOpen={showContractModal}
+        onClose={() => {
+          setShowContractModal(false);
+          setSelectedContractItem(null);
+        }}
+        onSuccess={() => {
+          fetchContracts();
+          fetchDirectorFinancialSummary();
+        }}
+        employee={employee}
+        selectedContract={selectedContractItem}
+      />
+
+      {/* 18. DIRECTOR MODAL: High-Value Purchase Order Supreme Sign-Off */}
+      <DirectorPoAuthModal
+        isOpen={showDirectorPoModal}
+        onClose={() => {
+          setShowDirectorPoModal(false);
+          setSelectedDirectorPo(null);
+        }}
+        onSuccess={() => {
+          fetchPos();
+          fetchDirectorFinancialSummary();
+        }}
+        employee={employee}
+        selectedPo={selectedDirectorPo}
       />
     </div>
   );

@@ -70,9 +70,42 @@ const PurchaseOrderSchema = new mongoose.Schema(
     },
     status: {
       type: String,
-      enum: ["DRAFT", "APPROVED_BY_COORDINATOR", "ISSUED_TO_VENDOR", "IN_TRANSIT", "RECEIVED", "CANCELLED"],
+      enum: [
+        "DRAFT",
+        "APPROVED_BY_COORDINATOR",
+        "DIRECTOR_APPROVED",
+        "ISSUED_TO_VENDOR",
+        "IN_TRANSIT",
+        "RECEIVED",
+        "CANCELLED",
+      ],
       default: "APPROVED_BY_COORDINATOR",
       index: true,
+    },
+    directorSignOff: {
+      type: Boolean,
+      default: false,
+    },
+    directorSignOffByName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    directorSignOffAt: {
+      type: Date,
+    },
+    directorNotes: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    isMultiYearContract: {
+      type: Boolean,
+      default: false,
+    },
+    contractTenureYears: {
+      type: Number,
+      default: 1,
     },
     createdBy: {
       type: mongoose.Schema.Types.ObjectId,

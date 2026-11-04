@@ -121,9 +121,32 @@ const DiscrepancyMemoSchema = new mongoose.Schema(
         "VENDOR_CREDIT_SETTLED",
         "SCRAPPED",
         "RETURNED_TO_VENDOR",
+        "CATASTROPHIC_WRITE_OFF_SETTLED",
       ],
       default: "LOCKED_IN_QUARANTINE",
       index: true,
+    },
+    catastrophicSettlement: {
+      type: Boolean,
+      default: false,
+    },
+    directorSignOffByName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    directorSignOffAt: {
+      type: Date,
+    },
+    legalSettlementRef: {
+      type: String,
+      default: "",
+      trim: true,
+    },
+    underwriterClaimRef: {
+      type: String,
+      default: "",
+      trim: true,
     },
     companyId: {
       type: mongoose.Schema.Types.ObjectId,

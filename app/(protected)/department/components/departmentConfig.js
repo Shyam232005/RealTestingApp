@@ -284,9 +284,12 @@ export const DEPARTMENT_CONFIGS = {
         title: "Supply Chain & SLA Hub",
         allowedLevels: ["CHIEF_OFFICER", "DIRECTOR", "MANAGER", "ANALYST"],
         subViews: [
+          { id: "capex_opex_financial", label: "CAPEX/OPEX Financial Strategy" },
+          { id: "network_contracts", label: "3PL/4PL MSAs & Contracts" },
           { id: "freight_analytics", label: "Freight & Budget Analytics" },
           { id: "carrier_sla", label: "Carrier SLA Scorecard" },
-          { id: "demand_forecasting", label: "Demand Forecasting" },
+          { id: "demand_forecasting", label: "Demand Forecasting & Capacity" },
+          { id: "strategic_delegation", label: "Manager Headcount & Desk" },
         ],
       },
       {
@@ -296,6 +299,7 @@ export const DEPARTMENT_CONFIGS = {
         subViews: [
           { id: "purchase_orders", label: "Purchase Orders & ASNs" },
           { id: "dock_scheduling", label: "Dock Appointment Timeline" },
+          { id: "vendor_contracts", label: "Multi-Year Vendor Master Contracts" },
           { id: "mr_queue", label: "Material Requisition Queue" },
           { id: "vendor_master", label: "Vendor Master" },
         ],
@@ -303,18 +307,19 @@ export const DEPARTMENT_CONFIGS = {
       {
         id: "warehouse_stock",
         title: "Warehouse & Stock Ledger",
-        allowedLevels: ["DIRECTOR", "MANAGER", "SUPERVISOR", "ANALYST", "COORDINATOR", "ASSISTANT", "OTHER"],
+        allowedLevels: ["CHIEF_OFFICER", "DIRECTOR", "MANAGER", "SUPERVISOR", "ANALYST", "COORDINATOR", "ASSISTANT", "OTHER"],
         subViews: [
           { id: "grn_notes", label: "Goods Receipt Notes (GRN)" },
           { id: "quarantine_discrepancy", label: "Quarantine & Memos" },
           { id: "inventory_audits", label: "Cycle Count & Stock Audits" },
+          { id: "executive_writeoff", label: "Enterprise Write-Offs & Loss Claims" },
           { id: "live_inventory", label: "Bin Stock Map" },
         ],
       },
       {
         id: "dispatch_fleet",
         title: "Order & Dispatch Hub (Outbound)",
-        allowedLevels: ["MANAGER", "SUPERVISOR", "COORDINATOR", "ASSISTANT", "OTHER"],
+        allowedLevels: ["CHIEF_OFFICER", "DIRECTOR", "MANAGER", "SUPERVISOR", "COORDINATOR", "ASSISTANT", "OTHER"],
         subViews: [
           { id: "load_audit_gatepass", label: "Load Auditing & Gate Passes" },
           { id: "dock_mhe_management", label: "Dock & MHE Management" },
